@@ -51,7 +51,8 @@ provided.
 
 ## Optional Overrides
 
-Names, tables, and modes are escape hatches. They are optional.
+Names, tables, and modes are escape hatches. They are optional. In the MVP,
+`mode` defaults to `"replace"` and no other mode is part of the public contract.
 
 ```python
 @asset(
@@ -60,16 +61,6 @@ Names, tables, and modes are escape hatches. They are optional.
 )
 async def opportunities(customer: str):
     yield rows
-```
-
-```python
-@asset(
-    export="silver/opportunities_current.parquet",
-    name="salesforce.opportunities.current",
-    mode="append",
-)
-async def opportunity_changes():
-    yield changes
 ```
 
 There is no per-asset database placement argument. Database placement and
@@ -93,10 +84,22 @@ rows = await acme_orders.query("SELECT * FROM data WHERE amount > 100")
 ## Semi-Structured Payloads
 
 ```python
-@asset("raw/vendor/events.parquet", payload="variant")
+@asset("raw/vendor/events.parquet")
 async def vendor_events():
     yield api_pages()
 ```
 
-`payload="variant"` stores volatile nested source payloads in `_qa_payload
+Assquack stores volatile nested source payloads in raw staging as `_qa_payload
 VARIANT`, while stable promoted fields can still become typed DuckDB columns.
+That behavior is part of materialization and schema inference, not a decorator
+argument.
+
+## Related Docs
+
+- [Developer API](developer-api.md): the full public API contract behind these
+  examples.
+- [Exports](exports.md): export alias and file type behavior.
+- [Materialization Lifecycle](materialization-lifecycle.md): how returned or
+  yielded rows become DuckDB tables.
+- [Schema Inference](schema-inference.md): why `_qa_payload VARIANT` is useful
+  for inconsistent API payloads.

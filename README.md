@@ -5,9 +5,11 @@ called `assquack`.
 
 The project uses `.submodules/MAD.Prefect` as reference material for prior data
 asset ergonomics, but Assquack itself is a standalone library. The core package
-must not depend on Prefect.
+must not depend on Prefect or any orchestrator/deployment platform; MAD.Prefect
+is historical reference material only.
 
-Current planning entry point:
+Current documentation entry points:
 
-- [Assquack MVP plan](docs/assquack-mvp-plan.md)
+- [Documentation index](docs/README.md)
+- [Overview](docs/overview.md)
 - [Developer examples](docs/developer-examples.md)

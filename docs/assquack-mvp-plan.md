@@ -1,4 +1,14 @@
-# Assquack MVP Plan
+# Assquack MVP Plan Archive
+
+This file is retained as the original monolithic planning note. The active
+architecture docs are split by topic and indexed in [README.md](README.md).
+Use [roadmap.md](roadmap.md) for MVP sequencing.
+
+Later headings such as "Open Decisions" and "Current Recommendation" are
+historical context from the original planning pass. They are not authoritative
+when they conflict with the active split documentation.
+
+---
 
 Date: 2026-05-08
 
