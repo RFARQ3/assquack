@@ -1,6 +1,6 @@
 ---
 name: assquack-coding
-description: Implement Assquack code changes. Use when Codex is asked to scaffold package code, add or change Python behavior, implement DuckDB storage/materialization/schema/export/config functionality, add tests, fix bugs, refactor code, prepare release-quality implementation work, or update developer-facing docs as part of a code change.
+description: Implement Assquack code changes. Use when Codex is asked to scaffold package code, add or change Python behavior, implement DuckDB storage/materialization/schema/export/config functionality, add tests, fix bugs, refactor code, prepare release-quality implementation work, or update developer-facing docs and epic phase status as part of a code change.
 ---
 
 # Assquack Coding
@@ -23,16 +23,22 @@ Before coding, read:
 1. Inspect the current repo state and relevant files.
 2. Identify whether the request changes public API, storage behavior, schema
    inference, exports, configuration, or migration posture.
-3. For non-trivial changes in those areas, document or summarize the
-   developer-facing direction first. Confirm with the user when the direction is
-   ambiguous or materially changes the public contract.
+3. For non-trivial changes in those areas, check whether a relevant epic phase
+   doc exists under `docs/epics/**`; create or update it with the
+   implementor-facing architecture direction, scope, and validation plan. Also
+   update the regular developer-facing docs under `docs/*.md` when public
+   behavior, examples, or usage guidance changes. Confirm with the user when
+   the direction is ambiguous or materially changes the public contract.
 4. Implement the narrowest code change that satisfies the request.
 5. Add or update tests for behavior changes.
-6. Update docs when public behavior, architecture, configuration, or examples
-   change. Use the `assquack-documentation` skill for substantial docs work.
-7. Run relevant tests, lint, type checks, and `git diff --check` when available.
-8. Review the diff for unrelated edits, regressions, and terminology drift.
-9. If the user asks for a commit, use a Conventional Commit message.
+6. Keep docs in their lanes: regular docs help developers use the library;
+   epic phase docs help implementors understand architecture, sequencing, and
+   status. Use the `assquack-documentation` skill for substantial docs work.
+7. Update the status header for any relevant epic phase under `docs/epics/**`
+   before handing work back.
+8. Run relevant tests, lint, type checks, and `git diff --check` when available.
+9. Review the diff for unrelated edits, regressions, and terminology drift.
+10. If the user asks for a commit, use a Conventional Commit message.
 
 Do not pause for confirmation on small, obvious bug fixes or mechanical
 follow-through from a direction the user has already approved.
@@ -75,7 +81,9 @@ A coding task is done when:
 
 - code implements the requested behavior;
 - relevant tests are added or updated;
-- relevant docs/examples are updated;
+- relevant developer-facing docs/examples are updated;
+- relevant implementor-facing epic phase docs are updated;
+- touched epic phase status headers are current;
 - available checks pass, or unavoidable gaps are reported;
 - the final response lists changed areas and verification;
 - no unrelated user changes are reverted.

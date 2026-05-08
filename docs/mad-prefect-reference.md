@@ -38,7 +38,8 @@ The `DataAsset` object provides:
 
 - `with_arguments(*args, **kwargs)` to derive an asset with arguments bound.
 - `with_options(...)` to derive an asset with updated path, name, artifact, read,
-  snapshot, or cache settings.
+  snapshot, or cache settings. This is reference behavior, not part of the
+  Assquack MVP API.
 - `cache_first(expiration=None)` to prefer an existing materialization by setting
   a long default TTL.
 - `query(query_str=None, params=None)` to materialize or reuse the asset, then
@@ -120,10 +121,12 @@ Assquack should preserve the parts that make MAD.Prefect assets pleasant to use:
 - `cache_first(...)` as a readable way to express "reuse the latest successful
   materialization if it is still valid."
 - Argument-bound assets via `.with_arguments(...)`.
-- Option-bound derivatives via `.with_options(...)`.
+- Option-bound derivatives via `.with_options(...)` as a future or adapter-only
+  compatibility feature, not an MVP Assquack API requirement.
 - Template formatting for path, name, and export target values.
 - Broad input normalization across Python objects, generators, pandas, Arrow,
-  DuckDB relations, HTTP responses, and nested assets.
+  DuckDB relations, and HTTP responses. Nested asset materialization is useful
+  reference behavior for later dependency handling, not an MVP input contract.
 - DuckDB SQL as the normal query interface for materialized data.
 - Manifest-style latest-run lookup so cache checks do not need expensive storage
   scans.

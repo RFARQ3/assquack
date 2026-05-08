@@ -229,9 +229,10 @@ Every successful export should be recorded in `assquack.exports`. The manifest
 answers "what files were written for this run?" without making those files the
 authoritative state of the asset.
 
-The canonical table shape is defined in
-[Storage Model](storage-model.md#system-tables). This page describes the
-behavior of those columns rather than owning a separate DDL contract.
+The developer-facing storage model describes the manifest purpose in
+[Storage Model](storage-model.md#system-tables). The concrete MVP DDL belongs
+to the implementor-facing
+[Local DuckDB Core epic](epics/01-mvp/01-local-duckdb-core.md#metadata-table-contracts).
 
 `uri` stores the logical target, such as `mad://bronze/orders.parquet`.
 `resolved_uri` stores the concrete target used by DuckDB, such as

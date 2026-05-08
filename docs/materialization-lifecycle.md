@@ -124,26 +124,21 @@ been staged and observed.
 Raw evidence staging captures exactly what the current run observed, without
 making a durable full-size raw JSON dump the default.
 
-The staging table is run-scoped, for example:
+The staging table is run-scoped and always keeps the observed payload as
+`_qa_payload VARIANT`:
 
-```sql
-CREATE TABLE assquack_stage.raw_<asset_id>_<run_id> (
-  _qa_run_id VARCHAR NOT NULL,
-  _qa_batch_id INTEGER NOT NULL,
-  _qa_row_number BIGINT NOT NULL,
-  _qa_loaded_at TIMESTAMPTZ NOT NULL,
-  _qa_source_uri VARCHAR,
-  _qa_source_hash VARCHAR,
-  _qa_payload VARIANT NOT NULL
-);
+```text
+assquack_stage.raw_<asset_id>_<run_id>
 ```
+
+The concrete staging DDL belongs to the implementor-facing
+[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#staging-table-contracts).
 
 For Python mapping/list rows, the materializer may serialize the current chunk
 to transient JSON so DuckDB can cast it into `VARIANT`, but that transient text
 is discarded after insertion. For typed inputs such as Arrow or DataFrames, the
 materializer can insert typed columns directly while still preserving
-`_qa_payload` as the durable evidence surface for raw and bronze assets with
-unknown or volatile nested data.
+`_qa_payload` in raw staging as the evidence surface for the run.
 
 Raw staging is not the final user table. It exists to feed schema observation,
 typed projection, auditing during the run, and failure diagnostics.
@@ -154,9 +149,16 @@ Shaped staging is the candidate result table for the run. It contains:
 
 - reserved Assquack metadata columns such as `_qa_run_id` and `_qa_loaded_at`;
 - promoted typed columns extracted from observed payload paths;
-- optional `_qa_payload VARIANT` for raw or bronze assets;
+- optional `_qa_payload VARIANT` for raw or bronze assets when retention policy
+  keeps the payload beyond raw staging;
 - optional `_qa_raw_json` only when the asset explicitly asks for lossless text
   retention.
+
+Unlike raw staging, shaped staging and the committed current table do not always
+include `_qa_payload`, and a retained payload column is not automatically a
+universal `NOT NULL` contract. The default MVP path can use raw staging for
+inference while deferring final shaped/current retention policy to the
+semi-structured evidence work.
 
 Each chunk is projected from raw staging into shaped staging using the effective
 schema for the asset. Missing fields become `NULL`. Casts should use
@@ -169,6 +171,29 @@ promoted columns are not dropped just because the source omitted them in a
 batch. The rules for path observation, type widening, nested structures, sparse
 objects, and schema promotion are covered in
 [schema-inference.md](schema-inference.md).
+
+## Staging Retention
+
+Staging is bounded diagnostic evidence, not an append-only history. The current
+asset table and Assquack metadata are the durable state; retained staging exists
+so maintainers can inspect the payloads that explain the latest success or the
+most recent failures.
+
+Default retention is per asset:
+
+- keep the raw staging table for the latest successful run;
+- keep staging tables for the latest three failed runs;
+- drop shaped staging after a successful publish because the current table is
+  the shaped result;
+- drop transient chunk tables after insertion, observation, and projection;
+- drop older staging tables during post-run cleanup and maintenance cleanup.
+
+When a new run succeeds, its raw staging table becomes the retained successful
+diagnostic table and any older successful raw staging table for that asset is
+eligible for removal. When a run fails, its staging remains only if it is one of
+the latest three failed attempts for that asset. Crash recovery or explicit
+maintenance cleanup should apply the same rule to orphaned tables in
+`assquack_stage`.
 
 ## Transaction Boundary
 
@@ -188,7 +213,8 @@ Use two boundaries:
 
 If anything fails before or during the commit transaction, the previous current
 table remains the latest successful version. The run is marked failed, the error
-is recorded, and run-scoped staging is cleaned up on a best-effort basis.
+is recorded, and run-scoped staging is pruned according to the bounded retention
+policy.
 
 ## Replace Mode MVP
 
@@ -208,17 +234,12 @@ rows, so `.exists()` and `.query()` are table-based rather than file-based.
 
 ## Result Table Swap
 
-The swap should be implemented as transactional DuckDB DDL/DML. One acceptable
-shape is:
-
-1. Create a run-scoped next table in the target schema from shaped staging.
-2. Inside the same transaction, drop or rename the previous current table.
-3. Rename the next table to the stable current table name.
-4. Drop obsolete run-scoped staging tables after the swap succeeds.
-
 Readers should either see the previous committed current table or the new
 committed current table. They should not observe a half-loaded table as the
 asset result.
+
+The concrete swap strategy belongs to the implementor-facing
+[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#publish-contract).
 
 ## Metadata Update
 

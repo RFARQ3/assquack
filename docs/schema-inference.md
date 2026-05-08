@@ -15,9 +15,11 @@ effective schema from current and historical observations.
 ## Goals
 
 - Avoid persisting full raw JSON dumps only to let DuckDB infer schema later.
-- Keep a durable `_qa_payload VARIANT` for unknown or volatile nested payloads.
+- Keep raw staging evidence in `_qa_payload VARIANT`.
 - Promote stable fields into typed columns without losing access to new, sparse,
   or inconsistent fields.
+- Control whether shaped/current tables retain `_qa_payload` with explicit
+  policy rather than making it universally mandatory.
 - Preserve historical schema evidence across runs.
 - Never drop an existing promoted column just because the latest API response
   omitted it.
@@ -36,32 +38,15 @@ flowchart LR
   Shaped --> Current[Current asset table]
 ```
 
-Raw evidence staging receives normalized rows from yielded batches and stores
-the full observed payload:
+Raw evidence staging receives normalized rows from yielded batches and always
+stores the full observed payload as `_qa_payload VARIANT`.
 
-```sql
-CREATE TABLE assquack_stage.raw_<asset_id>_<run_id> (
-  _qa_run_id VARCHAR NOT NULL,
-  _qa_batch_id INTEGER NOT NULL,
-  _qa_row_number BIGINT NOT NULL,
-  _qa_loaded_at TIMESTAMPTZ NOT NULL,
-  _qa_source_uri VARCHAR,
-  _qa_source_hash VARCHAR,
-  _qa_payload VARIANT NOT NULL
-);
-```
-
-Shaped staging projects the effective schema into typed columns while retaining
-`_qa_payload` for unpromoted data:
-
-```sql
-CREATE TABLE assquack_stage.shaped_<asset_id>_<run_id> (
-  _qa_run_id VARCHAR NOT NULL,
-  _qa_loaded_at TIMESTAMPTZ NOT NULL,
-  _qa_payload VARIANT NOT NULL
-  -- promoted asset columns are added as resolved
-);
-```
+Shaped staging projects the effective schema into typed columns. It may retain
+`_qa_payload` for unpromoted data when the asset's retention policy calls for
+that; otherwise `_qa_payload` is available through raw staging during the run
+and bounded diagnostic retention. The concrete staging DDL belongs to the
+implementor-facing
+[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#staging-table-contracts).
 
 The materializer should process batches in chunks:
 
@@ -86,35 +71,14 @@ The materializer should process batches in chunks:
 Schema evidence belongs in Assquack system tables, not in external fragment
 files.
 
-```sql
-CREATE SCHEMA IF NOT EXISTS assquack;
-
-CREATE TABLE assquack.schemas (
-  asset_id VARCHAR NOT NULL,
-  run_id VARCHAR NOT NULL,
-  schema_json JSON,
-  json_structure JSON,
-  created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE assquack.schema_observations (
-  asset_id VARCHAR NOT NULL,
-  run_id VARCHAR NOT NULL,
-  path VARCHAR NOT NULL,
-  observed_type VARCHAR NOT NULL,
-  present_count BIGINT NOT NULL,
-  null_count BIGINT NOT NULL,
-  total_count BIGINT NOT NULL,
-  first_seen_at TIMESTAMPTZ NOT NULL,
-  last_seen_at TIMESTAMPTZ NOT NULL
-);
-```
-
 `assquack.schemas` stores run-level structure artifacts, such as a compact
 merged JSON structure and the resolved schema used for projection.
 `assquack.schema_observations` stores path-level counts and observed types so
 later runs can distinguish missing fields from removed fields, sparse fields
 from stable fields, and occasional bad values from real type changes.
+
+The concrete metadata DDL belongs to the implementor-facing
+[Local DuckDB Core epic](epics/01-mvp/01-local-duckdb-core.md#metadata-table-contracts).
 
 ## DuckDB JSON Tooling
 
@@ -137,56 +101,6 @@ For JSON-origin chunks:
   In inference jobs where full scanning is acceptable, prefer deep options such
   as `maximum_depth = -1`, `sample_size = -1`, and `union_by_name = true`.
 
-Example structure capture for a transient chunk table:
-
-```sql
-INSERT INTO assquack.schemas (
-  asset_id,
-  run_id,
-  schema_json,
-  json_structure,
-  created_at
-)
-SELECT
-  $asset_id,
-  $run_id,
-  NULL,
-  json_group_structure(payload_json),
-  current_timestamp
-FROM assquack_stage.json_chunk_<run_id>;
-```
-
-Example path observation with `json_tree`:
-
-```sql
-INSERT INTO assquack.schema_observations (
-  asset_id,
-  run_id,
-  path,
-  observed_type,
-  present_count,
-  null_count,
-  total_count,
-  first_seen_at,
-  last_seen_at
-)
-SELECT
-  $asset_id,
-  $run_id,
-  jt.fullkey AS path,
-  jt.type AS observed_type,
-  count(DISTINCT c._qa_row_number)
-    FILTER (WHERE jt.type IS NOT NULL) AS present_count,
-  count(DISTINCT c._qa_row_number)
-    FILTER (WHERE jt.type = 'NULL') AS null_count,
-  $chunk_row_count AS total_count,
-  current_timestamp,
-  current_timestamp
-FROM assquack_stage.json_chunk_<run_id> c,
-     json_tree(c.payload_json) AS jt
-GROUP BY jt.fullkey, jt.type;
-```
-
 The transient chunk can be an in-memory relation, a temporary table, or a small
 temporary file passed through `read_json`. It should be discarded after
 insertion, observation, and projection. For arrays, store enough path detail to
@@ -194,18 +108,23 @@ inspect indexed elements, but normalize paths when resolving promoted columns
 so `items[0].id` and `items[1].id` contribute to the same element-shape
 decision.
 
+Example SQL for structure capture and path observation belongs to the
+implementor-facing
+[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#schema-observation-queries).
+
 ## VARIANT Payloads
 
-Every raw or bronze asset with unknown or volatile nested data should include:
-
-```sql
-_qa_payload VARIANT NOT NULL
-```
-
-The payload gives Assquack a loss-tolerant landing zone for source data while
-typed promoted columns evolve. Query and projection code can inspect the
-payload with DuckDB `VARIANT` operators and functions, including dot access,
+Raw staging always includes `_qa_payload VARIANT NOT NULL`. That payload gives
+Assquack a loss-tolerant landing zone for source data while typed promoted
+columns evolve. Query and projection code can inspect raw staging payloads with
+DuckDB `VARIANT` operators and functions, including dot access,
 `variant_extract`, and `variant_typeof`.
+
+Retention beyond raw staging is policy-controlled. Raw or bronze current tables
+with unknown or volatile nested data may keep `_qa_payload VARIANT`; shaped
+tables that are already fully promoted may omit it. The MVP should not imply
+that every shaped/current table has `_qa_payload`, or that retained shaped
+payloads are always `NOT NULL`.
 
 Use typed columns for fields that have proven stable and useful for SQL. Keep
 fields in `_qa_payload` when they are new, sparse, deeply nested, high-cardinality
@@ -279,20 +198,11 @@ A promoted column records:
 - whether promotion was automatic or explicit.
 
 Projection should use generated expressions that tolerate missing and malformed
-values:
+values. Failed casts should be counted as observations. They are schema
+evidence, not silent data loss.
 
-```sql
-SELECT
-  _qa_run_id,
-  _qa_loaded_at,
-  _qa_payload,
-  try_cast(variant_extract(_qa_payload, '$.id') AS VARCHAR) AS id,
-  try_cast(variant_extract(_qa_payload, '$.amount') AS DECIMAL(18, 2)) AS amount
-FROM assquack_stage.raw_<asset_id>_<run_id>;
-```
-
-Failed casts should be counted as observations. They are schema evidence, not
-silent data loss.
+Example projection SQL belongs to the implementor-facing
+[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#projection-contract).
 
 ## Operational Contract
 
@@ -301,7 +211,11 @@ The schema inference loop is part of materialization:
 - Inference runs on every materialization, not only the first run.
 - Evidence is accumulated across runs in `assquack.schemas` and
   `assquack.schema_observations`.
-- Durable raw evidence is `_qa_payload VARIANT`, not full raw JSON files.
+- Raw staging evidence is `_qa_payload VARIANT`, not full raw JSON files.
+- Raw staging retention is bounded to the latest successful run and the latest
+  three failed runs per asset.
+- Shaped/current `_qa_payload` retention is an asset policy decision, not a
+  universal table contract.
 - JSON functions and `read_json` are transient tools for chunks, source files,
   and transformation.
 - Promotion is additive by default.

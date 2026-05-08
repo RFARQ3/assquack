@@ -12,4 +12,5 @@ Current documentation entry points:
 
 - [Documentation index](docs/README.md)
 - [Overview](docs/overview.md)
+- [Developer API](docs/developer-api.md)
 - [Developer examples](docs/developer-examples.md)

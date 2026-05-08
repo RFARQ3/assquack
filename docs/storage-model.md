@@ -99,68 +99,6 @@ erDiagram
   RUNS ||--o{ EXPORTS : writes
 ```
 
-```sql
-CREATE SCHEMA IF NOT EXISTS assquack;
-
-CREATE TABLE assquack.assets (
-  asset_id VARCHAR PRIMARY KEY,
-  asset_name VARCHAR NOT NULL,
-  asset_signature VARCHAR,
-  schema_name VARCHAR NOT NULL,
-  table_name VARCHAR NOT NULL,
-  materialization_mode VARCHAR NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE assquack.runs (
-  run_id VARCHAR PRIMARY KEY,
-  asset_id VARCHAR NOT NULL,
-  status VARCHAR NOT NULL,
-  runtime TIMESTAMPTZ NOT NULL,
-  materialized_at TIMESTAMPTZ,
-  duration_ms BIGINT,
-  row_count BIGINT,
-  error VARCHAR
-);
-
-CREATE TABLE assquack.schemas (
-  asset_id VARCHAR NOT NULL,
-  run_id VARCHAR NOT NULL,
-  schema_json JSON,
-  json_structure JSON,
-  created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE assquack.schema_observations (
-  asset_id VARCHAR NOT NULL,
-  run_id VARCHAR NOT NULL,
-  path VARCHAR NOT NULL,
-  observed_type VARCHAR NOT NULL,
-  present_count BIGINT NOT NULL,
-  null_count BIGINT NOT NULL,
-  total_count BIGINT NOT NULL,
-  first_seen_at TIMESTAMPTZ NOT NULL,
-  last_seen_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE assquack.exports (
-  export_id VARCHAR PRIMARY KEY,
-  run_id VARCHAR NOT NULL,
-  asset_id VARCHAR NOT NULL,
-  alias VARCHAR,
-  uri VARCHAR NOT NULL,
-  resolved_uri VARCHAR NOT NULL,
-  format VARCHAR NOT NULL,
-  role VARCHAR NOT NULL,
-  row_count BIGINT,
-  byte_count BIGINT,
-  content_hash VARCHAR,
-  options_json JSON,
-  created_at TIMESTAMPTZ NOT NULL
-);
-```
-
 `assquack.assets` is the asset manifest. `assquack.runs` records materialization
 attempts and their final status. `assquack.schemas` stores run-level schema
 evidence such as JSON structure summaries. `assquack.schema_observations`
@@ -169,6 +107,10 @@ artifacts such as current-state Parquet or run snapshots. `uri` is the logical
 target, such as `mad://bronze/orders.parquet`; `resolved_uri` is the concrete
 target used by DuckDB; `role` distinguishes the default compatibility export
 from secondary legacy exports.
+
+Developer-facing docs describe the purpose of these tables. The concrete MVP
+DDL belongs to the implementor-facing
+[Local DuckDB Core epic](epics/01-mvp/01-local-duckdb-core.md#metadata-table-contracts).
 
 ## Asset Tables
 
@@ -203,19 +145,9 @@ Every materialization run should use staging tables in `assquack_stage`. Staging
 is the working area where yielded source data becomes durable DuckDB rows,
 schema evidence, and typed projections before promotion to the current table.
 
-Recommended raw staging shape:
-
-```sql
-CREATE TABLE assquack_stage.raw_<asset_id>_<run_id> (
-  _qa_run_id VARCHAR NOT NULL,
-  _qa_batch_id INTEGER NOT NULL,
-  _qa_row_number BIGINT NOT NULL,
-  _qa_loaded_at TIMESTAMPTZ NOT NULL,
-  _qa_source_uri VARCHAR,
-  _qa_source_hash VARCHAR,
-  _qa_payload VARIANT NOT NULL
-);
-```
+Recommended raw staging shape includes run and batch identifiers, row ordering,
+load timestamps, optional source URI/hash provenance, and `_qa_payload VARIANT`
+for the observed source payload.
 
 Recommended shaped staging shape:
 
@@ -223,14 +155,24 @@ Recommended shaped staging shape:
 assquack_stage.shaped_<asset_id>_<run_id>
 ```
 
-Shaped staging projects stable or promoted fields into typed columns while
-retaining `_qa_payload` for fields that are new, sparse, or inconsistent. During
-a run, Assquack may add newly discovered shaped columns. It should not drop
-columns just because an API omitted fields in the current batch.
+Shaped staging projects stable or promoted fields into typed columns. It may
+retain `_qa_payload` when policy requires raw, bronze, audit, or discovery
+access, but raw staging is the mandatory evidence surface. During a run,
+Assquack may add newly discovered shaped columns. It should not drop columns
+just because an API omitted fields in the current batch.
+
+The exact staging DDL belongs to the implementor-facing
+[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#staging-table-contracts).
 
 Raw staging is the evidence surface. Shaped staging is the promotion surface.
 The current asset table is updated only after staging and metadata writes are
 ready to commit.
+
+Staging retention is intentionally bounded. Keep the latest successful raw
+staging table per asset for diagnostics, keep the latest three failed run
+staging sets per asset, and prune older tables from `assquack_stage`. The
+materialization lifecycle owns the retention rule; storage code should provide
+the cleanup operations needed to enforce it.
 
 ## Reserved Metadata Columns
 

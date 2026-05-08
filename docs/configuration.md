@@ -39,10 +39,13 @@ Configuration precedence should be explicit and predictable:
 
 ```mermaid
 flowchart TD
-  Direct[Direct AssquackConfig values] --> Model[Pydantic validation]
-  Adapter[Adapter-composed config] --> Model
-  Env[Environment variables] --> Model
-  Defaults[Pydantic defaults] --> Model
+  Direct[1 Highest: direct AssquackConfig values] --> Adapter[2 Adapter-composed config]
+  Adapter --> Env[3 Environment variables]
+  Env --> Defaults[4 Lowest: Pydantic defaults]
+  Direct --> Model[Pydantic validation]
+  Adapter --> Model
+  Env --> Model
+  Defaults --> Model
   Model --> Runtime[Resolved runtime config]
 ```
 

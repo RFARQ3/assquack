@@ -98,6 +98,8 @@ argument.
 
 - [Developer API](developer-api.md): the full public API contract behind these
   examples.
+- [Configuration](configuration.md): where database placement and export
+  defaults are configured.
 - [Exports](exports.md): export alias and file type behavior.
 - [Materialization Lifecycle](materialization-lifecycle.md): how returned or
   yielded rows become DuckDB tables.

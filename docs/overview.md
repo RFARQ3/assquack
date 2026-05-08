@@ -95,4 +95,8 @@ Assquack, not the other way around.
   the asset model.
 - [Storage Model](storage-model.md): where source-of-truth tables and metadata
   live.
+- [Configuration](configuration.md): how database paths, DuckDB settings, and
+  export defaults are resolved.
+- [Exports](exports.md): how compatibility artifacts are written from DuckDB
+  state.
 - [Roadmap](roadmap.md): implementation order and future work boundaries.

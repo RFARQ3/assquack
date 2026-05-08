@@ -41,12 +41,16 @@ It is not the DuckDB database path and does not control where the mutable
 Typed contract shape:
 
 ```python
-from typing import Literal
-
-from assquack.types import ExportSpec
+from typing import Literal, TypedDict
 
 
 AssetMode = Literal["replace"]
+ExportFormat = Literal["parquet", "json", "csv"]
+
+
+class ExportSpec(TypedDict):
+    uri: str
+    format: ExportFormat
 
 asset(
     export: str | ExportSpec | None = None,
@@ -100,6 +104,19 @@ Export aliases can seed the default asset name when `name=` is omitted, but the
 resolved export destination is not part of the canonical identity. Changing an
 export base URI or moving from local exports to ADLS should not invalidate the
 DuckDB asset table.
+
+## ExportSpec
+
+`ExportSpec` is the structured form of an export target. It should stay small in
+the bootstrap API:
+
+- `uri`: the explicit export URI or configured-alias path to write.
+- `format`: one of `"parquet"`, `"json"`, or `"csv"`.
+
+The MVP can model this as a `TypedDict`, frozen dataclass, or Pydantic model,
+but the public type should remain concrete enough for autocomplete and static
+checking. Avoid accepting arbitrary dictionaries for export configuration at the
+asset decorator boundary.
 
 ## Optional Overrides
 

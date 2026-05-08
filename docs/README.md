@@ -23,6 +23,8 @@ the architecture into focused zones so each topic has one owner.
   reference only. Assquack core does not depend on Prefect.
 - [Roadmap](roadmap.md): MVP phases, acceptance criteria, open decisions, and
   later exploration.
+- [Epics](epics/README.md): operational phase tracking for implementation
+  work.
 
 ## Knowledge Map
 
@@ -44,6 +46,7 @@ flowchart LR
   Roadmap --> SchemaInference
   Roadmap --> StorageModel
   Roadmap --> Exports
+  Roadmap --> Epics[Epics]
 ```
 
 Use the map as a reading path: start with [Overview](overview.md), then follow
@@ -58,3 +61,8 @@ the topic links that match the work in front of you.
 
 - [Original MVP Plan Archive](assquack-mvp-plan.md): retained as the original
   monolithic planning note for history.
+
+## Implementation Tracking
+
+- [Epics](epics/README.md): phase files with status headers, checklists, and
+  validation notes.

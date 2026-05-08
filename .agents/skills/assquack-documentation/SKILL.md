@@ -1,6 +1,6 @@
 ---
 name: assquack-documentation
-description: Maintain Assquack architecture documentation. Use when Codex is asked to create, split, reorganize, or update Assquack docs under docs/, README.md, AGENTS.md, or documentation standards; when adding architecture explanations for materialization, storage, schema inference, exports, configuration, roadmap, or MAD.Prefect migration reference; and when deciding whether a Mermaid diagram should accompany a doc change.
+description: Maintain Assquack architecture and implementation-tracking documentation. Use when Codex is asked to create, split, reorganize, or update Assquack docs under docs/, docs/epics/, README.md, AGENTS.md, or documentation standards; when adding architecture explanations for materialization, storage, schema inference, exports, configuration, roadmap, epics, or MAD.Prefect migration reference; and when deciding whether a Mermaid diagram should accompany a doc change.
 ---
 
 # Assquack Documentation
@@ -20,8 +20,10 @@ Before substantial documentation work, read:
 ## Workflow
 
 1. Read `docs/README.md` first to identify the correct documentation zone.
-2. Edit the smallest set of docs that owns the subject. Avoid duplicating the
-   same explanation across zones.
+2. Edit the smallest set of docs that owns the subject. Regular docs under
+   `docs/*.md` are developer-first usage and concept docs; epic docs under
+   `docs/epics/**` are implementor-facing architecture, phase, and status docs.
+   Avoid duplicating the same explanation across zones.
 3. Add or update "Related Docs" links so readers can move laterally between
    connected topics.
 4. Update `docs/README.md` whenever adding, renaming, or removing a document.
@@ -29,9 +31,14 @@ Before substantial documentation work, read:
    duplicate architecture.
 6. Preserve `docs/assquack-mvp-plan.md` as the archived monolithic planning
    note unless the user explicitly asks to rewrite or remove the archive.
-7. Run outcome-based validation before handing off.
+7. For implementation tracking, keep epic phase files under
+   `docs/epics/[number]-[short-desc]/[phase-no]-[short-desc].md`.
+8. Run outcome-based validation before handing off.
 
 ## Documentation Zones
+
+Regular docs should help developers use and reason about the library. Epic docs
+should help implementors build it.
 
 - `docs/overview.md`: identity, non-goals, philosophy, high-level MVP stance.
 - `docs/developer-api.md`: public Python API contract.
@@ -43,6 +50,29 @@ Before substantial documentation work, read:
 - `docs/configuration.md`: Pydantic config, env vars, DuckDB settings.
 - `docs/mad-prefect-reference.md`: historical reference only; no dependency.
 - `docs/roadmap.md`: phases, acceptance criteria, open decisions.
+- `docs/epics/**`: implementor-facing architecture and phase tracking with
+  status headers, scope, design notes, checklists, validation notes, and
+  follow-ups.
+
+## Epic Phase Files
+
+Use epic phase docs for implementation architecture and phase tracking, not
+developer-facing usage guidance. Each phase file must start with:
+
+```markdown
+# Phase Title
+
+Status: **Planned**
+Last updated: YYYY-MM-DD
+Epic: 01 Short Name
+Phase: 01
+Related docs: [Roadmap](../../roadmap.md)
+```
+
+Allowed statuses are `Planned`, `In Progress`, `Blocked`, and `Complete`.
+Before handing back after a relevant coding task, update the status header for
+each touched phase. If scope changes but status does not, still update
+`Last updated` and note the change in the phase body.
 
 ## Mermaid Diagrams
 
@@ -78,6 +108,8 @@ Diagram rules:
 - Pair every diagram with enough prose that the document still reads without
   rendering support.
 - Avoid styling-heavy Mermaid unless it communicates architecture.
+- Mermaid syntax is reviewed by inspection unless dedicated tooling is
+  introduced; do not hand-roll full Mermaid parsing in local scripts.
 
 ## Knowledge Graph Links
 
@@ -123,9 +155,11 @@ git diff --check
 
 Expected outcomes:
 
-- The terminology scan should return no matches for active docs. Hits in
-  `docs/assquack-mvp-plan.md` are intentionally excluded as archive context.
-- The link check must report that all local Markdown targets exist.
+- The terminology scan should return no matches for active docs. Hits outside
+  archive/reference docs must be justified near the text or moved to
+  archive/reference docs.
+- The link check must report that all local Markdown files and heading anchors
+  exist.
 - `git diff --check` must exit cleanly.
 
 Report that the work is docs-only unless code or tests changed.

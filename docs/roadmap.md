@@ -38,10 +38,12 @@ Architecture detail belongs in the focused design docs.
 - Implement the `@asset` decorator and asset callable lifecycle.
 - Support sync and async yielded batches.
 - Load supported Python, Arrow, pandas, and DuckDB inputs into staging.
-- Retain raw or bronze semi-structured evidence in `_qa_payload VARIANT` during
-  staging so deep schema inference does not require durable raw JSON dumps.
+- Always retain raw staging evidence in `_qa_payload VARIANT` during the run so
+  deep schema inference does not require durable raw JSON dumps.
 - Record chunk-level schema observations and resolve types conservatively.
 - Transactionally replace the current asset table from staging.
+- Prune staging to one latest successful raw table and three failed run staging
+  sets per asset.
 - Return a result object that can be queried by downstream code.
 
 ### Phase 3: Query And Cache
@@ -61,7 +63,9 @@ Architecture detail belongs in the focused design docs.
 ### Phase 5: Semi-Structured Evidence Policy
 
 - Add configurable retention policy for when `_qa_payload VARIANT` is kept in
-  final shaped/current tables versus used only in raw staging.
+  final shaped/current tables versus used only in raw staging. Do not treat
+  `_qa_payload` as universally present or universally `NOT NULL` in current
+  tables.
 - Add helpers to promote stable fields from semi-structured payloads into typed
   columns.
 - Add explicit audit options for `_qa_raw_json` where lossless source text is a
@@ -93,7 +97,7 @@ Architecture detail belongs in the focused design docs.
 - The first supported ADLS credential pattern for DuckDB Azure exports.
 - The default policy for when `_qa_payload` is retained, omitted, or made
   mandatory in shaped/current tables. Raw staging keeps `_qa_payload VARIANT`
-  during MVP materialization.
+  during MVP materialization and bounded diagnostic retention.
 - How schema promotion should be declared by asset authors without turning the
   decorator into a storage configuration surface.
 - Whether legacy MAD.Prefect compatibility needs a separate adapter package, and

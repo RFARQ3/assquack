@@ -1,4 +1,4 @@
 interface:
   display_name: "Assquack Coding"
-  short_description: "Implement Assquack code, tests, public API, storage, schema, and export behavior."
+  short_description: "Implement Assquack code, tests, public API, storage, schema, exports, and epic status."
   default_prompt: "Use the Assquack coding skill to plan, implement, test, document, and prepare changes."

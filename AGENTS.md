@@ -13,6 +13,8 @@ guardrails needed to work in this repo.
 
 - `docs/README.md`: documentation index and knowledge map.
 - `docs/*.md`: active architecture docs and examples.
+- `docs/epics/[number]-[short-desc]/[phase-no]-[short-desc].md`: implementation
+  epic phase tracking.
 - `docs/assquack-mvp-plan.md`: archived monolithic planning note.
 - `.agents/skills/assquack-documentation`: documentation workflow skill.
 - `.agents/skills/assquack-coding`: coding workflow skill.
@@ -59,6 +61,12 @@ Use focused skills instead of expanding this file with task-specific detail.
   an already approved direction.
 - Add or update tests for behavior changes.
 - Update docs/examples for public behavior or architecture changes.
+- For relevant coding tasks, check or create the touched epic phase docs before
+  implementation, keep regular docs developer-first, keep epic docs
+  implementor-facing, and update epic status headers before handing work back.
+- Set a touched phase to `In Progress` when implementation begins; keep it
+  there until implementation, docs, tests, and checks are done; use `Blocked`
+  when a dependency or decision prevents progress.
 - Run relevant tests, lint, type checks, and `git diff --check` when available.
 - Do not commit unless the user asks. If committing, use Conventional Commits.
 

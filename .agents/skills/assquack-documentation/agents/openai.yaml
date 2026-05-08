@@ -1,4 +1,4 @@
 interface:
   display_name: "Assquack Documentation"
-  short_description: "Maintain Assquack docs, AGENTS guidance, diagrams, and knowledge-graph links."
+  short_description: "Maintain Assquack docs, epics, AGENTS guidance, diagrams, and knowledge-graph links."
   default_prompt: "Use the Assquack documentation skill to update the architecture docs."

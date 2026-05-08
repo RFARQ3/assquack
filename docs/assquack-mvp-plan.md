@@ -8,6 +8,12 @@ Later headings such as "Open Decisions" and "Current Recommendation" are
 historical context from the original planning pass. They are not authoritative
 when they conflict with the active split documentation.
 
+Do not implement from this archive's "MVP Build Phases" list. It is preserved
+only to explain the planning history. Implementors should use
+[roadmap.md](roadmap.md), the focused architecture docs, and the relevant
+`docs/epics/01-mvp/` phase files as the current source of work sequencing and
+acceptance criteria.
+
 ---
 
 Date: 2026-05-08
