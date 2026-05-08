@@ -112,12 +112,11 @@ CREATE TABLE assquack.exports (
 
 ## Validation
 
-- `pytest`
-- type-check command selected during bootstrap
+- `poetry run pytest`
+- `poetry run pyright`
+- `poetry run ruff check .`
+- `poetry run ruff format --check .`
 - `git diff --check`
-
-Replace placeholder validation commands with concrete commands once Phase 00
-chooses the project tooling.
 
 ## Notes
 

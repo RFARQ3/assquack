@@ -14,3 +14,20 @@ Current documentation entry points:
 - [Overview](docs/overview.md)
 - [Developer API](docs/developer-api.md)
 - [Developer examples](docs/developer-examples.md)
+
+## Development
+
+Install the project and development tooling with Poetry:
+
+```bash
+poetry install
+```
+
+Run the bootstrap checks with:
+
+```bash
+poetry run pytest
+poetry run pyright
+poetry run ruff check .
+poetry run ruff format --check .
+```

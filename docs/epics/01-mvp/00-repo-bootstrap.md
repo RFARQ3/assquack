@@ -1,6 +1,6 @@
 # Repo Bootstrap
 
-Status: **Planned**
+Status: **Complete**
 Last updated: 2026-05-08
 Epic: 01 MVP
 Phase: 00
@@ -39,24 +39,35 @@ then let later phases introduce patterns where they protect extension points.
 
 ## Implementation Checklist
 
-- [ ] Add package directory and `__init__.py`.
-- [ ] Add `pyproject.toml` with runtime and development dependencies.
-- [ ] Add test runner configuration.
-- [ ] Add type-check configuration.
-- [ ] Add the first import-level tests for `from assquack import asset`.
-- [ ] Update this status header before handoff.
+- [x] Add package directory and `__init__.py`.
+- [x] Add `pyproject.toml` with runtime and development dependencies.
+- [x] Add test runner configuration.
+- [x] Add type-check configuration.
+- [x] Add the first import-level tests for `from assquack import asset`.
+- [x] Update this status header before handoff.
 
 ## Validation
 
-- `pytest`
-- type-check command selected during bootstrap
-- lint/format check selected during bootstrap
+- `poetry check`
+- `poetry run pytest`
+- `poetry run pyright`
+- `poetry run ruff check .`
+- `poetry run ruff format --check .`
 - `git diff --check`
-
-Replace placeholder validation commands with concrete commands once this phase
-chooses the project tooling.
 
 ## Notes
 
 Keep this phase intentionally small. Code is liability; bootstrap should create
 only enough structure to support the next implementation phase cleanly.
+
+Tooling choices:
+
+- Poetry owns package metadata, dependency groups, lockfile generation, and
+  project-local command execution.
+- Pytest is the test runner.
+- Pyright is the type checker because it matches the prior MAIT reference
+  pattern and gives strong feedback for typed public contracts.
+- Ruff owns linting and format checks so bootstrap does not split those concerns
+  across multiple tools.
+- The bootstrap decorator contract accepts both sync and async asset functions
+  by default; actual async materialization behavior remains Phase 02 scope.
