@@ -1,0 +1,3 @@
+[submodule ".submodules/MAD.Prefect"]
+	path = .submodules/MAD.Prefect
+	url = https://github.com/maitdevptyltd/MAD.Prefect
