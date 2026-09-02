@@ -8,7 +8,10 @@ from pydantic import BaseModel, Field, model_validator
 
 
 def _default_home() -> Path:
-    return Path(os.environ.get("ASSQUACK_HOME", "/data/assquack"))
+    configured_home = os.environ.get("ASSQUACK_HOME")
+    if configured_home:
+        return Path(configured_home).expanduser()
+    return Path.cwd()
 
 
 def _default_environment() -> str:

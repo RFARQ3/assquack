@@ -25,6 +25,18 @@ def legacy_asset():
 Assquack infers the internal table, asset name, and materialization mode from
 convention. The default mode is `replace`.
 
+## Zero-Configuration Local Storage
+
+Calling an asset requires no database configuration during local development:
+
+```python
+result = await legacy_asset()
+```
+
+Assquack uses the current working directory as its default home and creates the
+DuckDB database at `./dev/assquack.duckdb`. `ASSQUACK_HOME` or
+`AssquackConfig` can override that location for deployments.
+
 ## File Type Aliases
 
 The export target can be a path or a file type alias.

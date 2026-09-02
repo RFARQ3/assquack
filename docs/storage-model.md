@@ -18,11 +18,15 @@ with existing lake conventions.
 
 ## Database Path
 
-The default database path is configuration-level:
+The zero-configuration database path is relative to the process's current
+working directory:
 
 ```text
-${ASSQUACK_HOME:-/data/assquack}/{environment}/assquack.duckdb
+<current-working-directory>/{environment}/assquack.duckdb
 ```
+
+`ASSQUACK_HOME` or direct `AssquackConfig` values override that default for
+deployments and exceptional runtimes.
 
 Asset authors should not choose database placement in the asset decorator for
 the common case. Runtime and project configuration own placement through
@@ -32,11 +36,11 @@ Example configuration:
 
 ```yaml
 assquack:
-  home: ${oc.env:ASSQUACK_HOME,/data/assquack}
+  home: ${oc.env:ASSQUACK_HOME,.}
   environment: ${oc.env:ENVIRONMENT,dev}
   database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
   duckdb:
-    temp_directory: ${oc.env:DUCKDB_TEMP_DIRECTORY,/data/assquack/tmp}
+    temp_directory: ${oc.env:DUCKDB_TEMP_DIRECTORY,${assquack.home}/tmp}
     extensions:
       - json
       - parquet
@@ -47,9 +51,9 @@ assquack:
     base_uri: abfss://lake/exports/assquack
 ```
 
-The runtime must provide a writable local path for `ASSQUACK_HOME` and any
-DuckDB temp directory. Multiple database files can be supported later through
-configuration, but database placement is not part of the asset identity API.
+The current-working-directory default requires no runtime configuration.
+Deployments must provide writable paths for any configured database home and
+DuckDB temp directory. Database placement is not part of the asset identity API.
 
 ## Concurrency
 
