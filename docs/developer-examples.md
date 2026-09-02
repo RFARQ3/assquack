@@ -3,6 +3,11 @@
 Assquack should feel like simple Python data assets first and DuckDB storage
 machinery second. The common case is a single decorator argument and a function.
 
+With no configuration, Assquack uses the process current working directory as
+its home. Starting a local script from a repository root therefore stores the
+default development database at `./dev/assquack.duckdb`. Set `ASSQUACK_HOME`
+when the database, temporary files, and local exports should live elsewhere.
+
 ## Legacy-Style Asset
 
 ```python

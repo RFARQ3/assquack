@@ -60,11 +60,16 @@ be validated by Pydantic before Assquack uses it.
 ## Core Paths
 
 `ASSQUACK_HOME` is the base local directory for Assquack runtime state. Its
-default is:
+default is the process current working directory:
 
 ```text
-/data/assquack
+.
 ```
+
+This makes zero-configuration local development repository-relative when the
+process is started from the repository root. Set `ASSQUACK_HOME` explicitly
+when the runtime should use another location, such as a mounted persistent
+volume.
 
 `ENVIRONMENT` names the runtime environment and is part of the default storage
 layout. Its default is:
@@ -76,13 +81,13 @@ dev
 The default database path is derived from those values:
 
 ```text
-${ASSQUACK_HOME:-/data/assquack}/${ENVIRONMENT:-dev}/assquack.duckdb
+${ASSQUACK_HOME:-.}/${ENVIRONMENT:-dev}/assquack.duckdb
 ```
 
 For example, with no environment overrides:
 
 ```text
-/data/assquack/dev/assquack.duckdb
+<current-working-directory>/dev/assquack.duckdb
 ```
 
 `database_path` is configuration-level state. It is not an asset decorator
@@ -97,13 +102,13 @@ services. Recommended defaults:
 
 ```yaml
 assquack:
-  home: ${oc.env:ASSQUACK_HOME,/data/assquack}
+  home: ${oc.env:ASSQUACK_HOME,.}
   environment: ${oc.env:ENVIRONMENT,dev}
   database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
   duckdb:
     threads: 4
     memory_limit: 8GB
-    temp_directory: ${oc.env:DUCKDB_TEMP_DIRECTORY,/data/assquack/tmp}
+    temp_directory: ${oc.env:DUCKDB_TEMP_DIRECTORY,${assquack.home}/tmp}
     extensions:
       - json
       - parquet
@@ -213,13 +218,13 @@ Example ADLS export profile:
 
 ```yaml
 assquack:
-  home: ${oc.env:ASSQUACK_HOME,/data/assquack}
+  home: ${oc.env:ASSQUACK_HOME,.}
   environment: ${oc.env:ENVIRONMENT,dev}
   database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
   duckdb:
     threads: 4
     memory_limit: 8GB
-    temp_directory: ${oc.env:DUCKDB_TEMP_DIRECTORY,/data/assquack/tmp}
+    temp_directory: ${oc.env:DUCKDB_TEMP_DIRECTORY,${assquack.home}/tmp}
     extensions:
       - json
       - parquet
@@ -244,9 +249,10 @@ needed by Assquack, add it to the Pydantic model first.
 
 The embedding runtime is responsible for the operating environment:
 
-- provide a writable local filesystem path for `ASSQUACK_HOME`;
+- ensure the process current working directory is writable, or set
+  `ASSQUACK_HOME` to a writable local filesystem path;
 - provide enough disk capacity for the DuckDB database and temp spill files;
-- set `ASSQUACK_HOME` when the default `/data/assquack` is not suitable;
+- set `ASSQUACK_HOME` when the current working directory is not suitable;
 - set `ENVIRONMENT` so dev, test, and prod do not share the same database path;
 - optionally set `DUCKDB_TEMP_DIRECTORY` for larger or faster temporary storage;
 - provide ADLS credentials through environment variables or DuckDB secrets;
