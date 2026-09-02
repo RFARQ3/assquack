@@ -1,8 +1,22 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from typing import Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar
+import hashlib
+import inspect
+import json
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
+from typing import Any, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar
+
+from assquack._cache import asset_exists
+from assquack._config import AssquackConfig
+from assquack._materialization.models import MaterializationRequest
+from assquack._materialization.pipeline import materialize
+from assquack._query import execute_query
+from assquack._result import AssquackResult
+from assquack._storage.database import open_database
+from assquack._storage.metadata import MetadataRepository
+from assquack._storage.sql import sanitize_identifier
+from assquack._storage.tables import TableReference
 
 AssetMode = Literal["replace"]
 ExportFormat = Literal["parquet", "json", "csv"]
@@ -22,13 +36,114 @@ AssetFunction: TypeAlias = (
 
 @dataclass(frozen=True, slots=True)
 class AssquackAsset(Generic[P, AssetReturn]):
-    """Bootstrap asset definition returned by the public decorator."""
+    """Callable asset definition whose runtime delegates to materialization."""
 
     fn: AssetFunction[P, AssetReturn]
     export: str | ExportSpec | None = None
     name: str | None = None
     table: str | None = None
     mode: AssetMode = "replace"
+    bound_arguments: Mapping[str, Any] = field(default_factory=dict)
+    prefer_cache: bool = False
+
+    async def __call__(
+        self,
+        *args: P.args,
+        assquack_config: AssquackConfig | None = None,
+        **kwargs: P.kwargs,
+    ) -> AssquackResult:
+        config = assquack_config or AssquackConfig()
+        return await materialize(self._request(args, kwargs), config)
+
+    async def query(
+        self,
+        sql: str | None = None,
+        params: Sequence[object] | None = None,
+        *,
+        assquack_config: AssquackConfig | None = None,
+    ) -> list[tuple[Any, ...]]:
+        config = assquack_config or AssquackConfig()
+        request = self._request((), {})
+        return execute_query(config, request.table, sql, params)
+
+    def exists(self, *, assquack_config: AssquackConfig | None = None) -> bool:
+        config = assquack_config or AssquackConfig()
+        request = self._request((), {})
+        connection = open_database(config)
+        try:
+            return asset_exists(
+                connection,
+                MetadataRepository(connection),
+                asset_id=request.asset_id,
+                table=request.table,
+            )
+        finally:
+            connection.close()
+
+    def cache_first(self) -> AssquackAsset[P, AssetReturn]:
+        return replace(self, prefer_cache=True)
+
+    def with_arguments(self, **kwargs: Any) -> AssquackAsset[P, AssetReturn]:
+        return replace(self, bound_arguments={**self.bound_arguments, **kwargs})
+
+    def _request(
+        self,
+        args: tuple[Any, ...],
+        kwargs: Mapping[str, Any],
+    ) -> MaterializationRequest:
+        call_kwargs = {**self.bound_arguments, **kwargs}
+        signature = inspect.signature(self.fn)
+        bound = signature.bind_partial(*args, **call_kwargs)
+        bound.apply_defaults()
+
+        asset_name = self.name or self.fn.__name__
+        identity_payload = {
+            "function": f"{self.fn.__module__}.{self.fn.__qualname__}",
+            "name": asset_name,
+            "arguments": bound.arguments,
+        }
+        canonical_identity = json.dumps(
+            identity_payload,
+            default=repr,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        asset_id = hashlib.sha256(canonical_identity.encode()).hexdigest()
+        table = _resolve_table(self.table, asset_name, asset_id, bool(bound.arguments))
+
+        return MaterializationRequest(
+            fn=self.fn,
+            arguments=bound.args,
+            keyword_arguments=bound.kwargs,
+            asset_id=asset_id,
+            asset_name=asset_name,
+            asset_signature=str(signature),
+            table=table,
+            export=self.export,
+            use_cache=self.prefer_cache,
+        )
+
+
+def _resolve_table(
+    override: str | None,
+    asset_name: str,
+    asset_id: str,
+    has_arguments: bool,
+) -> TableReference:
+    if override:
+        if "." in override:
+            schema_name, table_name = override.split(".", maxsplit=1)
+        else:
+            schema_name, table_name = "assquack_assets", override
+        return TableReference(
+            sanitize_identifier(schema_name, fallback="assquack_assets"),
+            sanitize_identifier(table_name),
+        )
+
+    table_name = f"{sanitize_identifier(asset_name)}_current"
+    if has_arguments:
+        table_name = f"{table_name}_{asset_id[:10]}"
+    return TableReference("assquack_assets", table_name)
 
 
 def asset(
@@ -41,7 +156,7 @@ def asset(
     """Declare an Assquack asset without choosing storage placement."""
 
     if mode != "replace":
-        raise ValueError("Assquack MVP bootstrap only supports mode='replace'.")
+        raise ValueError("The Assquack prototype only supports mode='replace'.")
 
     def decorate(fn: AssetFunction[P, AssetReturn]) -> AssquackAsset[P, AssetReturn]:
         return AssquackAsset(

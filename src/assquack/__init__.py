@@ -7,11 +7,17 @@ from assquack._api import (
     ExportSpec,
     asset,
 )
+from assquack._config import AssquackConfig, DuckDBConfig, ExportsConfig
+from assquack._result import AssquackResult
 
 __all__ = [
     "AssetMode",
     "AssquackAsset",
+    "AssquackConfig",
+    "AssquackResult",
+    "DuckDBConfig",
     "ExportFormat",
     "ExportSpec",
+    "ExportsConfig",
     "asset",
 ]
