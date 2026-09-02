@@ -140,7 +140,7 @@ def _resolve_table(
             sanitize_identifier(table_name),
         )
 
-    table_name = f"{sanitize_identifier(asset_name)}_current"
+    table_name = sanitize_identifier(asset_name)
     if has_arguments:
         table_name = f"{table_name}_{asset_id[:10]}"
     return TableReference("assquack_assets", table_name)
