@@ -80,7 +80,7 @@ normal materialization path starts.
 
 ## Run Record
 
-Each non-cached materialization creates a row in `assquack.runs` before loading
+Each non-cached materialization creates a row in `assquack_meta.runs` before loading
 data:
 
 - `run_id`: unique identifier for this attempt.
@@ -90,7 +90,7 @@ data:
 - `materialized_at`: set only after the current table commit succeeds.
 - `duration_ms`, `row_count`, and `error`: filled at completion or failure.
 
-`assquack.assets` is also bootstrapped or updated for the resolved asset if it
+`assquack_meta.assets` is also bootstrapped or updated for the resolved asset if it
 does not already exist. A failed run remains visible for diagnosis but must not
 advance the asset's latest successful state.
 
@@ -245,12 +245,12 @@ The concrete swap strategy belongs to the implementor-facing
 
 The successful commit updates metadata together with the table swap:
 
-- `assquack.assets`: asset name, signature, schema/table name, mode, and
+- `assquack_meta.assets`: asset name, signature, schema/table name, mode, and
   `updated_at`.
-- `assquack.runs`: `status = 'success'`, `materialized_at`, `duration_ms`,
+- `assquack_meta.runs`: `status = 'success'`, `materialized_at`, `duration_ms`,
   `row_count`, and cleared `error`.
-- `assquack.schemas`: compact schema evidence for the run.
-- `assquack.schema_observations`: path/type/count evidence collected while
+- `assquack_meta.schemas`: compact schema evidence for the run.
+- `assquack_meta.schema_observations`: path/type/count evidence collected while
   loading chunks.
 
 The latest successful run is derived from these tables. Cache checks should not
@@ -268,7 +268,7 @@ The export phase should:
 - use DuckDB `COPY` or native extension support where possible;
 - write current-state exports from the stable current table;
 - optionally write run-scoped snapshots for recovery or legacy consumers;
-- insert a row into `assquack.exports` after a successful write.
+- insert a row into `assquack_meta.exports` after a successful write.
 
 An export failure must not silently roll back a successful table
 materialization. If an asset or caller requires export success, the public call

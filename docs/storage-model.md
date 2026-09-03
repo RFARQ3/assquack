@@ -79,15 +79,17 @@ materialization transaction has completed.
 
 ## Internal Schemas
 
-Assquack reserves the `assquack` schema for system metadata. It also reserves a
-staging schema for run-local working tables, recommended as `assquack_stage`.
-User asset tables should live in sanitized asset schemas and tables chosen from
-asset metadata and bound arguments.
+Assquack reserves the `assquack_meta` schema for system metadata. The distinct
+name avoids colliding with the `assquack` catalog that DuckDB derives from the
+default `assquack.duckdb` filename. Assquack also reserves a staging schema for
+run-local working tables, recommended as `assquack_stage`. User asset tables
+should live in sanitized asset schemas and tables chosen from asset metadata and
+bound arguments.
 
 Reserved schema purposes:
 
 ```text
-assquack        system metadata tables
+assquack_meta   system metadata tables
 assquack_stage  raw and shaped staging tables for active or recent runs
 <asset_schema>  durable user-facing asset tables and views
 ```
@@ -106,10 +108,11 @@ erDiagram
   RUNS ||--o{ EXPORTS : writes
 ```
 
-`assquack.assets` is the asset manifest. `assquack.runs` records materialization
-attempts and their final status. `assquack.schemas` stores run-level schema
-evidence such as JSON structure summaries. `assquack.schema_observations`
-stores path-level evidence across runs. `assquack.exports` records external
+`assquack_meta.assets` is the asset manifest. `assquack_meta.runs` records
+materialization attempts and their final status. `assquack_meta.schemas` stores
+run-level schema evidence such as JSON structure summaries.
+`assquack_meta.schema_observations` stores path-level evidence across runs.
+`assquack_meta.exports` records external
 artifacts such as current-state Parquet or run snapshots. `uri` is the logical
 target, such as `mad://bronze/orders.parquet`; `resolved_uri` is the concrete
 target used by DuckDB; `role` distinguishes the default compatibility export
@@ -127,7 +130,7 @@ Resolved export destinations, credentials, export base URIs, and database paths
 must not change the canonical identity. Assquack uses that identity to
 derive or validate:
 
-- the metadata row in `assquack.assets`;
+- the metadata row in `assquack_meta.assets`;
 - a sanitized schema name;
 - a sanitized table name;
 - the current durable asset table;
@@ -220,7 +223,7 @@ database location. Use object storage for:
 - source data reads;
 - compatibility with existing datalake conventions.
 
-`assquack.exports` records each exported artifact with its run, asset, logical
+`assquack_meta.exports` records each exported artifact with its run, asset, logical
 URI, resolved URI, role, format, row count, optional byte count/hash, options,
 and creation timestamp. DuckDB's Azure extension should be the first choice for
 `abfss://` reads and writes when available. A filesystem fallback can be added

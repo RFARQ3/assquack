@@ -1,7 +1,7 @@
 # Replace Materialization
 
 Status: **Planned**
-Last updated: 2026-05-08
+Last updated: 2026-09-03
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -68,7 +68,7 @@ After each run, apply retention per asset:
 5. Drop older `assquack_stage` tables during post-run cleanup and maintenance
    cleanup.
 
-The cleanup step should derive keep/drop decisions from `assquack.runs` and the
+The cleanup step should derive keep/drop decisions from `assquack_meta.runs` and the
 staging table naming convention. It must not drop staging for a run still marked
 `running` unless a later recovery policy has first marked that run stale or
 failed.
@@ -78,7 +78,7 @@ failed.
 For JSON-origin chunks, capture compact structure evidence:
 
 ```sql
-INSERT INTO assquack.schemas (
+INSERT INTO assquack_meta.schemas (
   asset_id,
   run_id,
   schema_json,
@@ -97,7 +97,7 @@ FROM assquack_stage.json_chunk_<run_id>;
 Collect path-level evidence with `json_tree`:
 
 ```sql
-INSERT INTO assquack.schema_observations (
+INSERT INTO assquack_meta.schema_observations (
   asset_id,
   run_id,
   path,
