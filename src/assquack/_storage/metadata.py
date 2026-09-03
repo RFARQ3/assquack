@@ -26,7 +26,7 @@ class MetadataRepository:
                 schema_name = excluded.schema_name,
                 table_name = excluded.table_name,
                 materialization_mode = excluded.materialization_mode,
-                updated_at = current_timestamp
+                updated_at = excluded.updated_at
             """,
             [
                 asset.asset_id,
