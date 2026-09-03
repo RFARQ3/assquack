@@ -12,7 +12,7 @@ flowchart LR
   Logical --> Base[Configured export base]
   Base --> Resolved[Resolved URI]
   Resolved --> Copy[DuckDB COPY from current table]
-  Copy --> Manifest[assquack.exports row]
+  Copy --> Manifest[assquack_meta.exports row]
 ```
 
 1. Materialize into staging tables inside the configured DuckDB database.
@@ -225,7 +225,7 @@ or storage model.
 
 ## Export Manifest
 
-Every successful export should be recorded in `assquack.exports`. The manifest
+Every successful export should be recorded in `assquack_meta.exports`. The manifest
 answers "what files were written for this run?" without making those files the
 authoritative state of the asset.
 

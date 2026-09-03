@@ -17,7 +17,7 @@ class MetadataRepository:
     def save_asset(self, asset: AssetRecord) -> None:
         self._connection.execute(
             """
-            INSERT INTO assquack.assets VALUES (
+            INSERT INTO assquack_meta.assets VALUES (
                 ?, ?, ?, ?, ?, ?, current_timestamp, current_timestamp
             )
             ON CONFLICT (asset_id) DO UPDATE SET
@@ -41,7 +41,7 @@ class MetadataRepository:
     def start_run(self, run_id: str, asset_id: str) -> None:
         self._connection.execute(
             """
-            INSERT INTO assquack.runs (
+            INSERT INTO assquack_meta.runs (
                 run_id, asset_id, status, runtime
             ) VALUES (?, ?, 'running', current_timestamp)
             """,
@@ -52,7 +52,7 @@ class MetadataRepository:
         row = self._connection.execute(
             """
             SELECT run_id, materialized_at, coalesce(row_count, 0)
-            FROM assquack.runs
+            FROM assquack_meta.runs
             WHERE asset_id = ? AND status = 'success'
             ORDER BY materialized_at DESC
             LIMIT 1
@@ -67,8 +67,8 @@ class MetadataRepository:
         row = self._connection.execute(
             """
             SELECT s.schema_json
-            FROM assquack.schemas AS s
-            JOIN assquack.runs AS r USING (run_id)
+            FROM assquack_meta.schemas AS s
+            JOIN assquack_meta.runs AS r USING (run_id)
             WHERE s.asset_id = ?
               AND s.schema_json IS NOT NULL
               AND r.status = 'success'
@@ -91,7 +91,7 @@ class MetadataRepository:
     ) -> None:
         self._connection.execute(
             """
-            INSERT INTO assquack.schemas (
+            INSERT INTO assquack_meta.schemas (
                 asset_id, run_id, schema_json, json_structure, created_at
             ) VALUES (?, ?, ?::JSON, NULL, current_timestamp)
             """,
@@ -102,7 +102,7 @@ class MetadataRepository:
             return
         self._connection.executemany(
             """
-            INSERT INTO assquack.schema_observations VALUES (
+            INSERT INTO assquack_meta.schema_observations VALUES (
                 ?, ?, ?, ?, ?, ?, ?, current_timestamp, current_timestamp
             )
             """,
@@ -129,7 +129,7 @@ class MetadataRepository:
     ) -> None:
         self._connection.execute(
             """
-            UPDATE assquack.runs
+            UPDATE assquack_meta.runs
             SET status = 'success',
                 materialized_at = current_timestamp,
                 duration_ms = ?,
@@ -143,7 +143,7 @@ class MetadataRepository:
     def mark_run_failed(self, run_id: str, error: str, duration_ms: int) -> None:
         self._connection.execute(
             """
-            UPDATE assquack.runs
+            UPDATE assquack_meta.runs
             SET status = 'failed', duration_ms = ?, error = ?
             WHERE run_id = ?
             """,
@@ -162,7 +162,7 @@ class MetadataRepository:
     ) -> None:
         self._connection.execute(
             """
-            INSERT INTO assquack.exports (
+            INSERT INTO assquack_meta.exports (
                 export_id, run_id, asset_id, alias, uri, resolved_uri,
                 format, role, row_count, options_json, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, 'parquet', 'default', ?, '{}', current_timestamp)

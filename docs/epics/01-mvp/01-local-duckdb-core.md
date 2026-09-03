@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **Planned**
-Last updated: 2026-05-08
+Last updated: 2026-09-03
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -39,9 +39,9 @@ maintainers.
 Bootstrap should create the `assquack` schema and the MVP system tables:
 
 ```sql
-CREATE SCHEMA IF NOT EXISTS assquack;
+CREATE SCHEMA IF NOT EXISTS assquack_meta;
 
-CREATE TABLE assquack.assets (
+CREATE TABLE assquack_meta.assets (
   asset_id VARCHAR PRIMARY KEY,
   asset_name VARCHAR NOT NULL,
   asset_signature VARCHAR,
@@ -52,7 +52,7 @@ CREATE TABLE assquack.assets (
   updated_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE assquack.runs (
+CREATE TABLE assquack_meta.runs (
   run_id VARCHAR PRIMARY KEY,
   asset_id VARCHAR NOT NULL,
   status VARCHAR NOT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE assquack.runs (
   error VARCHAR
 );
 
-CREATE TABLE assquack.schemas (
+CREATE TABLE assquack_meta.schemas (
   asset_id VARCHAR NOT NULL,
   run_id VARCHAR NOT NULL,
   schema_json JSON,
@@ -71,7 +71,7 @@ CREATE TABLE assquack.schemas (
   created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE assquack.schema_observations (
+CREATE TABLE assquack_meta.schema_observations (
   asset_id VARCHAR NOT NULL,
   run_id VARCHAR NOT NULL,
   path VARCHAR NOT NULL,
@@ -83,7 +83,7 @@ CREATE TABLE assquack.schema_observations (
   last_seen_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE assquack.exports (
+CREATE TABLE assquack_meta.exports (
   export_id VARCHAR PRIMARY KEY,
   run_id VARCHAR NOT NULL,
   asset_id VARCHAR NOT NULL,

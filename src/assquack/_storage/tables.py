@@ -14,13 +14,13 @@ class TableReference:
 
 
 def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
-    connection.execute("CREATE SCHEMA IF NOT EXISTS assquack")
+    connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_meta")
     connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_stage")
     connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_assets")
 
     connection.execute(
         """
-        CREATE TABLE IF NOT EXISTS assquack.assets (
+        CREATE TABLE IF NOT EXISTS assquack_meta.assets (
             asset_id VARCHAR PRIMARY KEY,
             asset_name VARCHAR NOT NULL,
             asset_signature VARCHAR,
@@ -34,7 +34,7 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
     )
     connection.execute(
         """
-        CREATE TABLE IF NOT EXISTS assquack.runs (
+        CREATE TABLE IF NOT EXISTS assquack_meta.runs (
             run_id VARCHAR PRIMARY KEY,
             asset_id VARCHAR NOT NULL,
             status VARCHAR NOT NULL,
@@ -48,7 +48,7 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
     )
     connection.execute(
         """
-        CREATE TABLE IF NOT EXISTS assquack.schemas (
+        CREATE TABLE IF NOT EXISTS assquack_meta.schemas (
             asset_id VARCHAR NOT NULL,
             run_id VARCHAR NOT NULL,
             schema_json JSON,
@@ -59,7 +59,7 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
     )
     connection.execute(
         """
-        CREATE TABLE IF NOT EXISTS assquack.schema_observations (
+        CREATE TABLE IF NOT EXISTS assquack_meta.schema_observations (
             asset_id VARCHAR NOT NULL,
             run_id VARCHAR NOT NULL,
             path VARCHAR NOT NULL,
@@ -74,7 +74,7 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
     )
     connection.execute(
         """
-        CREATE TABLE IF NOT EXISTS assquack.exports (
+        CREATE TABLE IF NOT EXISTS assquack_meta.exports (
             export_id VARCHAR PRIMARY KEY,
             run_id VARCHAR NOT NULL,
             asset_id VARCHAR NOT NULL,

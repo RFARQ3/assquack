@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **Planned**
-Last updated: 2026-05-08
+Last updated: 2026-09-03
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -18,7 +18,7 @@ Included:
 - Export alias resolution for paths and file type aliases.
 - Parquet current-state exports.
 - `mad://` logical URI resolution to configured export base.
-- `assquack.exports` manifest rows for successful exports.
+- `assquack_meta.exports` manifest rows for successful exports.
 - ADLS/ABFSS export path support through DuckDB where available.
 
 Excluded:
@@ -37,7 +37,7 @@ or materialization state.
 
 - [ ] Implement export target parsing and alias resolution.
 - [ ] Implement Parquet export from committed current table.
-- [ ] Record canonical `assquack.exports` manifest rows.
+- [ ] Record canonical `assquack_meta.exports` manifest rows.
 - [ ] Add tests for file type aliases, pipe syntax, and resolved URIs.
 - [ ] Add tests proving export failures do not corrupt successful table state.
 - [ ] Update this status header before handoff.

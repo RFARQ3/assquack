@@ -71,9 +71,9 @@ The materializer should process batches in chunks:
 Schema evidence belongs in Assquack system tables, not in external fragment
 files.
 
-`assquack.schemas` stores run-level structure artifacts, such as a compact
+`assquack_meta.schemas` stores run-level structure artifacts, such as a compact
 merged JSON structure and the resolved schema used for projection.
-`assquack.schema_observations` stores path-level counts and observed types so
+`assquack_meta.schema_observations` stores path-level counts and observed types so
 later runs can distinguish missing fields from removed fields, sparse fields
 from stable fields, and occasional bad values from real type changes.
 
@@ -209,8 +209,8 @@ Example projection SQL belongs to the implementor-facing
 The schema inference loop is part of materialization:
 
 - Inference runs on every materialization, not only the first run.
-- Evidence is accumulated across runs in `assquack.schemas` and
-  `assquack.schema_observations`.
+- Evidence is accumulated across runs in `assquack_meta.schemas` and
+  `assquack_meta.schema_observations`.
 - Raw staging evidence is `_qa_payload VARIANT`, not full raw JSON files.
 - Raw staging retention is bounded to the latest successful run and the latest
   three failed runs per asset.
