@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from assquack._cache import find_cached_run
 from assquack._config import AssquackConfig
+from assquack._errors import ExportError
 from assquack._exports.parquet import ParquetExportWriter
 from assquack._exports.targets import parse_export_target
 from assquack._materialization.commit import CommitStrategy, ReplaceCommitStrategy
@@ -35,6 +36,13 @@ async def materialize(
     strategy: CommitStrategy | None = None,
 ) -> AssquackResult:
     """Normalize, stage, observe, shape, and publish one asset run."""
+
+    if request.export is not None and not config.exports.enabled:
+        raise ExportError(
+            f"Export target {request.export!r} was declared, but exports are disabled. "
+            "Set ASSQUACK_EXPORTS__ENABLED=true, or pass "
+            "AssquackConfig(exports=ExportsConfig(enabled=True))."
+        )
 
     started = perf_counter()
     strategy = strategy or ReplaceCommitStrategy()
