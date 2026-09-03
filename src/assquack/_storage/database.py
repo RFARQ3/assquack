@@ -10,12 +10,18 @@ from assquack._storage.sql import quote_identifier, quote_literal
 from assquack._storage.tables import bootstrap_database
 
 
+ASSQUACK_STORAGE_VERSION = "v1.5.0"
+
+
 def open_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
     database_path = config.resolved_database_path
     database_path.parent.mkdir(parents=True, exist_ok=True)
     config.resolved_temp_directory.mkdir(parents=True, exist_ok=True)
 
-    connection = duckdb.connect(str(database_path))
+    connection = duckdb.connect(
+        str(database_path),
+        config={"storage_compatibility_version": ASSQUACK_STORAGE_VERSION},
+    )
     connection.execute(f"SET threads TO {config.duckdb.threads}")
     connection.execute(
         f"SET memory_limit TO {quote_literal(config.duckdb.memory_limit)}"
