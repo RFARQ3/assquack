@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import duckdb
+
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
 from assquack._exports.parquet import ParquetExportWriter
@@ -31,7 +33,7 @@ class AssquackResult:
         self,
         sql: str | None = None,
         params: Sequence[object] | None = None,
-    ) -> list[tuple[Any, ...]]:
+    ) -> duckdb.DuckDBPyRelation:
         return execute_query(self.config, self.table, sql, params)
 
     def to_df(self) -> Any:

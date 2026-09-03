@@ -7,6 +7,8 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar
 
+import duckdb
+
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
 from assquack._materialization.models import MaterializationRequest
@@ -104,7 +106,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
         params: Sequence[object] | None = None,
         *,
         assquack_config: AssquackConfig | None = None,
-    ) -> list[tuple[Any, ...]]:
+    ) -> duckdb.DuckDBPyRelation:
         config = assquack_config or AssquackConfig()
         request = self._request((), {})
         return execute_query(config, request.table, sql, params)

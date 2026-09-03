@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+import duckdb
+
 from assquack._config import AssquackConfig
 from assquack._errors import MissingAssetTableError
 from assquack._storage.database import open_database
@@ -15,13 +17,14 @@ def execute_query(
     table: TableReference,
     sql: str | None = None,
     params: Sequence[object] | None = None,
-) -> list[tuple[Any, ...]]:
+) -> duckdb.DuckDBPyRelation:
     connection = open_database(config)
     try:
         _create_data_alias(connection, table)
-        return connection.execute(sql or "SELECT * FROM data", params or []).fetchall()
-    finally:
+        return connection.sql(sql or "SELECT * FROM data", params=params)
+    except BaseException:
         connection.close()
+        raise
 
 
 def query_dataframe(
