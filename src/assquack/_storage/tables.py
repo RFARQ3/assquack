@@ -16,7 +16,6 @@ class TableReference:
 def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
     connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_meta")
     connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_stage")
-    connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_assets")
 
     connection.execute(
         """

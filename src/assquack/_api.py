@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import warnings
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar
@@ -11,6 +12,7 @@ import duckdb
 
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
+from assquack._errors import MissingAssetSchemaWarning
 from assquack._materialization.models import MaterializationRequest
 from assquack._materialization.pipeline import materialize
 from assquack._query import execute_query
@@ -217,20 +219,27 @@ def _resolve_table(
     asset_id: str,
     has_arguments: bool,
 ) -> TableReference:
-    if override:
-        if "." in override:
-            schema_name, table_name = override.split(".", maxsplit=1)
-        else:
-            schema_name, table_name = "assquack_assets", override
-        return TableReference(
-            sanitize_identifier(schema_name, fallback="assquack_assets"),
-            sanitize_identifier(table_name),
-        )
+    if override and "." in override:
+        declared_schema, table_name = override.split(".", maxsplit=1)
+        schema_name = sanitize_identifier(declared_schema, fallback="")
+        if schema_name:
+            return TableReference(schema_name, sanitize_identifier(table_name))
 
-    table_name = sanitize_identifier(asset_name)
-    if has_arguments:
-        table_name = f"{table_name}_{asset_id[:10]}"
-    return TableReference("assquack_assets", table_name)
+    warnings.warn(
+        f"Asset {asset_name!r} does not define a DuckDB schema; using 'main'. "
+        "Set table='schema.table' to define one explicitly.",
+        MissingAssetSchemaWarning,
+        stacklevel=4,
+    )
+
+    if override:
+        table_name = sanitize_identifier(override)
+    else:
+        table_name = sanitize_identifier(asset_name)
+        if has_arguments:
+            table_name = f"{table_name}_{asset_id[:10]}"
+
+    return TableReference("main", table_name)
 
 
 def asset(
