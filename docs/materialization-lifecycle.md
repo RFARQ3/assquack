@@ -74,11 +74,6 @@ The cache check should read Assquack metadata, not filesystem fragments:
 - If the caller requires an export artifact, verify a matching export row exists
   and, where practical, that the URI is readable.
 
-`cache_first()` accepts an optional `timedelta` expiration. With no expiration,
-the latest successful run does not age out. A declared export target requires a
-matching manifest row; file or remote-object readability checks remain outside
-the MVP cache policy.
-
 On a cache hit, Assquack returns an `AssquackResult` for the current table and
 does not create a new run record or call the user function. On a cache miss, the
 normal materialization path starts.
@@ -215,12 +210,6 @@ Use two boundaries:
 - **Commit transaction boundary**: once shaped staging is complete and validated,
   open a short DuckDB transaction that swaps the current table and updates
   metadata declaring the run successful.
-
-The writer lock uses a sidecar lock file beside the configured database. Async
-materializations wait without blocking their event loop, while separate Python
-processes or Kubernetes pods sharing that database path coordinate through the
-same operating-system file lock when the shared filesystem supports file
-locking.
 
 If anything fails before or during the commit transaction, the previous current
 table remains the latest successful version. The run is marked failed, the error
