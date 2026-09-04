@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
-Status: **Planned**
-Last updated: 2026-09-03
+Status: **In Progress**
+Last updated: 2026-09-04
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -106,7 +106,7 @@ CREATE TABLE assquack_meta.exports (
 - [ ] Resolve database path, temp directory, and DuckDB settings.
 - [ ] Open DuckDB connections and apply configured settings.
 - [ ] Bootstrap `assquack` system tables.
-- [ ] Add writer-lock abstraction for one writer per database path.
+- [x] Add writer-lock abstraction for one writer per database path.
 - [ ] Add tests for config defaults, validation errors, and metadata bootstrap.
 - [ ] Update this status header before handoff.
 

@@ -41,7 +41,7 @@ async def materialize(
     started = perf_counter()
     strategy = strategy or ReplaceCommitStrategy()
 
-    with writer_lock(config.resolved_database_path):
+    async with writer_lock(config.resolved_database_path):
         connection = open_database(config)
         metadata = MetadataRepository(connection)
         metadata.save_asset(

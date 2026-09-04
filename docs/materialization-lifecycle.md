@@ -216,6 +216,12 @@ Use two boundaries:
   open a short DuckDB transaction that swaps the current table and updates
   metadata declaring the run successful.
 
+The writer lock uses a sidecar lock file beside the configured database. Async
+materializations wait without blocking their event loop, while separate Python
+processes or Kubernetes pods sharing that database path coordinate through the
+same operating-system file lock when the shared filesystem supports file
+locking.
+
 If anything fails before or during the commit transaction, the previous current
 table remains the latest successful version. The run is marked failed, the error
 is recorded, and run-scoped staging is pruned according to the bounded retention
