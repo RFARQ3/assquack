@@ -74,6 +74,11 @@ The cache check should read Assquack metadata, not filesystem fragments:
 - If the caller requires an export artifact, verify a matching export row exists
   and, where practical, that the URI is readable.
 
+`cache_first()` accepts an optional `timedelta` expiration. With no expiration,
+the latest successful run does not age out. A declared export target requires a
+matching manifest row; file or remote-object readability checks remain outside
+the MVP cache policy.
+
 On a cache hit, Assquack returns an `AssquackResult` for the current table and
 does not create a new run record or call the user function. On a cache miss, the
 normal materialization path starts.

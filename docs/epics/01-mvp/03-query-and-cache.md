@@ -1,7 +1,7 @@
 # Query And Cache
 
-Status: **Planned**
-Last updated: 2026-05-08
+Status: **In Progress**
+Last updated: 2026-09-04
 Epic: 01 MVP
 Phase: 03
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Storage Model](../../storage-model.md)
@@ -38,9 +38,9 @@ methods do not create alternate query paths.
 - [ ] Implement `AssquackResult` table reference behavior.
 - [ ] Implement result and asset `.query(...)`.
 - [ ] Implement `.exists()`.
-- [ ] Implement `cache_first()` against metadata and current table presence.
+- [x] Implement `cache_first()` against metadata and current table presence.
 - [ ] Add query parameter binding tests.
-- [ ] Add cache-hit, cache-miss, stale-cache, and missing-table tests.
+- [x] Add cache-hit, cache-miss, stale-cache, and missing-table tests.
 - [ ] Update this status header before handoff.
 
 ## Validation

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import duckdb
 
 from assquack._storage.metadata import MetadataRepository
@@ -13,12 +15,30 @@ def find_cached_run(
     *,
     asset_id: str,
     table: TableReference,
+    expiration: timedelta | None = None,
+    required_export_uri: str | None = None,
 ) -> SuccessfulRun | None:
     latest = metadata.find_latest_successful_run(asset_id)
     if latest is None or not table_exists(connection, table):
         return None
-    # TODO: Apply configurable TTL and export-required freshness rules.
+    if expiration is not None and _is_expired(latest, expiration):
+        return None
+    if required_export_uri is not None and not metadata.has_export(
+        latest.run_id,
+        required_export_uri,
+    ):
+        return None
     return latest
+
+
+def _is_expired(run: SuccessfulRun, expiration: timedelta) -> bool:
+    if expiration < timedelta(0):
+        raise ValueError("Cache expiration cannot be negative.")
+
+    materialized_at = run.materialized_at
+    if materialized_at.tzinfo is None:
+        materialized_at = materialized_at.replace(tzinfo=UTC)
+    return datetime.now(UTC) - materialized_at > expiration
 
 
 def asset_exists(

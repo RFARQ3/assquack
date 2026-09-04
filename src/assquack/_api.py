@@ -6,6 +6,7 @@ import json
 import warnings
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from datetime import timedelta
 from typing import Any, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar
 
 import duckdb
@@ -57,6 +58,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
     mode: AssetMode = "replace"
     bound_arguments: Mapping[str, Any] = field(default_factory=dict)
     prefer_cache: bool = False
+    cache_expiration: timedelta | None = None
     _templates: _AssetTemplates | None = field(
         default=None,
         repr=False,
@@ -127,8 +129,17 @@ class AssquackAsset(Generic[P, AssetReturn]):
         finally:
             connection.close()
 
-    def cache_first(self) -> AssquackAsset[P, AssetReturn]:
-        return replace(self, prefer_cache=True)
+    def cache_first(
+        self,
+        expiration: timedelta | None = None,
+    ) -> AssquackAsset[P, AssetReturn]:
+        if expiration is not None and expiration < timedelta(0):
+            raise ValueError("Cache expiration cannot be negative.")
+        return replace(
+            self,
+            prefer_cache=True,
+            cache_expiration=expiration,
+        )
 
     def with_arguments(self, **kwargs: Any) -> AssquackAsset[P, AssetReturn]:
         return replace(self, bound_arguments={**self.bound_arguments, **kwargs})
@@ -186,6 +197,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
             table=table,
             export=export,
             use_cache=self.prefer_cache,
+            cache_expiration=self.cache_expiration,
         )
 
 

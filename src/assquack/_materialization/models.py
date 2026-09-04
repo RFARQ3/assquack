@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, TypeAlias
 
 from assquack._storage.models import SchemaObservation
@@ -22,6 +23,7 @@ class MaterializationRequest:
     table: TableReference
     export: str | Mapping[str, str] | None
     use_cache: bool = False
+    cache_expiration: timedelta | None = None
 
 
 @dataclass(frozen=True, slots=True)

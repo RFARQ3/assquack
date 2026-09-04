@@ -55,12 +55,28 @@ async def materialize(
         )
 
         if request.use_cache:
-            cached = find_cached_run(
-                connection,
-                metadata,
-                asset_id=request.asset_id,
-                table=request.table,
-            )
+            cache_target_uri = None
+            cache_target_is_valid = True
+            if request.export is not None:
+                try:
+                    cache_target_uri = parse_export_target(
+                        request.export,
+                        asset_name=request.asset_name,
+                        config=config,
+                    ).resolved_uri
+                except ExportError:
+                    cache_target_is_valid = False
+
+            cached = None
+            if cache_target_is_valid:
+                cached = find_cached_run(
+                    connection,
+                    metadata,
+                    asset_id=request.asset_id,
+                    table=request.table,
+                    expiration=request.cache_expiration,
+                    required_export_uri=cache_target_uri,
+                )
             if cached is not None:
                 connection.close()
                 return AssquackResult(

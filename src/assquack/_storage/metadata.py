@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from uuid import uuid4
 
 import duckdb
@@ -52,7 +53,7 @@ class MetadataRepository:
     def find_latest_successful_run(self, asset_id: str) -> SuccessfulRun | None:
         row = self._connection.execute(
             """
-            SELECT run_id, materialized_at, coalesce(row_count, 0)
+            SELECT run_id, CAST(materialized_at AS VARCHAR), coalesce(row_count, 0)
             FROM assquack_meta.runs
             WHERE asset_id = ? AND status = 'success'
             ORDER BY materialized_at DESC
@@ -62,7 +63,22 @@ class MetadataRepository:
         ).fetchone()
         if row is None:
             return None
-        return SuccessfulRun(run_id=row[0], materialized_at=row[1], row_count=row[2])
+        return SuccessfulRun(
+            run_id=row[0],
+            materialized_at=datetime.fromisoformat(row[1]),
+            row_count=row[2],
+        )
+
+    def has_export(self, run_id: str, resolved_uri: str) -> bool:
+        row = self._connection.execute(
+            """
+            SELECT count(*)
+            FROM assquack_meta.exports
+            WHERE run_id = ? AND resolved_uri = ?
+            """,
+            [run_id, resolved_uri],
+        ).fetchone()
+        return bool(row and row[0])
 
     def find_latest_schema(self, asset_id: str) -> list[dict[str, str]]:
         row = self._connection.execute(

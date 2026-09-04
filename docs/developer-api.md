@@ -188,6 +188,18 @@ wrapped function.
 Cache state is based on Assquack metadata tables and the DuckDB current table,
 not only on whether an exported file exists.
 
+Pass a `timedelta` to limit how old the cached run may be. Omitting it keeps the
+latest successful materialization valid indefinitely:
+
+```python
+from datetime import timedelta
+
+recent_orders = orders.cache_first(expiration=timedelta(minutes=30))
+```
+
+When the asset declares an export, the cached run must also have a matching
+export-manifest row for the currently resolved target.
+
 ## Bound Arguments
 
 `.with_arguments(**kwargs)` returns an argument-bound asset callable. Bound
