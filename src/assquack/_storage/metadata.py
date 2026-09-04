@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import duckdb
 
+from assquack._materialization.models import JsonStructure
 from assquack._storage.models import AssetRecord, SchemaObservation, SuccessfulRun
 
 
@@ -82,20 +83,44 @@ class MetadataRepository:
         value = json.loads(row[0]) if isinstance(row[0], str) else row[0]
         return list(value)
 
+    def find_latest_json_structure(self, asset_id: str) -> JsonStructure | None:
+        row = self._connection.execute(
+            """
+            SELECT s.json_structure
+            FROM assquack_meta.schemas AS s
+            JOIN assquack_meta.runs AS r USING (run_id)
+            WHERE s.asset_id = ?
+              AND s.json_structure IS NOT NULL
+              AND r.status = 'success'
+            ORDER BY s.created_at DESC
+            LIMIT 1
+            """,
+            [asset_id],
+        ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return json.loads(row[0]) if isinstance(row[0], str) else row[0]
+
     def record_schema(
         self,
         asset_id: str,
         run_id: str,
         schema: list[dict[str, str]],
+        json_structure: JsonStructure,
         observations: list[SchemaObservation],
     ) -> None:
         self._connection.execute(
             """
             INSERT INTO assquack_meta.schemas (
                 asset_id, run_id, schema_json, json_structure, created_at
-            ) VALUES (?, ?, ?::JSON, NULL, current_timestamp)
+            ) VALUES (?, ?, ?::JSON, ?::JSON, current_timestamp)
             """,
-            [asset_id, run_id, json.dumps(schema)],
+            [
+                asset_id,
+                run_id,
+                json.dumps(schema),
+                json.dumps(json_structure),
+            ],
         )
 
         if not observations:

@@ -16,6 +16,7 @@ from assquack._materialization.models import (
     StagingTables,
 )
 from assquack._materialization.normalize import normalize
+from assquack._materialization.observation import observe_staged_batch
 from assquack._materialization.staging import (
     create_raw_staging,
     create_shaped_staging,
@@ -99,15 +100,31 @@ async def materialize(
                     chunk,
                     row_count,
                 )
-                inference.observe(chunk.rows)
+                inference.observe(
+                    observe_staged_batch(
+                        connection,
+                        staging.raw,
+                        run_id,
+                        chunk.batch_id,
+                        staged,
+                    )
+                )
                 row_count += staged
 
             previous_schema = metadata.find_latest_schema(request.asset_id)
-            projections = infer_projections(inference, previous_schema)
+            previous_json_structure = metadata.find_latest_json_structure(
+                request.asset_id
+            )
+            projections = infer_projections(
+                inference,
+                previous_schema,
+                previous_json_structure,
+            )
             metadata.record_schema(
                 request.asset_id,
                 run_id,
                 [item.as_dict() for item in projections],
+                inference.json_structure,
                 inference.observations(),
             )
             create_shaped_staging(

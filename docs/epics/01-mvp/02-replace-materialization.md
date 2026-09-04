@@ -1,7 +1,7 @@
 # Replace Materialization
 
-Status: **Planned**
-Last updated: 2026-09-03
+Status: **In Progress**
+Last updated: 2026-09-04
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -155,8 +155,8 @@ acceptable shape is:
 - [ ] Implement strongly typed public asset decorator contracts.
 - [ ] Normalize supported returned and yielded inputs.
 - [ ] Write raw staging rows with `_qa_payload VARIANT`.
-- [ ] Record schema observations while loading chunks.
-- [ ] Build shaped staging from conservative effective schema.
+- [x] Record schema observations while loading chunks.
+- [x] Build shaped staging from conservative effective schema.
 - [ ] Replace the current asset table transactionally.
 - [ ] Record successful and failed run metadata.
 - [ ] Enforce bounded staging retention after success, failure, and recovery.
