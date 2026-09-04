@@ -1,7 +1,7 @@
 # Export Compatibility
 
-Status: **Planned**
-Last updated: 2026-09-03
+Status: **In Progress**
+Last updated: 2026-09-04
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -39,7 +39,7 @@ or materialization state.
 - [ ] Implement Parquet export from committed current table.
 - [ ] Record canonical `assquack_meta.exports` manifest rows.
 - [ ] Add tests for file type aliases, pipe syntax, and resolved URIs.
-- [ ] Add tests proving export failures do not corrupt successful table state.
+- [x] Add tests proving export failures do not corrupt successful table state.
 - [ ] Update this status header before handoff.
 
 ## Validation

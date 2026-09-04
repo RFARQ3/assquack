@@ -37,13 +37,6 @@ async def materialize(
 ) -> AssquackResult:
     """Normalize, stage, observe, shape, and publish one asset run."""
 
-    if request.export is not None and not config.exports.enabled:
-        raise ExportError(
-            f"Export target {request.export!r} was declared, but exports are disabled. "
-            "Set ASSQUACK_EXPORTS__ENABLED=true, or pass "
-            "AssquackConfig(exports=ExportsConfig(enabled=True))."
-        )
-
     started = perf_counter()
     strategy = strategy or ReplaceCommitStrategy()
 
@@ -147,7 +140,14 @@ async def materialize(
             raise
 
         try:
-            if config.exports.enabled and request.export is not None:
+            if request.export is not None:
+                if not config.exports.enabled:
+                    raise ExportError(
+                        f"Export target {request.export!r} was declared, but exports "
+                        "are disabled. Set ASSQUACK_EXPORTS__ENABLED=true, or pass "
+                        "AssquackConfig(exports=ExportsConfig(enabled=True))."
+                    )
+
                 target = parse_export_target(
                     request.export,
                     asset_name=request.asset_name,

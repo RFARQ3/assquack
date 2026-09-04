@@ -17,7 +17,9 @@ declared artifact was not written.
 
 ## MVP Behaviour
 
-Materialization fails before opening DuckDB or running the asset function when:
+Assquack completes table materialization before reporting a disabled declared
+export. The current table is published and the run is marked successful, then
+the export phase raises when:
 
 - the resolved asset declares an export target; and
 - `exports.enabled` is `false`.
@@ -29,8 +31,9 @@ Set ASSQUACK_EXPORTS__ENABLED=true, or pass
 AssquackConfig(exports=ExportsConfig(enabled=True)).
 ```
 
-Assets without an export target continue to materialize normally while exports
-are disabled.
+This keeps the successful DuckDB table available while clearly reporting that
+the requested compatibility artifact was not written. Assets without an export
+target continue to materialize normally while exports are disabled.
 
 ## Current Prototype Location
 
@@ -43,5 +46,5 @@ tests/test_exports.py
 
 The canonical docs define exports as optional and disabled by default. They do
 not require Assquack to silently discard an explicitly declared export target.
-Failing early preserves the documented default while making its consequence and
-remedies visible to the caller.
+Reporting the failure after the table commit preserves DuckDB as the source of
+truth while making the missing compatibility artifact visible to the caller.
