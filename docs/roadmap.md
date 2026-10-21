@@ -1,10 +1,13 @@
 # Assquack Roadmap
 
-Status: planning split as of 2026-05-08.
+Status: first-release scope narrowed by Rowan on 2026-10-21.
 
 This roadmap extracts implementation sequencing from the MVP plan. It tracks
 what to build, what should be true early, and which decisions remain open.
-Architecture detail belongs in the focused design docs.
+Architecture detail belongs in the focused design docs. The
+[finalized scope journal](journal/2026-09-08-mvp-scope.md) records Rowan's decisions
+and owns the release boundary where older architecture or phase documents differ.
+The implementation sequence and acceptance checks are recorded there.
 
 ## Baseline
 
@@ -39,12 +42,15 @@ Architecture detail belongs in the focused design docs.
 
 - Implement the `@asset` decorator and asset callable lifecycle.
 - Support sync and async yielded batches.
-- Normalize supported Python, Arrow, pandas, and DuckDB inputs for fragment
-  capture.
-- Write normalized rows into size-controlled local NDJSON fragments.
+- Normalize supported Python, HTTP response, Arrow, pandas, and DuckDB inputs
+  for fragment capture; preserve argument binding and path templates.
+- Write local NDJSON fragments using a configurable megabyte target; never split
+  records, and allow the last record to exceed the target.
 - Infer across every completed fragment with DuckDB's native JSON reader.
-- Record fragment-level schema observations and resolve types conservatively.
-- Transactionally replace the current asset table from staging.
+- Implement current-run schema inference behind `schema.replace`; defer schema
+  continuation and detailed observations.
+- Transactionally replace the current asset table from staging. Failed runs keep
+  the last published table; retries start fresh without reusing failed fragments.
 - Prune local fragments to the latest successful run and three failed runs per
   asset.
 - Return a result object that can be queried by downstream code.
@@ -57,13 +63,16 @@ Architecture detail belongs in the focused design docs.
 
 ### Phase 4: Export Compatibility
 
-- Export the current table to Parquet.
+- Export the current table to local filesystem and Azure destinations. Both are
+  MVP requirements; preserve the last successful output on failed materialization.
 - Support `abfss://` exports through the DuckDB Azure extension where it works
   in the target deployment.
 - Keep a fsspec export fallback only if DuckDB-native Azure support is not
   sufficient for the deployment target.
 
-### Phase 5: Semi-Structured Evidence Policy
+## Deferred: Semi-Structured Evidence Policy
+
+This track is outside the first release. It must not block the replace MVP.
 
 - Add configurable retention policy for when `_qa_payload VARIANT` is kept in
   final shaped/current tables. Do not treat `_qa_payload` as universally present
@@ -86,11 +95,15 @@ Architecture detail belongs in the focused design docs.
   following the export destination into object storage.
 - Unknown or changing nested payloads can be retained as `VARIANT` while stable
   fields are promoted into typed columns.
-- The project can export current-state Parquet for legacy lake consumers.
+- The project can export current-state Parquet locally and to Azure for legacy
+  lake consumers. Verify the agreed MAD.Prefect compatibility baseline.
 - Tests cover temporary local DuckDB files, metadata bootstrap, replace
   materialization, cache checks, and basic export behavior.
 
-## Open Decisions
+## Implementation Details And Later Design
+
+These details do not reopen the finalized release boundary. Historical evidence,
+promotion and optional adapters below are later design work, not MVP gates.
 
 - Exact public naming for result/query methods beyond the minimum compatibility
   surface.
@@ -105,6 +118,11 @@ Architecture detail belongs in the focused design docs.
   when to build it.
 
 ## Future Incremental Modes
+
+The [8 September scope journal](journal/2026-09-08-mvp-scope.md) records Rowan's
+21 October 2026 decision: merge-related work, including a minimal primary-key
+merge, delta parameters and merge-specific schema quarantine, is outside MVP.
+The remaining huddle suggestions have finalized dispositions in that journal.
 
 These are intentionally after the `replace` MVP. A clean full-refresh path is
 the release gate before incremental behavior.
