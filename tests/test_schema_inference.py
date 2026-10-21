@@ -5,51 +5,18 @@ import duckdb
 from assquack._materialization.fragments import NDJSONFragmentWriter
 from assquack._materialization.inference import (
     InferenceState,
-    resolve_reader_projections,
 )
 from assquack._materialization.models import NormalizedChunk
 from assquack._materialization.observation import observe_fragment
+from assquack._materialization.schema import CurrentRunSchemaStrategy
 
 
 def test_reader_json_columns_become_variant() -> None:
-    [projection] = resolve_reader_projections([("value", "JSON")], [])
+    [projection] = CurrentRunSchemaStrategy().resolve([("value", "JSON")])
 
     assert projection.source_field == "$.value"
     assert projection.column_name == "value"
     assert projection.duckdb_type == "VARIANT"
-
-
-def test_reader_schema_preserves_a_missing_historical_column() -> None:
-    projections = resolve_reader_projections(
-        [("id", "BIGINT")],
-        [
-            {
-                "source_field": "$.late_field",
-                "column_name": "late_field",
-                "duckdb_type": "VARCHAR",
-            }
-        ],
-    )
-
-    assert [(item.column_name, item.duckdb_type) for item in projections] == [
-        ("id", "BIGINT"),
-        ("late_field", "VARCHAR"),
-    ]
-
-
-def test_reader_schema_widens_numeric_history() -> None:
-    [projection] = resolve_reader_projections(
-        [("amount", "DOUBLE")],
-        [
-            {
-                "source_field": "$.amount",
-                "column_name": "amount",
-                "duckdb_type": "BIGINT",
-            }
-        ],
-    )
-
-    assert projection.duckdb_type == "DOUBLE"
 
 
 def test_fragment_observation_comes_from_duckdb_json_functions(tmp_path) -> None:

@@ -12,6 +12,7 @@ from assquack._config import (
     DuckDBConfig,
     ExportsConfig,
     IngestionConfig,
+    SchemaConfig,
 )
 from assquack._errors import MissingAssetSchemaWarning
 from assquack._result import AssquackResult
@@ -27,5 +28,6 @@ __all__ = [
     "ExportsConfig",
     "IngestionConfig",
     "MissingAssetSchemaWarning",
+    "SchemaConfig",
     "asset",
 ]

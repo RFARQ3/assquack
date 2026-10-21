@@ -250,7 +250,7 @@ Exports are not the primary storage source of truth for these reasons:
 
 - DuckDB tables hold the published current asset state and are queried directly
   by `.query()` and `cache_first()`.
-- Assquack system tables hold run status, schema observations, cache metadata,
+- Assquack system tables hold run status, resulting schemas, cache metadata,
   and export metadata transactionally with materialization.
 - Replaying exported JSON, CSV, or Parquet would reintroduce the file-fragment
   first architecture that Assquack is replacing.

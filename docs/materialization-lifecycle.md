@@ -12,7 +12,7 @@ flowchart LR
   Resolve[Resolve identity and config] --> Cache[Check cache metadata]
   Cache --> Run[Create run record]
   Run --> Capture[Write local NDJSON fragments]
-  Capture --> Infer[Infer and observe schema]
+  Capture --> Infer[Infer current-run schema]
   Infer --> Candidate[Build candidate table]
   Candidate --> Commit[Swap current table]
   Commit --> Export[Write compatibility exports]
@@ -26,7 +26,7 @@ flowchart LR
 5. Write rows into size-controlled local NDJSON fragments.
 6. Complete each fragment through an atomic rename, then mark the run directory
    complete after capture succeeds.
-7. Use DuckDB JSON tooling to infer the combined schema and record observations.
+7. Use DuckDB to infer the current run schema from completed fragments.
 8. Build the typed candidate table directly from the completed fragments.
 9. Transactionally replace the current table and mark the run successful.
 10. Write configured exports from the committed table.
@@ -58,13 +58,12 @@ The run directory receives `_COMPLETE` only after source capture finishes.
 ## Schema And Candidate Table
 
 DuckDB's native JSON reader scans every completed fragment with full sampling,
-field union, and nested inference enabled. Assquack separately records bounded
-`json_group_structure` and `json_tree` evidence from each fragment. Detailed
-rules live in [Schema Inference](schema-inference.md).
+field union, and nested inference enabled. The configured current-run strategy
+resolves its columns without historical schema or detailed observations. Rules
+live in [Schema Inference](schema-inference.md).
 
 The candidate table contains `_qa_run_id`, `_qa_loaded_at`, and the effective
-typed columns. Historical columns absent from the current extraction remain in
-the table as `NULL`. A whole-row `VARIANT` payload is optional rather than a
+typed columns. Source columns absent from the current extraction disappear. A whole-row `VARIANT` payload is optional rather than a
 mandatory staging column.
 
 ## Transaction And Failure Behavior
@@ -79,7 +78,8 @@ the run is marked failed. Completed fragments and any partial fragment remain
 local diagnostic evidence for the later retention and recovery policy.
 
 An empty extraction is a valid replacement. Assquack publishes an empty table
-with the previous effective schema when one exists.
+with only `_qa_run_id` and `_qa_loaded_at`, even when a prior table had source
+columns. It does not reuse historical schema.
 
 ## Export Phase
 

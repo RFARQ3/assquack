@@ -11,7 +11,7 @@ the architecture into focused zones so each topic has one owner.
   queries, caching, arguments, and accepted inputs.
 - [Materialization Lifecycle](materialization-lifecycle.md): what happens when
   an asset runs.
-- [Schema Inference](schema-inference.md): continuous deep inference for
+- [Schema Inference](schema-inference.md): current-run deep inference for
   inconsistent API payloads.
 - [Storage Model](storage-model.md): DuckDB files, system tables, staging
   tables, locks, and future shared storage.

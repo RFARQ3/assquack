@@ -1,73 +1,62 @@
 # Schema Inference
 
-Assquack treats source schema as evidence, not as a fixed API contract. Each
-materialization records what the source actually returned and combines that
-evidence with the latest published schema.
+Each replacement infers its schema from the current run's completed NDJSON
+fragments only. Prior published columns and types do not constrain the new table.
 
 ## Inference Flow
 
 ```mermaid
 flowchart LR
-  Rows[Normalized rows] --> Fragments[Local NDJSON fragments]
-  Fragments --> Reader[DuckDB native JSON reader]
-  Fragments --> Observe[JSON structure and path observations]
-  Reader --> Resolve[Effective schema]
-  Observe --> Metadata[Schema metadata]
-  Resolve --> Candidate[Typed candidate table]
-  Candidate --> Current[Current asset table]
+  Rows[Normalized rows] --> Fragments[Completed NDJSON fragments]
+  Fragments --> Reader[DuckDB native inference]
+  Reader --> Strategy[Current-run schema strategy]
+  Strategy --> Candidate[Typed candidate table]
+  Candidate --> Current[Atomic table replacement]
 ```
 
-Rows are written to bounded local NDJSON fragments before schema decisions are
-made. DuckDB's native `read_json` scans the completed fragment set with deep
-inference and `union_by_name`, so late fields and differences between fragments
-contribute to one run-level schema.
+DuckDB's native `read_json` scans all completed fragments with full sampling,
+`union_by_name`, and nested inference. Late fields and differences between
+fragments contribute to one run-level schema. Missing values within the run
+become nulls under the inferred schema. Hive partition inference is disabled:
+fragment directory labels never add columns or overwrite source fields such as
+`asset` and `run_id`.
 
-The fragments are a local ingestion and replay surface. They do not determine
-asset freshness; the current DuckDB table and Assquack metadata do.
+## Replacement Policy
 
-## Schema Observations
+`AssquackConfig(schema=SchemaConfig(replace="current_run"))` selects the implemented
+policy. It is also the default. Use the existing per-call `assquack_config`
+override to apply configuration to an individual asset. See
+[Configuration](configuration.md#replacement-schema) for an example.
 
-Assquack also reads each bounded fragment through DuckDB's JSON tooling:
+- New source fields appear in the next published table.
+- Fields absent from the entire current extraction disappear.
+- Types are inferred afresh, including nested objects and arrays.
+- An empty extraction publishes zero rows with only `_qa_run_id` and
+  `_qa_loaded_at`; historical source columns are not retained.
 
-- `json_group_structure` records its recursive structure;
-- `json_tree` records path-level types, presence, and null counts;
-- array indexes are normalized so elements contribute to the same path.
+Downstream queries expecting removed columns can fail. Continuation is future
+work and is not an accepted configuration value. The internal strategy protocol
+provides the extension point without adding another decorator API.
 
-Processing observations one fragment at a time keeps the operation bounded.
-The merged structure and path evidence are stored in
-`assquack_meta.schemas` and `assquack_meta.schema_observations`.
+## Schema Metadata
 
-## Effective Schema
-
-The native reader supplies the current run's inferred columns and types.
-Assquack merges those with the latest successful schema:
-
-- fields missing from the current run remain as nullable columns;
-- compatible numeric types widen;
-- incompatible shapes use `VARIANT` rather than a lossy scalar cast;
-- existing columns never disappear automatically.
-
-The typed candidate table is built directly from the completed fragments.
-Missing historical fields become `NULL`, and generated casts use `try_cast` so
-malformed values do not silently redefine the whole asset.
+`assquack_meta.schemas` records the resulting source-column projections for each
+candidate run. Successful run status identifies published schemas. The active
+flow neither reads historical schemas nor runs `json_group_structure`,
+`json_tree`, or detailed field/type observation writes. Existing observation
+metadata and internal helpers remain available but are inactive.
 
 ## VARIANT Policy
 
-`VARIANT` remains the durable type for genuinely heterogeneous fields and for
-future raw-payload retention policies. It is not the mandatory landing area for
-every source row. The local NDJSON fragments are the default ingestion evidence,
-while the published DuckDB table remains canonical.
-
-An explicit future policy may retain a whole `_qa_payload VARIANT` or lossless
-`_qa_raw_json` column for raw, audit, or replay requirements. That policy stays
-outside the asset decorator.
+A column inferred as heterogeneous `JSON` becomes durable `VARIANT`. Other
+DuckDB-inferred types, including nested structures and lists, are retained.
+`VARIANT` is not a mandatory whole-row landing column. NDJSON fragments are local
+ingestion evidence; the published DuckDB table remains canonical.
 
 ## Related Docs
 
-- [Materialization Lifecycle](materialization-lifecycle.md): how fragments feed
-  the candidate and current tables.
-- [Storage Model](storage-model.md): where local fragments, DuckDB state, and
-  exports live.
-- [Configuration](configuration.md): fragment directory and size controls.
-- [Exports](exports.md): publication after a successful table commit.
-- [Roadmap](roadmap.md): later semi-structured and incremental work.
+- [Materialization Lifecycle](materialization-lifecycle.md): candidate creation,
+  atomic publication, and failure handling.
+- [Storage Model](storage-model.md): fragment and metadata locations.
+- [Configuration](configuration.md): schema policy and ingestion settings.
+- [Approved MVP scope](journal/2026-09-08-mvp-scope.md): release decisions.

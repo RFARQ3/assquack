@@ -14,17 +14,12 @@ from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
     fragment_run_directory,
 )
-from assquack._materialization.inference import (
-    InferenceState,
-    merge_json_structures,
-    resolve_reader_projections,
-)
 from assquack._materialization.models import (
     MaterializationRequest,
     StagingTables,
 )
 from assquack._materialization.normalize import normalize
-from assquack._materialization.observation import observe_fragment
+from assquack._materialization.schema import replace_schema_strategy
 from assquack._materialization.staging import (
     create_shaped_staging,
     describe_fragments,
@@ -43,10 +38,11 @@ async def materialize(
     config: AssquackConfig,
     strategy: CommitStrategy | None = None,
 ) -> AssquackResult:
-    """Normalize, stage, observe, shape, and publish one asset run."""
+    """Capture fragments, infer the current schema, and publish one asset run."""
 
     started = perf_counter()
     strategy = strategy or ReplaceCommitStrategy()
+    schema_strategy = replace_schema_strategy(config.schema)
 
     async with writer_lock(config.resolved_database_path):
         connection = open_database(config)
@@ -124,29 +120,8 @@ async def materialize(
                 row_count += fragment_writer.write_rows(chunk.rows)
 
             fragments = fragment_writer.finish()
-            inference = InferenceState()
-            for fragment in fragments:
-                inference.observe(observe_fragment(connection, fragment))
-
-            previous_schema = metadata.find_latest_schema(request.asset_id)
-            previous_json_structure = metadata.find_latest_json_structure(
-                request.asset_id
-            )
             observed_schema = describe_fragments(connection, fragments)
-            projections = resolve_reader_projections(
-                observed_schema,
-                previous_schema,
-            )
-            metadata.record_schema(
-                request.asset_id,
-                run_id,
-                [item.as_dict() for item in projections],
-                merge_json_structures(
-                    previous_json_structure or {},
-                    inference.json_structure,
-                ),
-                inference.observations(),
-            )
+            projections = schema_strategy.resolve(observed_schema)
             create_shaped_staging(
                 connection,
                 staging.shaped,
@@ -154,6 +129,11 @@ async def materialize(
                 projections,
                 [name for name, _ in observed_schema],
                 run_id,
+            )
+            metadata.record_schema(
+                request.asset_id,
+                run_id,
+                [item.as_dict() for item in projections],
             )
 
             duration_ms = int((perf_counter() - started) * 1_000)

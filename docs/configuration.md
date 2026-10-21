@@ -25,6 +25,8 @@ AssquackConfig
   ingestion
     fragment_directory
     fragment_max_rows
+  schema
+    replace
   duckdb
     threads
     memory_limit
@@ -141,6 +143,31 @@ while fragment size controls the files DuckDB scans.
 Environment overrides are
 `ASSQUACK_INGESTION__FRAGMENT_DIRECTORY` and
 `ASSQUACK_INGESTION__FRAGMENT_MAX_ROWS`.
+
+## Replacement Schema
+
+`schema.replace` defaults to `"current_run"`, the only supported value. It selects
+the current-run schema strategy: infer from this extraction's completed fragments
+without retaining prior columns or types. Unsupported values such as
+`"continuation"` fail configuration validation. The environment override is
+`ASSQUACK_SCHEMA__REPLACE`.
+
+Apply this configuration through the existing per-call override:
+
+```python
+from assquack import AssquackConfig, SchemaConfig
+
+config = AssquackConfig(schema=SchemaConfig(replace="current_run"))
+result = await orders(assquack_config=config)
+```
+
+Read the setting as `config.schema.replace`. Internally, the Pydantic field is
+`schema_settings`, aliased to `schema` to avoid colliding with Pydantic's legacy
+`schema()` method. Use `model_dump(by_alias=True)` for the external config shape.
+The asset decorator and its `mode="replace"` string remain unchanged.
+
+An empty extraction publishes an empty table with only run metadata columns.
+See [Schema Inference](schema-inference.md) for column removal and type behavior.
 
 ## DuckDB Settings
 

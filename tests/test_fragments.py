@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import duckdb
+import pytest
 
 from assquack import AssquackConfig, IngestionConfig, asset
 from assquack._materialization.fragments import fragment_run_directory
@@ -66,7 +67,7 @@ def test_materialization_uses_bounded_local_ndjson_fragments(tmp_path: Path) -> 
         connection.close()
 
     assert rows == [(1, None), (2, None), (3, "found"), (4, None), (5, None)]
-    assert observations == [("$.late_field", 1, 5)]
+    assert observations == []
 
     decoded = [
         json.loads(line)
@@ -109,7 +110,10 @@ def test_reader_preserves_heterogeneous_values_as_variant(tmp_path: Path) -> Non
     assert value_types[1] == ("VARCHAR",)
 
 
-def test_empty_refresh_preserves_the_latest_schema(tmp_path: Path) -> None:
+@pytest.mark.parametrize("previous_success", [False, True])
+def test_empty_run_has_only_metadata_columns(
+    tmp_path: Path, previous_success: bool
+) -> None:
     rows: list[dict[str, object]] = [{"id": 1, "late_field": "present"}]
 
     @asset(table="main.refreshable")
@@ -117,20 +121,19 @@ def test_empty_refresh_preserves_the_latest_schema(tmp_path: Path) -> None:
         return rows
 
     config = AssquackConfig(home=tmp_path)
-    asyncio.run(refreshable(assquack_config=config))
+    if previous_success:
+        asyncio.run(refreshable(assquack_config=config))
     rows.clear()
     asyncio.run(refreshable(assquack_config=config))
 
     connection = duckdb.connect(str(config.resolved_database_path))
     try:
-        schema = connection.execute(
-            "DESCRIBE SELECT id, late_field FROM main.refreshable"
-        ).fetchall()
+        schema = connection.execute("DESCRIBE main.refreshable").fetchall()
         row_count = connection.execute(
             "SELECT count(*) FROM main.refreshable"
         ).fetchone()
     finally:
         connection.close()
 
-    assert [row[0] for row in schema] == ["id", "late_field"]
+    assert [row[0] for row in schema] == ["_qa_run_id", "_qa_loaded_at"]
     assert row_count == (0,)

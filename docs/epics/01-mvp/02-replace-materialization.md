@@ -1,7 +1,7 @@
 # Replace Materialization
 
 Status: **In Progress**
-Last updated: 2026-09-10
+Last updated: 2026-10-21
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -9,7 +9,7 @@ Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.m
 ## Intent
 
 Implement the first complete asset lifecycle: decorate a function, run it,
-stage observed data, infer a conservative shape, and transactionally replace
+capture source data, infer the current extraction shape, and transactionally replace
 the current DuckDB table.
 
 ## Scope
@@ -35,7 +35,7 @@ Excluded:
 ## Architecture Notes
 
 Treat materialization as a pipeline with explicit phases: normalize, stage raw
-evidence, observe schema, shape rows, and publish. Keep each phase small enough
+evidence, infer the current schema, shape rows, and publish. Keep each phase small enough
 to test independently without turning the decorator into a storage policy API.
 
 ## Fragment And Staging Contracts
@@ -44,7 +44,8 @@ Each run writes `.partial` files under
 `<fragment-directory>/asset=<asset-name>/run_id=<run-id>/`. A fragment is
 flushed and renamed to `fragment=<number>.ndjson` only when complete.
 `_COMPLETE` marks successful source capture. DuckDB receives only completed
-fragment paths.
+fragment paths. Disable Hive partition inference in the shared JSON reader so
+storage directory labels cannot become columns or overwrite source values.
 
 `AssquackConfig.ingestion.fragment_max_rows` controls file size independently
 of the normalization chunk size. Native `read_json` scans all completed files
@@ -68,48 +69,32 @@ The cleanup step should derive keep/drop decisions from `assquack_meta.runs` and
 the fragment directory naming convention. It must not drop evidence for a run
 still marked `running` unless recovery has first marked that run stale or failed.
 
-## Schema Observation Queries
+## Current-Run Schema Strategy
 
-For each completed fragment, capture compact structure evidence:
+The [approved scope journal](../../journal/2026-09-08-mvp-scope.md) supersedes
+historical schema continuity and detailed observations for MVP.
 
-```sql
-SELECT json_group_structure(json)
-FROM read_json_objects(
-  $fragment_path,
-  format = 'newline_delimited'
-);
-```
+`schema.replace="current_run"` selects `CurrentRunSchemaStrategy` through the
+internal `SchemaStrategy` protocol. Native DuckDB inference over this run's
+completed fragments supplies its columns and types. The strategy maps a
+heterogeneous `JSON` column to durable `VARIANT` and otherwise preserves native
+types. It does not read previous schemas or run observation queries.
 
-Collect path-level evidence with `json_tree`:
+Record only the resulting source-column schema in `assquack_meta.schemas`;
+leave JSON structure and detailed observations unwritten. Existing catalog
+columns, observation helpers and historical records remain for compatibility,
+but are outside active materialization.
 
-```sql
-SELECT
-  tree.fullkey AS path,
-  tree.type AS observed_type,
-  count(*) AS present_count
-FROM read_json_objects(
-       $fragment_path,
-       format = 'newline_delimited'
-     ) AS source,
-     json_tree(source.json) AS tree
-WHERE tree.fullkey <> '$'
-GROUP BY tree.fullkey, tree.type;
-```
+An empty extraction publishes zero rows with only `_qa_run_id` and
+`_qa_loaded_at`. Removed source fields disappear, and scalar or nested types
+can change between runs. No unsupported continuation setting is exposed.
 
 ## Projection Contract
 
-The candidate table comes directly from the native reader's combined schema.
-Projection should tolerate missing historical fields and malformed values:
-
-```sql
-SELECT
-  $run_id AS _qa_run_id,
-  current_timestamp AS _qa_loaded_at,
-  try_cast(id AS VARCHAR) AS id,
-  try_cast(amount AS DECIMAL(18, 2)) AS amount,
-  CAST(NULL AS VARCHAR) AS previously_observed_field
-FROM read_json($fragment_paths, union_by_name = true, sample_size = -1);
-```
+Build the candidate from current-run projections only. Missing values within
+this extraction are handled by DuckDB's native field union. No historical
+column or type participates. Candidate creation and schema recording finish
+before the publication transaction; failures leave the published table intact.
 
 ## Publish Contract
 
@@ -127,24 +112,53 @@ acceptable shape is:
 - [ ] Normalize every documented returned and yielded input.
 - [x] Write bounded local NDJSON fragments with atomic completion.
 - [x] Infer the current schema across all completed fragments.
-- [x] Record schema observations from each completed fragment.
-- [x] Build shaped staging from conservative effective schema.
+- [x] Remove detailed observations and historical reconciliation from active runs.
+- [x] Implement current-run schema strategy behind `schema.replace`.
+- [x] Build shaped staging from current-run inferred schema.
 - [x] Replace the current asset table transactionally.
 - [x] Record successful and failed run metadata.
 - [ ] Enforce bounded staging retention after success, failure, and recovery.
-- [ ] Add tests for missing fields, type drift, failed casts, and empty results.
+- [x] Verify current-run column removal, type changes, nested inference, and empty results.
+- [x] Verify source-field preservation and transactional publication rollback/retry.
 - [x] Update this status header before handoff.
 
 ## Validation
 
-- `poetry run pytest`
-- `poetry run pyright`
-- `poetry run ruff check .`
-- `poetry run ruff format --check .`
+- Run the focused schema/config/fragment tests; do not require the full suite for this step.
+- Run Pyright over changed production files using the Poetry interpreter.
+- Run Ruff lint over changed production files.
+- Run Ruff format checks over changed production files.
 - `git diff --check`
 
 ## Notes
 
 This is the MVP spine. Prefer small, explicit components over a broad framework:
-decorator contract, materializer, fragment writer, schema observer, and table
+decorator contract, materializer, fragment writer, schema strategy, and table
 publisher.
+
+### 21 October implementation checkpoint
+
+The current-run schema step is implemented and independently verified. The broader
+replace-materialization phase remains **In Progress**.
+Byte-based rollover, retention, remaining input compatibility and exports are
+separate remaining work, not completed by this change.
+
+Focused production checks passed: Ruff lint/format, Pyright on all six changed
+production files, configuration construction and alias serialization, local
+Markdown links, and `git diff --check`. Pyright required an unsandboxed offline
+run to resolve installed Poetry dependencies. The terminology scan found only
+the existing Kubernetes mention in the historical cache/locking observation.
+Independent verification passed all **18 targeted tests**:
+
+```text
+poetry run pytest tests/test_schema_replacement.py tests/test_schema_inference.py tests/test_fragments.py tests/test_config.py -q --tb=short
+```
+
+Coverage includes current-run column removal and type narrowing, sparse nested
+objects and arrays, no observation writes, per-asset strategy dispatch, initial
+and refresh empty runs, publication rollback with and without a previous table,
+and successful retry. The regression found during verification is fixed by
+`hive_partitioning=false`: source `asset` and `run_id` values survive, and directory
+labels never become extra inferred columns. Independent test-file Ruff,
+formatting, Pyright and diff checks passed. No remaining defect was found in this
+scope. No full-suite or live-system checks were run.

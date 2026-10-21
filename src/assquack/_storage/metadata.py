@@ -122,8 +122,8 @@ class MetadataRepository:
         asset_id: str,
         run_id: str,
         schema: list[dict[str, str]],
-        json_structure: JsonStructure,
-        observations: list[SchemaObservation],
+        json_structure: JsonStructure | None = None,
+        observations: list[SchemaObservation] | None = None,
     ) -> None:
         self._connection.execute(
             """
@@ -135,7 +135,7 @@ class MetadataRepository:
                 asset_id,
                 run_id,
                 json.dumps(schema),
-                json.dumps(json_structure),
+                json.dumps(json_structure) if json_structure is not None else None,
             ],
         )
 

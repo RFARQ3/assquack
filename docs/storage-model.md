@@ -100,14 +100,14 @@ tables.
 erDiagram
   ASSETS ||--o{ RUNS : materializes
   ASSETS ||--o{ SCHEMAS : records
-  ASSETS ||--o{ SCHEMA_OBSERVATIONS : observes
   RUNS ||--o{ EXPORTS : writes
 ```
 
 `assquack_meta.assets` is the asset manifest. `assquack_meta.runs` records
 materialization attempts and their final status. `assquack_meta.schemas` stores
-run-level schema evidence such as JSON structure summaries.
-`assquack_meta.schema_observations` stores path-level evidence across runs.
+the resulting source-column schema for each candidate run.
+`assquack_meta.schema_observations` remains in the catalog for compatibility;
+current-run replacement does not populate it or JSON structure summaries.
 `assquack_meta.exports` records external
 artifacts such as current-state Parquet or run snapshots. `uri` is the logical
 target, such as `mad://bronze/orders.parquet`; `resolved_uri` is the concrete

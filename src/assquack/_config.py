@@ -80,6 +80,15 @@ class IngestionConfig(_ProcessSettings):
     )
 
 
+class SchemaConfig(_ProcessSettings):
+    """Select the schema policy used by replace materialization."""
+
+    replace: Literal["current_run"] = Field(
+        default="current_run",
+        validation_alias="ASSQUACK_SCHEMA__REPLACE",
+    )
+
+
 class AssquackConfig(_ProcessSettings):
     """Authoritative runtime configuration accepted by the core package."""
 
@@ -97,12 +106,19 @@ class AssquackConfig(_ProcessSettings):
     )
     duckdb: DuckDBConfig = Field(default_factory=DuckDBConfig)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
+    schema_settings: SchemaConfig = Field(default_factory=SchemaConfig, alias="schema")
     exports: ExportsConfig = Field(default_factory=ExportsConfig)
     chunk_size: int = Field(
         default=1_000,
         ge=1,
         validation_alias="ASSQUACK_CHUNK_SIZE",
     )
+
+    # Keep schema.replace available without a field shadowing Pydantic's legacy
+    # schema() method. JSON schema generation uses model_json_schema().
+    @property
+    def schema(self) -> SchemaConfig:  # pyright: ignore[reportIncompatibleMethodOverride]
+        return self.schema_settings
 
     @model_validator(mode="after")
     def resolve_local_paths(self) -> Self:

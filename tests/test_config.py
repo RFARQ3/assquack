@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from assquack import AssquackConfig, ExportsConfig, IngestionConfig
+import pytest
+from pydantic import ValidationError
+
+from assquack import AssquackConfig, ExportsConfig, IngestionConfig, SchemaConfig
 
 
 def test_process_environment_populates_the_full_config_tree(
@@ -91,3 +94,21 @@ def test_documented_environment_names_remain_supported(
 
     assert config.environment == "legacy-environment"
     assert config.duckdb.temp_directory == tmp_path / "legacy-spill"
+
+
+def test_schema_strategy_environment_and_direct_override(monkeypatch) -> None:
+    monkeypatch.delenv("ASSQUACK_SCHEMA__REPLACE", raising=False)
+    assert AssquackConfig().schema.replace == "current_run"
+
+    monkeypatch.setenv("ASSQUACK_SCHEMA__REPLACE", "current_run")
+    assert AssquackConfig().schema.replace == "current_run"
+
+    monkeypatch.setenv("ASSQUACK_SCHEMA__REPLACE", "continuation")
+    with pytest.raises(ValidationError, match="current_run"):
+        AssquackConfig()
+
+    config = AssquackConfig(schema=SchemaConfig(replace="current_run"))
+    assert config.schema.replace == "current_run"
+
+    with pytest.raises(ValidationError, match="current_run"):
+        SchemaConfig.model_validate({"replace": "continuation"})

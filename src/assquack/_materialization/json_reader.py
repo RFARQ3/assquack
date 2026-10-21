@@ -4,8 +4,11 @@ from collections.abc import Sequence
 
 from assquack._storage.sql import quote_literal
 
+# Fragment directory names identify working storage, not source columns.
+# Hive inference would overwrite payload fields named asset or run_id.
 JSON_READER_OPTIONS = (
     "format='newline_delimited', "
+    "hive_partitioning=false, "
     "union_by_name=true, "
     "sample_size=-1, "
     "field_appearance_threshold=0, "

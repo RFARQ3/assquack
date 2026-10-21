@@ -214,7 +214,7 @@ broad and framework-agnostic:
 
 Assquack treats these values as observed data for the current run. The
 materializer normalizes them into local NDJSON fragments, uses DuckDB's native
-JSON tooling to infer and record schema evidence, and updates the current table
+JSON reader to infer the current run schema, and updates the current table
 according to the asset's mode.
 
 ## Related Docs
