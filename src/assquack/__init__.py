@@ -7,7 +7,13 @@ from assquack._api import (
     ExportSpec,
     asset,
 )
-from assquack._config import AssquackConfig, DuckDBConfig, ExportsConfig
+from assquack._config import (
+    AssquackConfig,
+    DuckDBConfig,
+    ExportsConfig,
+    IngestionConfig,
+)
+from assquack._errors import MissingAssetSchemaWarning
 from assquack._result import AssquackResult
 
 __all__ = [
@@ -19,5 +25,7 @@ __all__ = [
     "ExportFormat",
     "ExportSpec",
     "ExportsConfig",
+    "IngestionConfig",
+    "MissingAssetSchemaWarning",
     "asset",
 ]

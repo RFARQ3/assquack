@@ -1,14 +1,13 @@
 # Assquack Storage Model
 
-Date: 2026-05-08
+Date: 2026-09-10
 
 ## Position
 
 Assquack uses embedded DuckDB as its primary storage engine. The MVP write
 target is a native `.duckdb` database file on a local writable filesystem path.
-This keeps materialization close to DuckDB's intended embedded model and avoids
-persisting large raw JSON or intermediate file fragments just so DuckDB can
-infer, replay, and query data later.
+Bounded NDJSON fragments live beside the database as local working and replay
+evidence while DuckDB builds the typed asset table.
 
 The primary database file is not an object-storage artifact. Do not use ABFSS,
 ADLS, or another remote object-store path as the mutable primary location for a
@@ -79,15 +78,15 @@ materialization transaction has completed.
 Assquack reserves the `assquack_meta` schema for system metadata. The distinct
 name avoids colliding with the `assquack` catalog that DuckDB derives from the
 default `assquack.duckdb` filename. Assquack also reserves a staging schema for
-run-local working tables, recommended as `assquack_stage`. User asset tables
-should live in sanitized asset schemas and tables chosen from asset metadata and
-bound arguments.
+run-local typed candidate tables, recommended as `assquack_stage`. User asset
+tables should live in sanitized asset schemas and tables chosen from asset
+metadata and bound arguments.
 
 Reserved schema purposes:
 
 ```text
 assquack_meta   system metadata tables
-assquack_stage  raw and shaped staging tables for active or recent runs
+assquack_stage  typed candidate tables for active runs
 <asset_schema>  durable user-facing asset tables and views
 ```
 
@@ -146,40 +145,29 @@ Near-term modes can reuse the same table model:
 - `snapshot` retains historical rows or per-run tables and exposes current or
   latest views.
 
-## Staging Tables
+## Local Fragments And Candidate Tables
 
-Every materialization run should use staging tables in `assquack_stage`. Staging
-is the working area where yielded source data becomes durable DuckDB rows,
-schema evidence, and typed projections before promotion to the current table.
-
-Recommended raw staging shape includes run and batch identifiers, row ordering,
-load timestamps, optional source URI/hash provenance, and `_qa_payload VARIANT`
-for the observed source payload.
-
-Recommended shaped staging shape:
+Every run writes JSON-shaped source rows to:
 
 ```text
-assquack_stage.shaped_<asset_id>_<run_id>
+<fragment-directory>/asset=<asset-name>/run_id=<run-id>/fragment=<number>.ndjson
 ```
 
-Shaped staging projects stable or promoted fields into typed columns. It may
-retain `_qa_payload` when policy requires raw, bronze, audit, or discovery
-access, but raw staging is the mandatory evidence surface. During a run,
-Assquack may add newly discovered shaped columns. It should not drop columns
-just because an API omitted fields in the current batch.
+The fragment directory defaults beside the database. Hive-style path components
+keep assets, runs, and fragments identifiable during inspection and recovery.
+It is local ingestion storage and never resolves through the asset export alias
+or `mad://` adapter. Fragments are completed through atomic rename before
+DuckDB reads them, and `fragment_max_rows` bounds their size.
 
-The exact staging DDL belongs to the implementor-facing
-[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#staging-table-contracts).
+DuckDB's native JSON reader scans the complete fragment set and builds a typed
+candidate table in `assquack_stage`. The current asset table is updated only
+after the schema metadata and candidate are ready to commit.
 
-Raw staging is the evidence surface. Shaped staging is the promotion surface.
-The current asset table is updated only after staging and metadata writes are
-ready to commit.
-
-Staging retention is intentionally bounded. Keep the latest successful raw
-staging table per asset for diagnostics, keep the latest three failed run
-staging sets per asset, and prune older tables from `assquack_stage`. The
-materialization lifecycle owns the retention rule; storage code should provide
-the cleanup operations needed to enforce it.
+`VARIANT` remains available for columns whose values are genuinely
+heterogeneous; it is not a mandatory whole-row staging format. The target
+fragment retention policy keeps the latest successful run and the latest three
+failed runs per asset. Candidate tables are dropped after successful
+publication.
 
 ## Reserved Metadata Columns
 
@@ -204,10 +192,10 @@ Column meanings:
 - `_qa_payload`: optional semi-structured payload, `VARIANT` by default;
 - `_qa_raw_json`: optional lossless text retention for explicit audit needs.
 
-`_qa_payload` is the default durable representation for unknown or volatile
-nested payloads. DuckDB `JSON` is still useful for parsing, validation, and
-schema inference, but Assquack should not persist full raw JSON dumps by default
-as the normal storage path for dynamic structures.
+`_qa_payload` is an optional durable representation for unknown or volatile
+nested payloads. DuckDB's native JSON reader and JSON functions use the local
+fragments for schema inference; a whole-row `VARIANT` is not required in every
+current table.
 
 ## Exports And Object Storage
 
@@ -243,8 +231,8 @@ database inside PostgreSQL.
   are resolved.
 - [Developer API](developer-api.md): how declared asset names and paths seed
   identity without exposing storage placement.
-- [Materialization Lifecycle](materialization-lifecycle.md): how staging tables
-  are populated and swapped into current tables.
+- [Materialization Lifecycle](materialization-lifecycle.md): how local fragments
+  become a candidate and then the current table.
 - [Schema Inference](schema-inference.md): how schema evidence is stored and
   promoted.
 - [Exports](exports.md): why object storage is an output surface, not the

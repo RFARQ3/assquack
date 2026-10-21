@@ -8,8 +8,7 @@ from typing import Any, TypeAlias
 from assquack._storage.models import SchemaObservation
 from assquack._storage.tables import TableReference
 
-
-JsonStructure: TypeAlias = str | dict[str, Any] | list[Any]
+JsonStructure: TypeAlias = str | dict[str, "JsonStructure"] | list["JsonStructure"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +29,13 @@ class MaterializationRequest:
 class NormalizedChunk:
     batch_id: int
     rows: list[dict[str, Any]]
+
+
+@dataclass(frozen=True, slots=True)
+class FragmentFile:
+    index: int
+    path: str
+    row_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,5 +61,4 @@ class ProjectionSpec:
 
 @dataclass(frozen=True, slots=True)
 class StagingTables:
-    raw: TableReference
     shaped: TableReference

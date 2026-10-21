@@ -206,7 +206,9 @@ class MetadataRepository:
             INSERT INTO assquack_meta.exports (
                 export_id, run_id, asset_id, alias, uri, resolved_uri,
                 format, role, row_count, options_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'parquet', 'default', ?, '{}', current_timestamp)
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, 'parquet', 'default', ?, '{}', current_timestamp
+            )
             """,
             [
                 str(uuid4()),

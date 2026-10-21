@@ -213,8 +213,9 @@ broad and framework-agnostic:
 - `httpx.Response` values.
 
 Assquack treats these values as observed data for the current run. The
-materializer normalizes them into DuckDB staging tables, records schema
-evidence, and updates the current table according to the asset's mode.
+materializer normalizes them into local NDJSON fragments, uses DuckDB's native
+JSON tooling to infer and record schema evidence, and updates the current table
+according to the asset's mode.
 
 ## Related Docs
 

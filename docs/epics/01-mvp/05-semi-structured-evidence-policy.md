@@ -1,7 +1,7 @@
 # Semi-Structured Evidence Policy
 
 Status: **Planned**
-Last updated: 2026-05-08
+Last updated: 2026-09-10
 Epic: 01 MVP
 Phase: 05
 Related docs: [Roadmap](../../roadmap.md), [Schema Inference](../../schema-inference.md), [Storage Model](../../storage-model.md), [Exports](../../exports.md)
@@ -9,20 +9,21 @@ Related docs: [Roadmap](../../roadmap.md), [Schema Inference](../../schema-infer
 ## Intent
 
 Refine how Assquack keeps, promotes, and exports semi-structured source
-evidence after the core `VARIANT` staging loop exists.
+evidence after local JSON ingestion has built the typed asset table.
 
 ## Scope
 
 Included:
 
-- Policy for when `_qa_payload VARIANT` is retained in shaped/current tables.
+- Policy for when a whole-row `_qa_payload VARIANT` is retained in
+  shaped/current tables in addition to local fragments.
 - Promotion helpers for stable fields inside semi-structured payloads.
 - Explicit `_qa_raw_json` audit option for lossless source text when required.
 - Parquet export behavior for `VARIANT`, including shredding where supported.
 
 Excluded:
 
-- Making raw JSON dumps the default durable storage path.
+- Treating local working fragments as canonical asset state.
 - Adding storage-policy arguments to the public asset decorator.
 - Full incremental history or snapshot mode.
 

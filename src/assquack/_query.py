@@ -44,7 +44,8 @@ def query_dataframe(
 def _create_data_alias(connection: Any, table: TableReference) -> None:
     if not table_exists(connection, table):
         raise MissingAssetTableError(
-            "The asset has no published table. Materialize it successfully before querying."
+            "The asset has no published table. Materialize it successfully "
+            "before querying."
         )
     connection.execute(
         f"""

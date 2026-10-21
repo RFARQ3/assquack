@@ -22,6 +22,9 @@ AssquackConfig
   home
   environment
   database_path
+  ingestion
+    fragment_directory
+    fragment_max_rows
   duckdb
     threads
     memory_limit
@@ -90,6 +93,9 @@ argument, and asset authors should not choose database placement for the common
 case. Multiple database files can be introduced later through configuration, but
 the MVP should keep one resolved database path per configured Assquack runtime.
 
+The default fragment directory is `<database-directory>/fragments`. It stays
+local and does not follow the asset's export destination.
+
 ## Local Storage Defaults
 
 The local profile should be usable without cloud credentials or external
@@ -100,6 +106,9 @@ assquack:
   home: ${oc.env:ASSQUACK_HOME,.}
   environment: ${oc.env:ENVIRONMENT,dev}
   database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
+  ingestion:
+    fragment_directory: ${assquack.home}/${assquack.environment}/fragments
+    fragment_max_rows: 10000
   duckdb:
     threads: 4
     memory_limit: 8GB
@@ -113,10 +122,25 @@ assquack:
     default_format: parquet
 ```
 
-The parent directories for `database_path`, `duckdb.temp_directory`, and any
-local export base must be writable by the process before materialization starts.
-Assquack may create child directories when safe, but it should fail clearly when
-the configured filesystem is missing or read-only.
+The parent directories for `database_path`, `ingestion.fragment_directory`,
+`duckdb.temp_directory`, and any local export base must be writable by the
+process before materialization starts. Assquack may create child directories
+when safe, but it should fail clearly when the configured filesystem is missing
+or read-only.
+
+## Local Ingestion Fragments
+
+`ingestion.fragment_directory` controls the local filesystem root for NDJSON
+working fragments. It defaults beside the DuckDB database and is independent of
+export aliases and export base URIs.
+
+`ingestion.fragment_max_rows` limits each fragment to `10_000` rows by default.
+It is separate from `chunk_size`: chunk size bounds Python normalization memory,
+while fragment size controls the files DuckDB scans.
+
+Environment overrides are
+`ASSQUACK_INGESTION__FRAGMENT_DIRECTORY` and
+`ASSQUACK_INGESTION__FRAGMENT_MAX_ROWS`.
 
 ## DuckDB Settings
 
@@ -216,6 +240,9 @@ assquack:
   home: ${oc.env:ASSQUACK_HOME,.}
   environment: ${oc.env:ENVIRONMENT,dev}
   database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
+  ingestion:
+    fragment_directory: ${assquack.home}/${assquack.environment}/fragments
+    fragment_max_rows: 10000
   duckdb:
     threads: 4
     memory_limit: 8GB
@@ -247,6 +274,7 @@ The embedding runtime is responsible for the operating environment:
 - run from a writable current working directory or provide a writable
   `ASSQUACK_HOME` override;
 - provide enough disk capacity for the DuckDB database and temp spill files;
+- provide enough local disk capacity for bounded NDJSON working fragments;
 - set `ASSQUACK_HOME` when the current working directory is not suitable;
 - set `ENVIRONMENT` so dev, test, and prod do not share the same database path;
 - optionally set `DUCKDB_TEMP_DIRECTORY` for larger or faster temporary storage;

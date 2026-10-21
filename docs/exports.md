@@ -15,7 +15,7 @@ flowchart LR
   Copy --> Manifest[assquack_meta.exports row]
 ```
 
-1. Materialize into staging tables inside the configured DuckDB database.
+1. Materialize local NDJSON fragments into a candidate DuckDB table.
 2. Transactionally publish the current asset table.
 3. Record run and schema metadata in Assquack system tables.
 4. Optionally export the published table to one or more file targets.

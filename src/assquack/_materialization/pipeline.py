@@ -10,18 +10,25 @@ from assquack._errors import ExportError
 from assquack._exports.parquet import ParquetExportWriter
 from assquack._exports.targets import parse_export_target
 from assquack._materialization.commit import CommitStrategy, ReplaceCommitStrategy
-from assquack._materialization.inference import InferenceState, infer_projections
+from assquack._materialization.fragments import (
+    NDJSONFragmentWriter,
+    fragment_run_directory,
+)
+from assquack._materialization.inference import (
+    InferenceState,
+    merge_json_structures,
+    resolve_reader_projections,
+)
 from assquack._materialization.models import (
     MaterializationRequest,
     StagingTables,
 )
 from assquack._materialization.normalize import normalize
-from assquack._materialization.observation import observe_staged_batch
+from assquack._materialization.observation import observe_fragment
 from assquack._materialization.staging import (
-    create_raw_staging,
     create_shaped_staging,
+    describe_fragments,
     drop_shaped_staging,
-    stage_chunk,
 )
 from assquack._result import AssquackResult
 from assquack._storage.database import open_database
@@ -92,62 +99,61 @@ async def materialize(
         run_id = str(uuid4())
         token = run_id.replace("-", "")
         staging = StagingTables(
-            raw=TableReference("assquack_stage", f"raw_{request.asset_id[:12]}_{token}"),
             shaped=TableReference(
                 "assquack_stage", f"shaped_{request.asset_id[:12]}_{token}"
             ),
         )
         metadata.start_run(run_id, request.asset_id)
+        fragment_writer = NDJSONFragmentWriter(
+            fragment_run_directory(
+                config.resolved_fragment_directory,
+                request.asset_name,
+                run_id,
+            ),
+            max_rows=config.ingestion.fragment_max_rows,
+        )
 
         committed = False
         row_count = 0
         try:
-            create_raw_staging(connection, staging.raw)
             value = request.fn(*request.arguments, **request.keyword_arguments)
             if inspect.isawaitable(value):
                 value = await value
 
-            inference = InferenceState()
             async for chunk in normalize(value, chunk_size=config.chunk_size):
-                staged = stage_chunk(
-                    connection,
-                    staging.raw,
-                    run_id,
-                    chunk,
-                    row_count,
-                )
-                inference.observe(
-                    observe_staged_batch(
-                        connection,
-                        staging.raw,
-                        run_id,
-                        chunk.batch_id,
-                        staged,
-                    )
-                )
-                row_count += staged
+                row_count += fragment_writer.write_rows(chunk.rows)
+
+            fragments = fragment_writer.finish()
+            inference = InferenceState()
+            for fragment in fragments:
+                inference.observe(observe_fragment(connection, fragment))
 
             previous_schema = metadata.find_latest_schema(request.asset_id)
             previous_json_structure = metadata.find_latest_json_structure(
                 request.asset_id
             )
-            projections = infer_projections(
-                inference,
+            observed_schema = describe_fragments(connection, fragments)
+            projections = resolve_reader_projections(
+                observed_schema,
                 previous_schema,
-                previous_json_structure,
             )
             metadata.record_schema(
                 request.asset_id,
                 run_id,
                 [item.as_dict() for item in projections],
-                inference.json_structure,
+                merge_json_structures(
+                    previous_json_structure or {},
+                    inference.json_structure,
+                ),
                 inference.observations(),
             )
             create_shaped_staging(
                 connection,
-                staging.raw,
                 staging.shaped,
+                fragments,
                 projections,
+                [name for name, _ in observed_schema],
+                run_id,
             )
 
             duration_ms = int((perf_counter() - started) * 1_000)
@@ -163,6 +169,7 @@ async def materialize(
             committed = True
             drop_shaped_staging(connection, staging.shaped)
         except BaseException as error:
+            fragment_writer.abort()
             if not committed:
                 metadata.mark_run_failed(
                     run_id,

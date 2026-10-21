@@ -10,7 +10,6 @@ from assquack._materialization.models import (
     ProjectionSpec,
 )
 from assquack._storage.models import SchemaObservation
-from assquack._storage.sql import quote_identifier
 
 _SIMPLE_JSON_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _NUMERIC_TYPES = {"BIGINT", "UBIGINT", "DOUBLE"}
@@ -25,11 +24,19 @@ class ObservationEvidence:
     total_count: int = 0
 
 
+def _empty_json_structure() -> JsonStructure:
+    return {}
+
+
+def _empty_observations() -> dict[tuple[str, str], ObservationEvidence]:
+    return {}
+
+
 @dataclass(slots=True)
 class InferenceState:
-    json_structure: JsonStructure = field(default_factory=dict)
+    json_structure: JsonStructure = field(default_factory=_empty_json_structure)
     evidence: dict[tuple[str, str], ObservationEvidence] = field(
-        default_factory=dict
+        default_factory=_empty_observations
     )
     total_rows: int = 0
 
@@ -74,48 +81,24 @@ class InferenceState:
             )
         ]
 
-    def present_count(self, path: str, *observed_types: str) -> int:
-        accepted = set(observed_types)
-        return sum(
-            item.present_count
-            for item in self.evidence.values()
-            if item.path == path
-            and (not accepted or item.observed_type in accepted)
-        )
 
-
-def infer_projections(
-    state: InferenceState,
+def resolve_reader_projections(
+    observed_schema: list[tuple[str, str]],
     previous_schema: list[dict[str, str]],
-    previous_json_structure: JsonStructure | None = None,
 ) -> list[ProjectionSpec]:
-    """Resolve top-level projections from DuckDB's recursive JSON structure."""
+    """Merge native JSON reader columns with the latest published schema."""
 
-    previous = {
-        item["column_name"]: ProjectionSpec(**item) for item in previous_schema
-    }
-    resolved = dict(previous)
-    structure = merge_json_structures(
-        previous_json_structure or {},
-        state.json_structure,
-    )
-    if not isinstance(structure, dict):
-        return [resolved[name] for name in sorted(resolved)]
-
-    for name in sorted(structure):
-        path = _json_path(name)
-        inferred_type = resolve_duckdb_type(structure[name], state, path)
-        if inferred_type is None:
-            continue
-
-        old = previous.get(name)
-        if old is not None:
-            inferred_type = _widen_types(old.duckdb_type, inferred_type)
+    resolved = {item["column_name"]: ProjectionSpec(**item) for item in previous_schema}
+    for name, observed_type in observed_schema:
+        duckdb_type = "VARIANT" if observed_type == "JSON" else observed_type
+        previous = resolved.get(name)
+        if previous is not None:
+            duckdb_type = _widen_types(previous.duckdb_type, duckdb_type)
 
         resolved[name] = ProjectionSpec(
-            source_field=path,
+            source_field=_json_path(name),
             column_name=name,
-            duckdb_type=inferred_type,
+            duckdb_type=duckdb_type,
         )
 
     return [resolved[name] for name in sorted(resolved)]
@@ -125,7 +108,7 @@ def merge_json_structures(
     left: JsonStructure,
     right: JsonStructure,
 ) -> JsonStructure:
-    """Merge structures reported by DuckDB for separate staged batches."""
+    """Merge structures reported by DuckDB for separate fragments."""
 
     if left == right:
         return left
@@ -160,76 +143,10 @@ def merge_json_structures(
     return "JSON"
 
 
-def resolve_duckdb_type(
-    structure: JsonStructure,
-    state: InferenceState | None = None,
-    path: str | None = None,
-) -> str | None:
-    """Translate DuckDB JSON structure output into a valid cast target."""
-
-    if isinstance(structure, str):
-        if structure == "NULL":
-            return None
-        if structure == "JSON":
-            return "VARIANT"
-        return structure
-
-    if isinstance(structure, dict):
-        if state is not None and path is not None:
-            object_count = state.present_count(path, "OBJECT")
-            if object_count == 0:
-                return None
-            if any(
-                state.present_count(_child_json_path(path, name)) < object_count
-                for name in structure
-            ):
-                return "VARIANT"
-
-        members = [
-            (
-                name,
-                resolve_duckdb_type(
-                    value,
-                    state,
-                    _child_json_path(path, name) if path is not None else None,
-                ),
-            )
-            for name, value in sorted(structure.items())
-        ]
-        typed_members = [
-            f"{quote_identifier(name)} {duckdb_type}"
-            for name, duckdb_type in members
-            if duckdb_type is not None
-        ]
-        if not typed_members:
-            return None
-        return f"STRUCT({', '.join(typed_members)})"
-
-    if isinstance(structure, list):
-        if not structure:
-            return None
-        element_type = resolve_duckdb_type(
-            structure[0],
-            state,
-            f"{path}[*]" if path is not None else None,
-        )
-        if element_type in (None, "VARIANT"):
-            return None if element_type is None else "VARIANT"
-        return f"{element_type}[]"
-
-    return "VARIANT"
-
-
 def _json_path(name: str) -> str:
     if _SIMPLE_JSON_KEY.fullmatch(name):
         return f"$.{name}"
     return f"$.{json.dumps(name)}"
-
-
-def _child_json_path(path: str, name: str) -> str:
-    if _SIMPLE_JSON_KEY.fullmatch(name):
-        return f"{path}.{name}"
-    return f"{path}.{json.dumps(name)}"
 
 
 def _widen_types(previous: str, observed: str) -> str:

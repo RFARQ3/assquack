@@ -9,7 +9,6 @@ from assquack._config import AssquackConfig
 from assquack._storage.sql import quote_identifier, quote_literal
 from assquack._storage.tables import bootstrap_database
 
-
 ASSQUACK_STORAGE_VERSION = "v1.5.0"
 
 

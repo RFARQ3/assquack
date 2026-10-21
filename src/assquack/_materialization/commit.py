@@ -41,12 +41,16 @@ class ReplaceCommitStrategy:
     ) -> None:
         with transaction(connection):
             create_schema(connection, target.schema_name)
+            shaped_table = quote_table(
+                staging.shaped.schema_name,
+                staging.shaped.table_name,
+            )
             connection.execute(
                 f"""
                 CREATE OR REPLACE TABLE
                     {quote_table(target.schema_name, target.table_name)} AS
                 SELECT *
-                FROM {quote_table(staging.shaped.schema_name, staging.shaped.table_name)}
+                FROM {shaped_table}
                 """
             )
             metadata.mark_run_successful(

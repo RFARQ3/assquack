@@ -1,13 +1,9 @@
 # Materialization Lifecycle
 
-Assquack materialization is table-first. Running an asset loads observed data
-into DuckDB staging tables, promotes a shaped result into the asset's current
-table, records metadata inside DuckDB, and only then writes optional
-compatibility exports such as Parquet.
-
-Schema discovery is part of the run, but this document only names the lifecycle
-touchpoints. Detailed inference and type resolution policy belongs in
-[schema-inference.md](schema-inference.md).
+Assquack captures source rows in local NDJSON fragments, lets DuckDB infer a
+combined schema across the completed fragment set, builds a typed candidate
+table, and transactionally publishes that table as the current asset. Optional
+exports happen afterwards.
 
 ## Lifecycle At A Glance
 
@@ -15,296 +11,87 @@ touchpoints. Detailed inference and type resolution policy belongs in
 flowchart LR
   Resolve[Resolve identity and config] --> Cache[Check cache metadata]
   Cache --> Run[Create run record]
-  Run --> Raw[Load raw VARIANT evidence]
-  Raw --> Shape[Project shaped staging]
-  Shape --> Commit[Swap current table]
+  Run --> Capture[Write local NDJSON fragments]
+  Capture --> Infer[Infer and observe schema]
+  Infer --> Candidate[Build candidate table]
+  Candidate --> Commit[Swap current table]
   Commit --> Export[Write compatibility exports]
   Export --> Result[Return AssquackResult]
 ```
 
-1. Bind arguments and resolve the asset identity, table, and export target.
-2. Check cache metadata before calling the user function.
-3. Create a run record and run-scoped staging tables.
-4. Execute the asset function and normalize returned or yielded batches.
-5. Load each batch into raw evidence staging.
-6. Observe schema evidence and project rows into shaped staging.
-7. Commit the current table swap and successful metadata update in one short
-   transaction.
-8. Export the committed current table if configured.
-9. Return an `AssquackResult` pointing at the current DuckDB table.
+1. Resolve the asset identity, table, export target, and runtime configuration.
+2. Return the current table immediately when `cache_first()` finds a valid run.
+3. Create a `running` metadata record.
+4. Normalize returned or yielded values in bounded memory chunks.
+5. Write rows into size-controlled local NDJSON fragments.
+6. Complete each fragment through an atomic rename, then mark the run directory
+   complete after capture succeeds.
+7. Use DuckDB JSON tooling to infer the combined schema and record observations.
+8. Build the typed candidate table directly from the completed fragments.
+9. Transactionally replace the current table and mark the run successful.
+10. Write configured exports from the committed table.
 
-The current table is the durable source of truth. Exports are compatibility
-outputs for lake consumers and legacy file-backed flows.
+## Storage Boundaries
 
-## Argument And Path Resolution
+The three paths are independent:
 
-Resolution happens before cache lookup or source IO:
+- the fragment directory is local working and replay storage;
+- the `.duckdb` file contains canonical asset state and metadata;
+- an export alias identifies an optional compatibility output.
 
-- Bind call arguments with the decorated function signature, including values
-  provided through `.with_arguments()`.
-- Render templated asset names, table overrides, export aliases, and path
-  fragments from those bound arguments.
-- Resolve the positional decorator string as an export alias. By convention a
-  legacy-looking path maps to a `mad://...` export target unless an explicit
-  export URI or file type alias is provided.
-- Resolve database placement from `AssquackConfig`, not from the asset
-  decorator. The MVP writes to the configured local `.duckdb` file.
-- Compute the stable `asset_id` from the explicit `name=` when supplied,
-  otherwise from the declared asset path or function name plus bound arguments.
-  Resolved export destinations, credentials, and export base URIs must not
-  participate in identity.
-- Derive sanitized DuckDB schema and table names from the resolved asset
-  identity, unless `table=` provides an explicit stable name.
+By default, fragments live under
+`fragments/asset=<asset-name>/run_id=<run-id>/` beside the configured database.
+Changing an export from local storage to ADLS does not move the fragments or
+the database.
 
-Path resolution does not decide where the primary data lives. The primary data
-lives in DuckDB; resolved paths describe optional exports and source metadata.
-File suffixes and export aliases may seed default names and formats, but they
-are not mutable storage placement.
+## Fragment Capture
 
-## Cache Check
+`AssquackConfig.ingestion.fragment_max_rows` controls the maximum rows in each
+fragment independently of `chunk_size`, which bounds in-memory normalization.
+One chunk can contribute to a fragment, and a large chunk can span fragments.
 
-`cache_first()` is evaluated after resolution and before the asset function is
-called.
+A fragment is first written with a `.partial` suffix. Assquack flushes and
+renames it to `.ndjson` only when that fragment is complete. DuckDB receives an
+explicit list of completed fragments; partial files are never inference input.
+The run directory receives `_COMPLETE` only after source capture finishes.
 
-The cache check should read Assquack metadata, not filesystem fragments:
+## Schema And Candidate Table
 
-- Find the latest successful run for the resolved `asset_id`.
-- Verify the resolved current table exists in DuckDB.
-- Check TTL or freshness rules against `materialized_at`.
-- If the caller requires an export artifact, verify a matching export row exists
-  and, where practical, that the URI is readable.
+DuckDB's native JSON reader scans every completed fragment with full sampling,
+field union, and nested inference enabled. Assquack separately records bounded
+`json_group_structure` and `json_tree` evidence from each fragment. Detailed
+rules live in [Schema Inference](schema-inference.md).
 
-On a cache hit, Assquack returns an `AssquackResult` for the current table and
-does not create a new run record or call the user function. On a cache miss, the
-normal materialization path starts.
+The candidate table contains `_qa_run_id`, `_qa_loaded_at`, and the effective
+typed columns. Historical columns absent from the current extraction remain in
+the table as `NULL`. A whole-row `VARIANT` payload is optional rather than a
+mandatory staging column.
 
-## Run Record
+## Transaction And Failure Behavior
 
-Each non-cached materialization creates a row in `assquack_meta.runs` before loading
-data:
+Source capture and JSON scanning do not run inside the final publication
+transaction. The short transaction replaces the stable current table and marks
+the run successful together, so readers see either the previous asset or the
+new one.
 
-- `run_id`: unique identifier for this attempt.
-- `asset_id`: resolved asset identity.
-- `status`: starts as `running`.
-- `runtime`: when the run started.
-- `materialized_at`: set only after the current table commit succeeds.
-- `duration_ms`, `row_count`, and `error`: filled at completion or failure.
+On capture or inference failure, the previous current table remains valid and
+the run is marked failed. Completed fragments and any partial fragment remain
+local diagnostic evidence for the later retention and recovery policy.
 
-`assquack_meta.assets` is also bootstrapped or updated for the resolved asset if it
-does not already exist. A failed run remains visible for diagnosis but must not
-advance the asset's latest successful state.
-
-## Batch And Yield Normalization
-
-The materializer treats the function output as observed data, not a declared
-contract.
-
-The function may:
-
-- return one supported object;
-- return an iterable of rows;
-- yield sync or async batches;
-- yield pages from an API client.
-
-Supported batch inputs include Python mappings and lists, pandas DataFrames,
-Arrow tables or record batches, DuckDB relations, and HTTP responses. Each
-input is normalized into a row set with a stable per-run ordering:
-
-- `_qa_batch_id`: monotonically increasing batch number.
-- `_qa_row_number`: row number within the normalized run.
-- `_qa_loaded_at`: ingestion timestamp.
-- optional source metadata such as `_qa_source_uri` and `_qa_source_hash`.
-
-Normalization should avoid materializing the whole asset in Python memory.
-Large inputs are processed as chunks, and each chunk is discarded after it has
-been staged and observed.
-
-## Raw Evidence Staging
-
-Raw evidence staging captures exactly what the current run observed, without
-making a durable full-size raw JSON dump the default.
-
-The staging table is run-scoped and always keeps the observed payload as
-`_qa_payload VARIANT`:
-
-```text
-assquack_stage.raw_<asset_id>_<run_id>
-```
-
-The concrete staging DDL belongs to the implementor-facing
-[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#staging-table-contracts).
-
-For Python mapping/list rows, the materializer may serialize the current chunk
-to transient JSON so DuckDB can cast it into `VARIANT`, but that transient text
-is discarded after insertion. For typed inputs such as Arrow or DataFrames, the
-materializer can insert typed columns directly while still preserving
-`_qa_payload` in raw staging as the evidence surface for the run.
-
-Raw staging is not the final user table. It exists to feed schema observation,
-typed projection, auditing during the run, and failure diagnostics.
-
-## Shaped Staging
-
-Shaped staging is the candidate result table for the run. It contains:
-
-- reserved Assquack metadata columns such as `_qa_run_id` and `_qa_loaded_at`;
-- promoted typed columns extracted from observed payload paths;
-- optional `_qa_payload VARIANT` for raw or bronze assets when retention policy
-  keeps the payload beyond raw staging;
-- optional `_qa_raw_json` only when the asset explicitly asks for lossless text
-  retention.
-
-Unlike raw staging, shaped staging and the committed current table do not always
-include `_qa_payload`, and a retained payload column is not automatically a
-universal `NOT NULL` contract. The default MVP path can use raw staging for
-inference while deferring final shaped/current retention policy to the
-semi-structured evidence work.
-
-Each chunk is projected from raw staging into shaped staging using the effective
-schema for the asset. Missing fields become `NULL`. Casts should use
-conservative `try_cast`-style expressions so a single bad value can be recorded
-as evidence without crashing the whole run unless the asset opts into strict
-validation.
-
-Newly observed columns may be added to shaped staging during the run. Existing
-promoted columns are not dropped just because the source omitted them in a
-batch. The rules for path observation, type widening, nested structures, sparse
-objects, and schema promotion are covered in
-[schema-inference.md](schema-inference.md).
-
-## Staging Retention
-
-Staging is bounded diagnostic evidence, not an append-only history. The current
-asset table and Assquack metadata are the durable state; retained staging exists
-so maintainers can inspect the payloads that explain the latest success or the
-most recent failures.
-
-Default retention is per asset:
-
-- keep the raw staging table for the latest successful run;
-- keep staging tables for the latest three failed runs;
-- drop shaped staging after a successful publish because the current table is
-  the shaped result;
-- drop transient chunk tables after insertion, observation, and projection;
-- drop older staging tables during post-run cleanup and maintenance cleanup.
-
-When a new run succeeds, its raw staging table becomes the retained successful
-diagnostic table and any older successful raw staging table for that asset is
-eligible for removal. When a run fails, its staging remains only if it is one of
-the latest three failed attempts for that asset. Crash recovery or explicit
-maintenance cleanup should apply the same rule to orphaned tables in
-`assquack_stage`.
-
-## Transaction Boundary
-
-The source call and chunk loading should not hold the final commit transaction
-open. External API calls, Python iteration, and large staging writes can take a
-long time, while the current table must remain stable for readers.
-
-Use two boundaries:
-
-- **Materialization attempt boundary**: acquire the Assquack writer lock for the
-  configured database path, create the `running` run record, load raw staging,
-  build shaped staging, and record schema observations. The current table is not
-  changed during this phase.
-- **Commit transaction boundary**: once shaped staging is complete and validated,
-  open a short DuckDB transaction that swaps the current table and updates
-  metadata declaring the run successful.
-
-If anything fails before or during the commit transaction, the previous current
-table remains the latest successful version. The run is marked failed, the error
-is recorded, and run-scoped staging is pruned according to the bounded retention
-policy.
-
-## Replace Mode MVP
-
-`replace` is the only MVP materialization mode. It is a full refresh:
-
-1. Build raw evidence staging for the run.
-2. Build shaped staging for the run.
-3. Validate that shaped staging has the expected reserved columns and effective
-   schema.
-4. In the commit transaction, replace the stable current table with the shaped
-   staging contents.
-5. Update metadata so cache and query calls point at the new successful run.
-
-An empty result is still a valid replacement if the asset's effective schema can
-be represented. The current table should exist after the run, even with zero
-rows, so `.exists()` and `.query()` are table-based rather than file-based.
-
-## Result Table Swap
-
-Readers should either see the previous committed current table or the new
-committed current table. They should not observe a half-loaded table as the
-asset result.
-
-The concrete swap strategy belongs to the implementor-facing
-[Replace Materialization epic](epics/01-mvp/02-replace-materialization.md#publish-contract).
-
-## Metadata Update
-
-The successful commit updates metadata together with the table swap:
-
-- `assquack_meta.assets`: asset name, signature, schema/table name, mode, and
-  `updated_at`.
-- `assquack_meta.runs`: `status = 'success'`, `materialized_at`, `duration_ms`,
-  `row_count`, and cleared `error`.
-- `assquack_meta.schemas`: compact schema evidence for the run.
-- `assquack_meta.schema_observations`: path/type/count evidence collected while
-  loading chunks.
-
-The latest successful run is derived from these tables. Cache checks should not
-depend on exported Parquet or raw fragment files to decide whether the table is
-fresh.
+An empty extraction is a valid replacement. Assquack publishes an empty table
+with the previous effective schema when one exists.
 
 ## Export Phase
 
-Export happens after the current table commit. It reads from the committed
-DuckDB table and writes configured compatibility artifacts, commonly Parquet to
-local storage or ADLS.
-
-The export phase should:
-
-- use DuckDB `COPY` or native extension support where possible;
-- write current-state exports from the stable current table;
-- optionally write run-scoped snapshots for recovery or legacy consumers;
-- insert a row into `assquack_meta.exports` after a successful write.
-
-An export failure must not silently roll back a successful table
-materialization. If an asset or caller requires export success, the public call
-may raise after recording the export error, but the committed DuckDB table
-remains the latest valid result.
-
-## Later Modes
-
-Append, merge, and snapshot should reuse the same front half of the lifecycle:
-argument resolution, cache check, run record, yield normalization, raw evidence
-staging, shaped staging, and schema observation. They differ at the commit
-strategy.
-
-`append` will insert shaped staging rows into the current table instead of
-replacing it. Rows keep `_qa_run_id` and `_qa_loaded_at`, and a current view may
-hide superseded rows if the asset defines that behavior later.
-
-`merge` will require key columns and commit through DuckDB `MERGE INTO`, using
-shaped staging as the source of upserts. Merge policy must define duplicate key
-handling, delete semantics, and how schema changes interact with existing
-current rows.
-
-`snapshot` will retain historical versions, either as per-run tables or as a
-versioned history table with current/latest views. Snapshot export can write
-both the current state and run-specific artifacts.
-
-These modes should not be added until `replace` is reliable. A partial
-incremental model would make cache behavior, metadata, and recovery harder to
-reason about than explicit full refreshes.
+Exports read from the committed current table. An export failure can fail the
+public call, but it does not roll back the successful table materialization.
+Cache state is based on DuckDB metadata and the current table, not fragment or
+export existence alone.
 
 ## Related Docs
 
-- [Developer API](developer-api.md): the asset calls that start this lifecycle.
-- [Schema Inference](schema-inference.md): the deep inference rules used during
-  raw and shaped staging.
-- [Storage Model](storage-model.md): the system, asset, and staging tables used
-  by the lifecycle.
-- [Exports](exports.md): the compatibility export phase after materialization.
-- [Roadmap](roadmap.md): when follow-up materialization modes are expected.
+- [Developer API](developer-api.md): asset calls that start materialization.
+- [Schema Inference](schema-inference.md): native JSON inference and evidence.
+- [Storage Model](storage-model.md): local and durable storage responsibilities.
+- [Configuration](configuration.md): fragment and DuckDB settings.
+- [Exports](exports.md): compatibility publication after materialization.

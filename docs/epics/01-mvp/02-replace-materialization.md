@@ -1,7 +1,7 @@
 # Replace Materialization
 
 Status: **In Progress**
-Last updated: 2026-09-04
+Last updated: 2026-09-10
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -18,11 +18,12 @@ Included:
 
 - `@asset(...)` definition and callable behavior.
 - Sync and async asset function execution.
-- Supported batch normalization into raw staging.
-- `_qa_payload VARIANT` raw evidence staging.
+- Supported batch normalization into local fragments.
+- Bounded local NDJSON fragment capture.
+- Native DuckDB JSON inference across the complete fragment set.
 - Shaped staging with promoted typed columns.
 - `replace` mode table swap and run metadata update.
-- Bounded staging retention for successful and failed runs.
+- Bounded fragment retention for successful and failed runs.
 - `AssquackResult` creation after successful materialization.
 
 Excluded:
@@ -37,107 +38,77 @@ Treat materialization as a pipeline with explicit phases: normalize, stage raw
 evidence, observe schema, shape rows, and publish. Keep each phase small enough
 to test independently without turning the decorator into a storage policy API.
 
-## Staging Table Contracts
+## Fragment And Staging Contracts
 
-Raw staging always keeps the observed payload in `VARIANT`:
+Each run writes `.partial` files under
+`<fragment-directory>/asset=<asset-name>/run_id=<run-id>/`. A fragment is
+flushed and renamed to `fragment=<number>.ndjson` only when complete.
+`_COMPLETE` marks successful source capture. DuckDB receives only completed
+fragment paths.
 
-```sql
-CREATE TABLE assquack_stage.raw_<asset_id>_<run_id> (
-  _qa_run_id VARCHAR NOT NULL,
-  _qa_batch_id INTEGER NOT NULL,
-  _qa_row_number BIGINT NOT NULL,
-  _qa_loaded_at TIMESTAMPTZ NOT NULL,
-  _qa_source_uri VARCHAR,
-  _qa_source_hash VARCHAR,
-  _qa_payload VARIANT NOT NULL
-);
-```
+`AssquackConfig.ingestion.fragment_max_rows` controls file size independently
+of the normalization chunk size. Native `read_json` scans all completed files
+with full sampling and field union before the shaped candidate is built.
 
-Shaped staging starts with reserved metadata columns, adds promoted typed asset
-columns, and retains `_qa_payload VARIANT` only when policy requires raw,
-bronze, audit, or discovery access.
+Shaped staging starts with reserved run metadata and adds the effective typed
+asset columns. Genuinely heterogeneous columns use `VARIANT`; a whole-row
+`_qa_payload` is not mandatory.
 
 ## Staging Retention Contract
 
 After each run, apply retention per asset:
 
-1. Keep the raw staging table for the latest successful run.
-2. Keep raw and shaped staging tables for the latest three failed runs.
+1. Keep fragments for the latest successful run.
+2. Keep fragments for the latest three failed runs.
 3. Drop shaped staging for successful runs after the current table is published.
-4. Drop transient JSON or chunk helper tables at the end of the chunk lifecycle.
-5. Drop older `assquack_stage` tables during post-run cleanup and maintenance
-   cleanup.
+4. Ignore `.partial` files during inference and recovery.
+5. Drop older fragment directories during post-run and maintenance cleanup.
 
-The cleanup step should derive keep/drop decisions from `assquack_meta.runs` and the
-staging table naming convention. It must not drop staging for a run still marked
-`running` unless a later recovery policy has first marked that run stale or
-failed.
+The cleanup step should derive keep/drop decisions from `assquack_meta.runs` and
+the fragment directory naming convention. It must not drop evidence for a run
+still marked `running` unless recovery has first marked that run stale or failed.
 
 ## Schema Observation Queries
 
-For JSON-origin chunks, capture compact structure evidence:
+For each completed fragment, capture compact structure evidence:
 
 ```sql
-INSERT INTO assquack_meta.schemas (
-  asset_id,
-  run_id,
-  schema_json,
-  json_structure,
-  created_at
-)
-SELECT
-  $asset_id,
-  $run_id,
-  NULL,
-  json_group_structure(payload_json),
-  current_timestamp
-FROM assquack_stage.json_chunk_<run_id>;
+SELECT json_group_structure(json)
+FROM read_json_objects(
+  $fragment_path,
+  format = 'newline_delimited'
+);
 ```
 
 Collect path-level evidence with `json_tree`:
 
 ```sql
-INSERT INTO assquack_meta.schema_observations (
-  asset_id,
-  run_id,
-  path,
-  observed_type,
-  present_count,
-  null_count,
-  total_count,
-  first_seen_at,
-  last_seen_at
-)
 SELECT
-  $asset_id,
-  $run_id,
-  jt.fullkey AS path,
-  jt.type AS observed_type,
-  count(DISTINCT c._qa_row_number)
-    FILTER (WHERE jt.type IS NOT NULL) AS present_count,
-  count(DISTINCT c._qa_row_number)
-    FILTER (WHERE jt.type = 'NULL') AS null_count,
-  $chunk_row_count AS total_count,
-  current_timestamp,
-  current_timestamp
-FROM assquack_stage.json_chunk_<run_id> c,
-     json_tree(c.payload_json) AS jt
-GROUP BY jt.fullkey, jt.type;
+  tree.fullkey AS path,
+  tree.type AS observed_type,
+  count(*) AS present_count
+FROM read_json_objects(
+       $fragment_path,
+       format = 'newline_delimited'
+     ) AS source,
+     json_tree(source.json) AS tree
+WHERE tree.fullkey <> '$'
+GROUP BY tree.fullkey, tree.type;
 ```
 
 ## Projection Contract
 
-Projection should tolerate missing and malformed values while recording failed
-casts as evidence:
+The candidate table comes directly from the native reader's combined schema.
+Projection should tolerate missing historical fields and malformed values:
 
 ```sql
 SELECT
-  _qa_run_id,
-  _qa_loaded_at,
-  _qa_payload,
-  try_cast(variant_extract(_qa_payload, '$.id') AS VARCHAR) AS id,
-  try_cast(variant_extract(_qa_payload, '$.amount') AS DECIMAL(18, 2)) AS amount
-FROM assquack_stage.raw_<asset_id>_<run_id>;
+  $run_id AS _qa_run_id,
+  current_timestamp AS _qa_loaded_at,
+  try_cast(id AS VARCHAR) AS id,
+  try_cast(amount AS DECIMAL(18, 2)) AS amount,
+  CAST(NULL AS VARCHAR) AS previously_observed_field
+FROM read_json($fragment_paths, union_by_name = true, sample_size = -1);
 ```
 
 ## Publish Contract
@@ -152,16 +123,17 @@ acceptable shape is:
 
 ## Implementation Checklist
 
-- [ ] Implement strongly typed public asset decorator contracts.
-- [ ] Normalize supported returned and yielded inputs.
-- [ ] Write raw staging rows with `_qa_payload VARIANT`.
-- [x] Record schema observations while loading chunks.
+- [x] Implement strongly typed public asset decorator contracts.
+- [ ] Normalize every documented returned and yielded input.
+- [x] Write bounded local NDJSON fragments with atomic completion.
+- [x] Infer the current schema across all completed fragments.
+- [x] Record schema observations from each completed fragment.
 - [x] Build shaped staging from conservative effective schema.
-- [ ] Replace the current asset table transactionally.
-- [ ] Record successful and failed run metadata.
+- [x] Replace the current asset table transactionally.
+- [x] Record successful and failed run metadata.
 - [ ] Enforce bounded staging retention after success, failure, and recovery.
 - [ ] Add tests for missing fields, type drift, failed casts, and empty results.
-- [ ] Update this status header before handoff.
+- [x] Update this status header before handoff.
 
 ## Validation
 
@@ -174,5 +146,5 @@ acceptable shape is:
 ## Notes
 
 This is the MVP spine. Prefer small, explicit components over a broad framework:
-decorator contract, materializer, staging writer, schema observer, and table
+decorator contract, materializer, fragment writer, schema observer, and table
 publisher.

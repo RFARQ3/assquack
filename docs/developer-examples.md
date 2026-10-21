@@ -101,10 +101,10 @@ async def vendor_events():
     yield api_pages()
 ```
 
-Assquack stores volatile nested source payloads in raw staging as `_qa_payload
-VARIANT`, while stable promoted fields can still become typed DuckDB columns.
-That behavior is part of materialization and schema inference, not a decorator
-argument.
+Assquack writes the returned API rows into bounded local NDJSON fragments, then
+uses DuckDB's native JSON reader to infer the combined shape and build typed
+columns. Genuinely heterogeneous fields can remain `VARIANT`. Fragment placement
+and sizing are runtime configuration, not decorator arguments.
 
 ## Related Docs
 
@@ -115,5 +115,5 @@ argument.
 - [Exports](exports.md): export alias and file type behavior.
 - [Materialization Lifecycle](materialization-lifecycle.md): how returned or
   yielded rows become DuckDB tables.
-- [Schema Inference](schema-inference.md): why `_qa_payload VARIANT` is useful
-  for inconsistent API payloads.
+- [Schema Inference](schema-inference.md): how local JSON evidence becomes typed
+  columns and selective `VARIANT` values.

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from assquack import AssquackConfig, ExportsConfig
+from assquack import AssquackConfig, ExportsConfig, IngestionConfig
 
 
 def test_process_environment_populates_the_full_config_tree(
@@ -11,6 +11,11 @@ def test_process_environment_populates_the_full_config_tree(
     monkeypatch.setenv("ASSQUACK_ENVIRONMENT", "test")
     monkeypatch.setenv("ASSQUACK_DATABASE_PATH", str(tmp_path / "database.duckdb"))
     monkeypatch.setenv("ASSQUACK_CHUNK_SIZE", "250")
+    monkeypatch.setenv("ASSQUACK_INGESTION__FRAGMENT_MAX_ROWS", "5000")
+    monkeypatch.setenv(
+        "ASSQUACK_INGESTION__FRAGMENT_DIRECTORY",
+        str(tmp_path / "ingestion"),
+    )
     monkeypatch.setenv("ASSQUACK_DUCKDB__THREADS", "8")
     monkeypatch.setenv("ASSQUACK_DUCKDB__MEMORY_LIMIT", "4GB")
     monkeypatch.setenv(
@@ -33,6 +38,8 @@ def test_process_environment_populates_the_full_config_tree(
     assert config.environment == "test"
     assert config.database_path == tmp_path / "database.duckdb"
     assert config.chunk_size == 250
+    assert config.ingestion.fragment_max_rows == 5_000
+    assert config.ingestion.fragment_directory == tmp_path / "ingestion"
     assert config.duckdb.threads == 8
     assert config.duckdb.memory_limit == "4GB"
     assert config.duckdb.temp_directory == tmp_path / "spill"
@@ -42,6 +49,22 @@ def test_process_environment_populates_the_full_config_tree(
     assert config.exports.default_format == "parquet"
     assert config.exports.snapshot_runs is True
     assert config.exports.options == {"compression": "zstd", "overwrite": True}
+
+
+def test_fragment_directory_defaults_beside_database(tmp_path: Path) -> None:
+    database = tmp_path / "state" / "custom.duckdb"
+
+    config = AssquackConfig(database_path=database)
+
+    assert config.resolved_fragment_directory == database.parent / "fragments"
+
+
+def test_direct_ingestion_config_controls_fragment_size() -> None:
+    config = AssquackConfig(
+        ingestion=IngestionConfig(fragment_max_rows=25),
+    )
+
+    assert config.ingestion.fragment_max_rows == 25
 
 
 def test_direct_values_override_environment(monkeypatch) -> None:

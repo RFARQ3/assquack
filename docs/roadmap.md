@@ -12,6 +12,8 @@ Architecture detail belongs in the focused design docs.
   semi-structured payloads.
 - The MVP starts with embedded, in-process DuckDB and a local writable
   `.duckdb` file.
+- API-shaped inputs are captured in bounded local NDJSON fragments beside the
+  database before DuckDB infers and builds the typed table.
 - The MVP enforces one writer per resolved database path. Shared write storage
   is a later exploration track.
 - ADLS/object storage is for exports, snapshots, backups, and source reads, not
@@ -37,13 +39,14 @@ Architecture detail belongs in the focused design docs.
 
 - Implement the `@asset` decorator and asset callable lifecycle.
 - Support sync and async yielded batches.
-- Load supported Python, Arrow, pandas, and DuckDB inputs into staging.
-- Always retain raw staging evidence in `_qa_payload VARIANT` during the run so
-  deep schema inference does not require durable raw JSON dumps.
-- Record chunk-level schema observations and resolve types conservatively.
+- Normalize supported Python, Arrow, pandas, and DuckDB inputs for fragment
+  capture.
+- Write normalized rows into size-controlled local NDJSON fragments.
+- Infer across every completed fragment with DuckDB's native JSON reader.
+- Record fragment-level schema observations and resolve types conservatively.
 - Transactionally replace the current asset table from staging.
-- Prune staging to one latest successful raw table and three failed run staging
-  sets per asset.
+- Prune local fragments to the latest successful run and three failed runs per
+  asset.
 - Return a result object that can be queried by downstream code.
 
 ### Phase 3: Query And Cache
@@ -63,9 +66,8 @@ Architecture detail belongs in the focused design docs.
 ### Phase 5: Semi-Structured Evidence Policy
 
 - Add configurable retention policy for when `_qa_payload VARIANT` is kept in
-  final shaped/current tables versus used only in raw staging. Do not treat
-  `_qa_payload` as universally present or universally `NOT NULL` in current
-  tables.
+  final shaped/current tables. Do not treat `_qa_payload` as universally present
+  or universally `NOT NULL` in current tables.
 - Add helpers to promote stable fields from semi-structured payloads into typed
   columns.
 - Add explicit audit options for `_qa_raw_json` where lossless source text is a
@@ -80,8 +82,8 @@ Architecture detail belongs in the focused design docs.
 - A repeated run in `replace` mode updates the current table transactionally and
   records a successful run in metadata.
 - `cache_first()` returns the existing materialization when TTL rules allow it.
-- No full raw JSON dump is required as the durable replay artifact for ordinary
-  API-shaped data.
+- Local NDJSON fragments provide bounded working and replay evidence without
+  following the export destination into object storage.
 - Unknown or changing nested payloads can be retained as `VARIANT` while stable
   fields are promoted into typed columns.
 - The project can export current-state Parquet for legacy lake consumers.
@@ -95,9 +97,8 @@ Architecture detail belongs in the focused design docs.
 - How much Hydra configuration should ship in the core package versus examples
   or adapters.
 - The first supported ADLS credential pattern for DuckDB Azure exports.
-- The default policy for when `_qa_payload` is retained, omitted, or made
-  mandatory in shaped/current tables. Raw staging keeps `_qa_payload VARIANT`
-  during MVP materialization and bounded diagnostic retention.
+- The default policy for when `_qa_payload` is retained or omitted from
+  shaped/current tables. It is no longer mandatory for ingestion staging.
 - How schema promotion should be declared by asset authors without turning the
   decorator into a storage configuration surface.
 - Whether legacy MAD.Prefect compatibility needs a separate adapter package, and

@@ -66,6 +66,20 @@ class ExportsConfig(_ProcessSettings):
     )
 
 
+class IngestionConfig(_ProcessSettings):
+    """Local NDJSON fragment settings used while materializing an asset."""
+
+    fragment_directory: Path | None = Field(
+        default=None,
+        validation_alias="ASSQUACK_INGESTION__FRAGMENT_DIRECTORY",
+    )
+    fragment_max_rows: int = Field(
+        default=10_000,
+        ge=1,
+        validation_alias="ASSQUACK_INGESTION__FRAGMENT_MAX_ROWS",
+    )
+
+
 class AssquackConfig(_ProcessSettings):
     """Authoritative runtime configuration accepted by the core package."""
 
@@ -82,6 +96,7 @@ class AssquackConfig(_ProcessSettings):
         validation_alias="ASSQUACK_DATABASE_PATH",
     )
     duckdb: DuckDBConfig = Field(default_factory=DuckDBConfig)
+    ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     exports: ExportsConfig = Field(default_factory=ExportsConfig)
     chunk_size: int = Field(
         default=1_000,
@@ -95,6 +110,10 @@ class AssquackConfig(_ProcessSettings):
             self.database_path = self.home / self.environment / "assquack.duckdb"
         if self.duckdb.temp_directory is None:
             self.duckdb.temp_directory = self.home / "tmp"
+        if self.ingestion.fragment_directory is None:
+            self.ingestion.fragment_directory = (
+                self.resolved_database_path.parent / "fragments"
+            )
         if self.exports.base_uri is None:
             self.exports.base_uri = str(self.home / self.environment / "exports")
         return self
@@ -108,3 +127,8 @@ class AssquackConfig(_ProcessSettings):
     def resolved_temp_directory(self) -> Path:
         assert self.duckdb.temp_directory is not None
         return self.duckdb.temp_directory
+
+    @property
+    def resolved_fragment_directory(self) -> Path:
+        assert self.ingestion.fragment_directory is not None
+        return self.ingestion.fragment_directory
