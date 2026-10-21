@@ -37,7 +37,7 @@ def test_replacement_uses_only_current_fragments_and_records_final_schema(
 
     config = AssquackConfig(
         home=tmp_path,
-        ingestion=IngestionConfig(fragment_max_rows=1),
+        ingestion=IngestionConfig(fragment_target_mb=0.000001),
     )
     asyncio.run(source(assquack_config=config))
     rows[:] = [

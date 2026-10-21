@@ -5,7 +5,7 @@ import os
 import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, BinaryIO
 
 from assquack._errors import MaterializationError
 from assquack._materialization.models import FragmentFile
@@ -26,12 +26,16 @@ def fragment_run_directory(root: Path, asset_name: str, run_id: str) -> Path:
 class NDJSONFragmentWriter:
     """Write JSON-shaped rows into bounded, completed local fragments."""
 
-    def __init__(self, directory: Path, *, max_rows: int) -> None:
+    def __init__(self, directory: Path, *, target_bytes: int) -> None:
+        if target_bytes < 1:
+            raise ValueError("Fragment target_bytes must be positive.")
+
         self._directory = directory
-        self._max_rows = max_rows
-        self._file: TextIO | None = None
+        self._target_bytes = target_bytes
+        self._file: BinaryIO | None = None
         self._partial_path: Path | None = None
         self._rows_in_fragment = 0
+        self._bytes_in_fragment = 0
         self._fragments: list[FragmentFile] = []
         self._finished = False
 
@@ -58,12 +62,14 @@ class NDJSONFragmentWriter:
                     "they can be written to local NDJSON fragments."
                 ) from error
 
-            self._file.write(encoded)
-            self._file.write("\n")
+            # Count the exact bytes written, including the NDJSON record delimiter.
+            record = (encoded + "\n").encode("utf-8")
+            self._file.write(record)
             self._rows_in_fragment += 1
+            self._bytes_in_fragment += len(record)
             written += 1
 
-            if self._rows_in_fragment == self._max_rows:
+            if self._bytes_in_fragment >= self._target_bytes:
                 self._complete_fragment()
 
         return written
@@ -90,8 +96,9 @@ class NDJSONFragmentWriter:
 
         index = len(self._fragments)
         self._partial_path = self._directory / f"fragment={index:06d}.partial"
-        self._file = self._partial_path.open("x", encoding="utf-8", newline="\n")
+        self._file = self._partial_path.open("xb")
         self._rows_in_fragment = 0
+        self._bytes_in_fragment = 0
 
     def _complete_fragment(self) -> None:
         assert self._file is not None
@@ -113,3 +120,4 @@ class NDJSONFragmentWriter:
         self._file = None
         self._partial_path = None
         self._rows_in_fragment = 0
+        self._bytes_in_fragment = 0

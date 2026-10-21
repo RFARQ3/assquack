@@ -47,8 +47,12 @@ flushed and renamed to `fragment=<number>.ndjson` only when complete.
 fragment paths. Disable Hive partition inference in the shared JSON reader so
 storage directory labels cannot become columns or overwrite source values.
 
-`AssquackConfig.ingestion.fragment_max_rows` controls file size independently
-of the normalization chunk size. Native `read_json` scans all completed files
+`AssquackConfig.ingestion.fragment_target_mb` controls file size independently
+of the normalization chunk size. The default is 64 decimal MB (1,000,000 bytes
+per MB). Count serialized UTF-8 bytes including newlines and finish a complete
+record before rollover at or above the target. Oversized records remain intact;
+opening the next file lazily prevents empty trailing fragments.
+Native `read_json` scans all completed files
 with full sampling and field union before the shaped candidate is built.
 
 Shaped staging starts with reserved run metadata and adds the effective typed
@@ -111,6 +115,7 @@ acceptable shape is:
 - [x] Implement strongly typed public asset decorator contracts.
 - [ ] Normalize every documented returned and yielded input.
 - [x] Write bounded local NDJSON fragments with atomic completion.
+- [x] Replace row-count sizing with a configurable megabyte target and whole-record rollover.
 - [x] Infer the current schema across all completed fragments.
 - [x] Remove detailed observations and historical reconciliation from active runs.
 - [x] Implement current-run schema strategy behind `schema.replace`.
@@ -140,8 +145,7 @@ publisher.
 
 The current-run schema step is implemented and independently verified. The broader
 replace-materialization phase remains **In Progress**.
-Byte-based rollover, retention, remaining input compatibility and exports are
-separate remaining work, not completed by this change.
+Retention, remaining input compatibility and exports remain separate work.
 
 Focused production checks passed: Ruff lint/format, Pyright on all six changed
 production files, configuration construction and alias serialization, local
@@ -162,3 +166,32 @@ and successful retry. The regression found during verification is fixed by
 labels never become extra inferred columns. Independent test-file Ruff,
 formatting, Pyright and diff checks passed. No remaining defect was found in this
 scope. No full-suite or live-system checks were run.
+
+### Megabyte fragment sizing
+
+Fragment sizing now uses `ingestion.fragment_target_mb`, defaulting to 64 decimal
+MB. The environment override and existing per-call config support the same
+positive finite target, including fractional MB. Decimal conversion rounds any
+fractional byte up without binary floating-point rollover drift. The writer
+counts the bytes it writes in binary mode, including the UTF-8 record and LF,
+and closes only after a whole record reaches or exceeds the target.
+
+Production Ruff lint/format and targeted Pyright checks passed for configuration,
+fragment writing and the materialization pipeline. Pyright used the Poetry
+interpreter with offline access outside the sandbox to resolve dependencies.
+Documentation links and diff whitespace checks passed. The terminology scan
+found only the existing historical observation and its validation note above.
+The phase remains **In Progress** for retention and remaining input compatibility.
+
+Independent verification passed **41 targeted tests**:
+
+```text
+poetry run pytest tests/test_fragments.py tests/test_config.py tests/test_schema_inference.py tests/test_schema_replacement.py -q -p no:cacheprovider --tb=short
+```
+
+Coverage includes exact and fractional-byte MB conversion, UTF-8 and escaped
+newline accounting, oversized records, chunk-independent rollover, empty capture,
+environment and per-call overrides, and first-run/refresh failure with safe retry.
+Test-file Ruff lint/format and targeted Pyright checks passed. Tests used only
+synthetic data and temporary local databases; no full-suite or live-system checks
+were run. No remaining defect was found in this scope.

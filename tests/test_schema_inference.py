@@ -28,7 +28,7 @@ def test_fragment_observation_comes_from_duckdb_json_functions(tmp_path) -> None
             {"Links": {"self": "/groups/2"}, "ids": [3]},
         ],
     )
-    writer = NDJSONFragmentWriter(tmp_path / "fragments", max_rows=10)
+    writer = NDJSONFragmentWriter(tmp_path / "fragments", target_bytes=1_000_000)
     writer.write_rows(chunk.rows)
     [fragment] = writer.finish()
 

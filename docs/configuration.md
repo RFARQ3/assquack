@@ -24,7 +24,7 @@ AssquackConfig
   database_path
   ingestion
     fragment_directory
-    fragment_max_rows
+    fragment_target_mb
   schema
     replace
   duckdb
@@ -110,7 +110,7 @@ assquack:
   database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
   ingestion:
     fragment_directory: ${assquack.home}/${assquack.environment}/fragments
-    fragment_max_rows: 10000
+    fragment_target_mb: 64
   duckdb:
     threads: 4
     memory_limit: 8GB
@@ -136,13 +136,35 @@ or read-only.
 working fragments. It defaults beside the DuckDB database and is independent of
 export aliases and export base URIs.
 
-`ingestion.fragment_max_rows` limits each fragment to `10_000` rows by default.
-It is separate from `chunk_size`: chunk size bounds Python normalization memory,
-while fragment size controls the files DuckDB scans.
+`ingestion.fragment_target_mb` defaults to `64.0` decimal megabytes:
+**1 MB = 1,000,000 bytes**, not MiB. The 64 MB target avoids tiny files without
+requiring an entire fragment in memory. Positive finite fractional values are
+accepted; a fractional byte target is rounded up to the next byte. Zero, negative,
+NaN, and infinite values are rejected.
+
+The writer counts the actual serialized UTF-8 NDJSON bytes, including each LF
+newline. It finishes the current record before closing a fragment at or above
+the target. A large record can exceed the target and remains intact. Empty input
+creates no fragments, and exact-boundary completion creates no empty trailing
+file. Fragments are uncompressed.
+
+This replaces `ingestion.fragment_max_rows`; update existing configuration and
+its old environment variable. It is separate from `chunk_size`: chunk size bounds
+Python normalization memory, while fragment size controls the files DuckDB scans.
+Yield and chunk boundaries do not force fragment boundaries.
+
+Apply a different target to an asset through the existing per-call override:
+
+```python
+from assquack import AssquackConfig, IngestionConfig
+
+config = AssquackConfig(ingestion=IngestionConfig(fragment_target_mb=32))
+result = await orders(assquack_config=config)
+```
 
 Environment overrides are
 `ASSQUACK_INGESTION__FRAGMENT_DIRECTORY` and
-`ASSQUACK_INGESTION__FRAGMENT_MAX_ROWS`.
+`ASSQUACK_INGESTION__FRAGMENT_TARGET_MB`.
 
 ## Replacement Schema
 
@@ -269,7 +291,7 @@ assquack:
   database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
   ingestion:
     fragment_directory: ${assquack.home}/${assquack.environment}/fragments
-    fragment_max_rows: 10000
+    fragment_target_mb: 64
   duckdb:
     threads: 4
     memory_limit: 8GB

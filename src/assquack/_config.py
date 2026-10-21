@@ -73,10 +73,12 @@ class IngestionConfig(_ProcessSettings):
         default=None,
         validation_alias="ASSQUACK_INGESTION__FRAGMENT_DIRECTORY",
     )
-    fragment_max_rows: int = Field(
-        default=10_000,
-        ge=1,
-        validation_alias="ASSQUACK_INGESTION__FRAGMENT_MAX_ROWS",
+    fragment_target_mb: float = Field(
+        default=64.0,
+        gt=0,
+        allow_inf_nan=False,
+        description="Target NDJSON size in decimal MB (1,000,000 bytes).",
+        validation_alias="ASSQUACK_INGESTION__FRAGMENT_TARGET_MB",
     )
 
 

@@ -14,7 +14,7 @@ def test_process_environment_populates_the_full_config_tree(
     monkeypatch.setenv("ASSQUACK_ENVIRONMENT", "test")
     monkeypatch.setenv("ASSQUACK_DATABASE_PATH", str(tmp_path / "database.duckdb"))
     monkeypatch.setenv("ASSQUACK_CHUNK_SIZE", "250")
-    monkeypatch.setenv("ASSQUACK_INGESTION__FRAGMENT_MAX_ROWS", "5000")
+    monkeypatch.setenv("ASSQUACK_INGESTION__FRAGMENT_TARGET_MB", "0.125")
     monkeypatch.setenv(
         "ASSQUACK_INGESTION__FRAGMENT_DIRECTORY",
         str(tmp_path / "ingestion"),
@@ -41,7 +41,7 @@ def test_process_environment_populates_the_full_config_tree(
     assert config.environment == "test"
     assert config.database_path == tmp_path / "database.duckdb"
     assert config.chunk_size == 250
-    assert config.ingestion.fragment_max_rows == 5_000
+    assert config.ingestion.fragment_target_mb == 0.125
     assert config.ingestion.fragment_directory == tmp_path / "ingestion"
     assert config.duckdb.threads == 8
     assert config.duckdb.memory_limit == "4GB"
@@ -64,10 +64,10 @@ def test_fragment_directory_defaults_beside_database(tmp_path: Path) -> None:
 
 def test_direct_ingestion_config_controls_fragment_size() -> None:
     config = AssquackConfig(
-        ingestion=IngestionConfig(fragment_max_rows=25),
+        ingestion=IngestionConfig(fragment_target_mb=0.25),
     )
 
-    assert config.ingestion.fragment_max_rows == 25
+    assert config.ingestion.fragment_target_mb == 0.25
 
 
 def test_direct_values_override_environment(monkeypatch) -> None:
@@ -112,3 +112,19 @@ def test_schema_strategy_environment_and_direct_override(monkeypatch) -> None:
 
     with pytest.raises(ValidationError, match="current_run"):
         SchemaConfig.model_validate({"replace": "continuation"})
+
+
+@pytest.mark.parametrize("target", [0, -1, float("inf"), float("-inf"), float("nan")])
+def test_fragment_target_rejects_nonpositive_or_nonfinite_values(target: float) -> None:
+    with pytest.raises(ValidationError):
+        IngestionConfig(fragment_target_mb=target)
+
+
+def test_fragment_target_default_and_direct_environment_precedence(monkeypatch) -> None:
+    monkeypatch.delenv("ASSQUACK_INGESTION__FRAGMENT_TARGET_MB", raising=False)
+    assert IngestionConfig().fragment_target_mb == 64.0
+
+    monkeypatch.setenv("ASSQUACK_INGESTION__FRAGMENT_TARGET_MB", "2.5")
+    assert AssquackConfig().ingestion.fragment_target_mb == 2.5
+    config = AssquackConfig(ingestion=IngestionConfig(fragment_target_mb=0.00002))
+    assert config.ingestion.fragment_target_mb == 0.00002

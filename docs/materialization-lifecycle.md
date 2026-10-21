@@ -46,9 +46,13 @@ the database.
 
 ## Fragment Capture
 
-`AssquackConfig.ingestion.fragment_max_rows` controls the maximum rows in each
-fragment independently of `chunk_size`, which bounds in-memory normalization.
+`AssquackConfig.ingestion.fragment_target_mb` controls the target byte size of
+each fragment independently of `chunk_size`, which bounds in-memory normalization.
 One chunk can contribute to a fragment, and a large chunk can span fragments.
+The writer counts serialized UTF-8 bytes including each newline, then completes
+the fragment after a whole record reaches or exceeds the target. Oversized
+records stay intact; capture never creates an empty trailing fragment. See
+[Configuration](configuration.md#local-ingestion-fragments) for units and defaults.
 
 A fragment is first written with a `.partial` suffix. Assquack flushes and
 renames it to `.ndjson` only when that fragment is complete. DuckDB receives an

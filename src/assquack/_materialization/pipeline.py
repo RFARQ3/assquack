@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import inspect
+from decimal import Decimal
+from math import ceil
 from time import perf_counter
 from uuid import uuid4
 
@@ -106,7 +108,9 @@ async def materialize(
                 request.asset_name,
                 run_id,
             ),
-            max_rows=config.ingestion.fragment_max_rows,
+            target_bytes=ceil(
+                Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
+            ),
         )
 
         committed = False

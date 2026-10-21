@@ -2,16 +2,23 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import duckdb
 import pytest
 
 from assquack import AssquackConfig, IngestionConfig, asset
-from assquack._materialization.fragments import fragment_run_directory
+from assquack._materialization.fragments import (
+    NDJSONFragmentWriter,
+    fragment_run_directory,
+)
 
 
-def test_materialization_uses_bounded_local_ndjson_fragments(tmp_path: Path) -> None:
+@pytest.mark.parametrize("chunk_size", [1, 3, 20])
+def test_materialization_uses_bounded_local_ndjson_fragments(
+    tmp_path: Path, chunk_size: int
+) -> None:
     @asset(table="main.fragmented_orders")
     async def orders() -> list[dict[str, object]]:
         return [
@@ -24,8 +31,8 @@ def test_materialization_uses_bounded_local_ndjson_fragments(tmp_path: Path) -> 
 
     config = AssquackConfig(
         home=tmp_path,
-        chunk_size=3,
-        ingestion=IngestionConfig(fragment_max_rows=2),
+        chunk_size=chunk_size,
+        ingestion=IngestionConfig(fragment_target_mb=0.000035),
     )
 
     result = asyncio.run(orders(assquack_config=config))
@@ -137,3 +144,117 @@ def test_empty_run_has_only_metadata_columns(
 
     assert [row[0] for row in schema] == ["_qa_run_id", "_qa_loaded_at"]
     assert row_count == (0,)
+
+
+@pytest.mark.parametrize(
+    ("target_bytes", "expected_counts"),
+    [(26, [2, 2]), (27, [3, 1]), (1, [1, 1, 1, 1])],
+)
+@pytest.mark.parametrize("batch_size", [1, 3, 4])
+def test_writer_counts_serialized_utf8_and_newline_bytes(
+    tmp_path: Path, target_bytes: int, expected_counts: list[int], batch_size: int
+) -> None:
+    # Each record is 13 bytes: multibyte text, an escaped newline, and final LF.
+    record = {"v": "é\n"}
+    expected_line = b'{"v":"\xc3\xa9\\n"}\n'
+    assert len(expected_line) == 13
+    rows = [record] * 4
+    writer = NDJSONFragmentWriter(tmp_path, target_bytes=target_bytes)
+    for start in range(0, len(rows), batch_size):
+        assert writer.write_rows(rows[start : start + batch_size]) == len(
+            rows[start : start + batch_size]
+        )
+    fragments = writer.finish()
+
+    assert [fragment.row_count for fragment in fragments] == expected_counts
+    assert [Path(fragment.path).read_bytes() for fragment in fragments] == [
+        expected_line * count for count in expected_counts
+    ]
+    assert not list(tmp_path.glob("*.partial"))
+    assert (tmp_path / "_COMPLETE").exists()
+    assert writer.finish() == fragments
+    with pytest.raises(RuntimeError, match="complete"):
+        writer.write_rows([record])
+
+
+def test_empty_capture_has_no_fragment(tmp_path: Path) -> None:
+    writer = NDJSONFragmentWriter(tmp_path, target_bytes=10)
+    assert writer.write_rows([]) == 0
+    assert writer.finish() == []
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["_COMPLETE"]
+
+
+@pytest.mark.parametrize("previous_success", [False, True])
+def test_failed_extraction_after_rollover_preserves_publication(
+    tmp_path: Path, previous_success: bool
+) -> None:
+    fail = False
+
+    @asset(table="main.safe_fragments")
+    async def source() -> AsyncIterator[list[dict[str, int]]]:
+        yield [{"id": 2 if fail else 1}]
+        if fail:
+            raise RuntimeError("synthetic extraction failure")
+
+    config = AssquackConfig(
+        home=tmp_path,
+        chunk_size=1,
+        ingestion=IngestionConfig(fragment_target_mb=0.000001),
+    )
+    first = asyncio.run(source(assquack_config=config)) if previous_success else None
+    fail = True
+    with pytest.raises(RuntimeError, match="synthetic extraction failure"):
+        asyncio.run(source(assquack_config=config))
+
+    with duckdb.connect(str(config.resolved_database_path)) as connection:
+        failed = connection.execute(
+            "SELECT run_id FROM assquack_meta.runs WHERE status = 'failed'"
+        ).fetchone()
+        assert failed is not None
+        if first is not None:
+            assert connection.execute(
+                "SELECT id, _qa_run_id FROM main.safe_fragments"
+            ).fetchall() == [(1, first.run_id)]
+        else:
+            assert connection.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_schema = 'main' AND table_name = 'safe_fragments'"
+            ).fetchone() == (0,)
+
+    failed_directory = fragment_run_directory(
+        config.resolved_fragment_directory, "source", failed[0]
+    )
+    assert len(list(failed_directory.glob("*.ndjson"))) == 1
+    assert not (failed_directory / "_COMPLETE").exists()
+
+    fail = False
+    recovered = asyncio.run(source(assquack_config=config))
+    assert recovered.run_id != failed[0]
+    with duckdb.connect(str(config.resolved_database_path)) as connection:
+        assert connection.execute(
+            "SELECT id, _qa_run_id FROM main.safe_fragments"
+        ).fetchall() == [(1, recovered.run_id)]
+
+
+@pytest.mark.parametrize(
+    ("target_mb", "expected_counts"),
+    [(0.000031, [1, 1, 1, 1]), (0.0000311, [2, 2]), (0.000062, [2, 2])],
+)
+def test_per_call_megabyte_target_controls_actual_fragment_boundaries(
+    tmp_path: Path, target_mb: float, expected_counts: list[int]
+) -> None:
+    @asset(table="main.byte_boundaries")
+    async def source() -> list[dict[str, str]]:
+        return [{"v": "x" * 22}] * 4
+
+    config = AssquackConfig(
+        home=tmp_path,
+        ingestion=IngestionConfig(fragment_target_mb=target_mb),
+    )
+    result = asyncio.run(source(assquack_config=config))
+    directory = fragment_run_directory(
+        config.resolved_fragment_directory, "source", result.run_id
+    )
+    assert [path.stat().st_size for path in sorted(directory.glob("*.ndjson"))] == [
+        31 * count for count in expected_counts
+    ]

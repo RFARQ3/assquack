@@ -157,7 +157,8 @@ The fragment directory defaults beside the database. Hive-style path components
 keep assets, runs, and fragments identifiable during inspection and recovery.
 It is local ingestion storage and never resolves through the asset export alias
 or `mad://` adapter. Fragments are completed through atomic rename before
-DuckDB reads them, and `fragment_max_rows` bounds their size.
+DuckDB reads them, and `ingestion.fragment_target_mb` sets their byte-size target.
+Whole records can exceed the target; records are never split between files.
 
 DuckDB's native JSON reader scans the complete fragment set and builds a typed
 candidate table in `assquack_stage`. The current asset table is updated only
