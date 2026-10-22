@@ -66,12 +66,26 @@ After each run, apply retention per asset:
 1. Keep fragments for the latest successful run.
 2. Keep fragments for the latest three failed runs.
 3. Drop shaped staging for successful runs after the current table is published.
-4. Ignore `.partial` files during inference and recovery.
-5. Drop older fragment directories during post-run and maintenance cleanup.
+4. Ignore `.partial` files during inference; retain them with failed-run evidence.
+5. Drop older fragment directories during post-run and next-call cleanup.
 
-The cleanup step should derive keep/drop decisions from `assquack_meta.runs` and
-the fragment directory naming convention. It must not drop evidence for a run
-still marked `running` unless recovery has first marked that run stale or failed.
+Derive keep/drop decisions from `assquack_meta.runs` by asset ID, status and
+timestamps. Shared asset-name folders do not imply shared retention. Use run ID
+only to break exact timestamp ties. After acquiring the database writer lock,
+mark the current asset's earlier running attempts interrupted/failed before
+cache lookup. Cleanup never selects records still marked running.
+
+Remove only flat known fragment files and the completion marker from exact
+catalog-owned run directories under the configured root. Reject unsafe IDs,
+symlink/reparse traversal and unexpected content; do not scan or delete orphans.
+Leave run metadata, published tables and exports intact. Log cleanup errors
+without changing successful publication or masking extraction failure. Retry
+starts a fresh extraction; retained evidence is diagnostic only.
+
+The additive `runs.fragments_owned` flag preserves legacy catalog behavior
+while new attempts start unowned. Set it only after exclusive directory creation
+succeeds. A failed claim or interruption before recording ownership leaves that
+directory untouched, even after its run falls outside retention.
 
 ## Current-Run Schema Strategy
 
@@ -123,7 +137,7 @@ acceptable shape is:
 - [x] Replace the current asset table transactionally.
 - [x] Record successful and failed run metadata.
 - [x] Derive run IDs from asset identity and the exact persisted UTC runtime.
-- [ ] Enforce bounded staging retention after success, failure, and recovery.
+- [x] Verify bounded fragment retention after success, failure, and interruption.
 - [x] Verify current-run column removal, type changes, nested inference, and empty results.
 - [x] Verify source-field preservation and transactional publication rollback/retry.
 - [x] Update this status header before handoff.
@@ -137,6 +151,38 @@ acceptable shape is:
 - `git diff --check`
 
 ## Notes
+
+### Fragment retention
+
+Fragment retention is implemented and independently reviewed. Keep the latest
+successful attempt and three latest failed attempts per asset identity, using
+catalog timestamps and run ID only for exact ties. Recover interrupted attempts
+under the existing exclusive writer lock; retries always extract afresh.
+
+Review exposed an orphan-claim deletion bug and a DuckDB bootstrap behavior that
+reset ownership when repeating `ADD COLUMN IF NOT EXISTS ... DEFAULT true`.
+Both are fixed: new attempts claim fragments only after exclusive directory
+creation, and existing ownership columns bypass the additive migration entirely.
+Filesystem deletion is confined to validated flat run directories; cleanup
+failures log warnings without changing publication or masking source errors.
+
+Independent verification passed **32 targeted tests**:
+
+```text
+poetry run pytest tests/test_fragment_retention.py tests/test_run_identity.py tests/test_cache.py tests/test_writer_lock.py tests/test_exports.py -q -p no:cacheprovider --tb=short
+```
+
+Coverage includes retention counts and timestamp ties, shared asset-name folders,
+configured roots, legacy catalog migration and UUIDs, orphan preservation across
+reopen, redirected directories, unknown contents, cancellation/fresh retry,
+interrupted recovery on cache hits, cleanup errors, writer locks and exports.
+Targeted production/test Pyright and Ruff lint/format, Markdown links and diff
+checks passed. The terminology scan found only the existing historical locking
+observation and its prior validation note. Tests and type checks used offline
+access to installed dependencies and temporary local files. No full-suite or
+live-system checks were run. No outstanding finding remains in this scope.
+
+This phase remains **In Progress** for the remaining documented input support.
 
 ### Deterministic run identifiers
 

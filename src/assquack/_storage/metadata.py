@@ -44,10 +44,18 @@ class MetadataRepository:
         self._connection.execute(
             """
             INSERT INTO assquack_meta.runs (
-                run_id, asset_id, status, runtime
-            ) VALUES (?, ?, 'running', ?)
+                run_id, asset_id, status, runtime, fragments_owned
+            ) VALUES (?, ?, 'running', ?, false)
             """,
             [run_id, asset_id, runtime],
+        )
+
+    def claim_run_fragments(self, run_id: str) -> None:
+        """Record ownership only after exclusively creating the run directory."""
+
+        self._connection.execute(
+            "UPDATE assquack_meta.runs SET fragments_owned = true WHERE run_id = ?",
+            [run_id],
         )
 
     def find_latest_successful_run(self, asset_id: str) -> SuccessfulRun | None:
@@ -68,6 +76,41 @@ class MetadataRepository:
             materialized_at=datetime.fromisoformat(row[1]),
             row_count=row[2],
         )
+
+    def recover_interrupted_runs(self, asset_id: str) -> None:
+        """Mark abandoned attempts failed while holding the database writer lock."""
+
+        self._connection.execute(
+            """
+            UPDATE assquack_meta.runs
+            SET status = 'failed', error = 'Interrupted before publication completed'
+            WHERE asset_id = ? AND status = 'running'
+            """,
+            [asset_id],
+        )
+
+    def find_obsolete_fragment_runs(self, asset_id: str) -> list[str]:
+        """Select completed attempts outside retention using catalog chronology."""
+
+        rows = self._connection.execute(
+            """
+            SELECT run_id FROM (
+                SELECT run_id, status, fragments_owned, row_number() OVER (
+                    PARTITION BY status
+                    ORDER BY CASE WHEN status = 'success' THEN materialized_at
+                                  ELSE runtime END DESC, runtime DESC, run_id DESC
+                ) AS position
+                FROM assquack_meta.runs
+                WHERE asset_id = ? AND status IN ('success', 'failed')
+            )
+            WHERE fragments_owned AND (
+                (status = 'success' AND position > 1)
+                OR (status = 'failed' AND position > 3)
+            )
+            """,
+            [asset_id],
+        ).fetchall()
+        return [row[0] for row in rows]
 
     def has_export(self, run_id: str, resolved_uri: str) -> bool:
         row = self._connection.execute(

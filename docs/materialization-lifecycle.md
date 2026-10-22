@@ -52,7 +52,7 @@ Cache hits return the existing run ID, including IDs created by older versions.
 
 The three paths are independent:
 
-- the fragment directory is local working and replay storage;
+- the fragment directory is local working and diagnostic storage;
 - the `.duckdb` file contains canonical asset state and metadata;
 - an export alias identifies an optional compatibility output.
 
@@ -96,7 +96,35 @@ new one.
 
 On capture or inference failure, the previous current table remains valid and
 the run is marked failed. Completed fragments and any partial fragment remain
-local diagnostic evidence for the later retention and recovery policy.
+local diagnostic evidence subject to retention.
+
+### Fragment retention and interrupted runs
+
+After each completed attempt, retain the latest successful run's fragments and
+the latest three failed runs' fragments per asset identity, including bound
+arguments. A failed refresh never removes the last successful run's fragments
+or its published table. Retry always extracts afresh into a new run directory;
+it never resumes or combines earlier fragments.
+
+Retention uses catalog status and timestamps, not directory or hash ordering.
+Successful runs are ordered by publication time, then runtime; failed attempts
+by runtime. Run IDs break exact timestamp ties deterministically.
+Metadata, published tables, and export artifacts are not deleted by this policy.
+
+At the next call for an asset, acquiring the exclusive database writer lock
+proves that its earlier `running` attempts are no longer active. Those attempts
+are marked failed before cache lookup and retention. Cleanup itself ignores
+`running` and unknown runs. No cursor or fragment reuse is introduced.
+
+Cleanup only examines exact catalog-owned run directories under the configured
+fragment root, supporting existing UUID and new hash identifiers. New attempts
+record directory ownership only after exclusive creation succeeds, so a failed
+claim never makes an existing orphan eligible for later deletion. Symlinks,
+Windows reparse points, nested directories and unexpected files cause that
+directory to be retained with a warning. Missing directories are harmless.
+Cleanup failures are logged and retried on a later call; they do not change a
+successful publication or replace the original extraction error. Changing the
+fragment root leaves evidence in the old root untouched.
 
 An empty extraction is a valid replacement. Assquack publishes an empty table
 with only `_qa_run_id` and `_qa_loaded_at`, even when a prior table had source

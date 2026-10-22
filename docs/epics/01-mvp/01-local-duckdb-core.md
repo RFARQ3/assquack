@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-09-04
+Last updated: 2026-10-22
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -60,7 +60,8 @@ CREATE TABLE assquack_meta.runs (
   materialized_at TIMESTAMPTZ,
   duration_ms BIGINT,
   row_count BIGINT,
-  error VARCHAR
+  error VARCHAR,
+  fragments_owned BOOLEAN DEFAULT true
 );
 
 CREATE TABLE assquack_meta.schemas (
@@ -119,6 +120,17 @@ CREATE TABLE assquack_meta.exports (
 - `git diff --check`
 
 ## Notes
+
+### Fragment ownership metadata
+
+Retention adds `runs.fragments_owned` through an idempotent additive bootstrap
+migration. Legacy catalog records default to owned; new attempts explicitly
+start unowned and claim ownership only after exclusive fragment-directory
+creation succeeds. This keeps a failed claim from turning an orphan directory
+into deletion-eligible evidence. No metadata records are deleted or expired.
+See the [replace phase](02-replace-materialization.md#staging-retention-contract)
+for the retention and interruption policy. This phase remains **In Progress**;
+the existing broader core checklist has not been revalidated by this change.
 
 Keep the storage boundary explicit. The mutable `.duckdb` file is local
 configuration state; export paths are not part of database placement.

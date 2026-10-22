@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from math import ceil
@@ -22,6 +23,7 @@ from assquack._materialization.models import (
     StagingTables,
 )
 from assquack._materialization.normalize import normalize
+from assquack._materialization.retention import prune_fragments
 from assquack._materialization.schema import replace_schema_strategy
 from assquack._materialization.staging import (
     create_shaped_staging,
@@ -34,6 +36,8 @@ from assquack._storage.locking import writer_lock
 from assquack._storage.metadata import MetadataRepository
 from assquack._storage.models import AssetRecord
 from assquack._storage.tables import TableReference
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def materialize(
@@ -58,6 +62,15 @@ async def materialize(
                 schema_name=request.table.schema_name,
                 table_name=request.table.table_name,
             )
+        )
+
+        # Owning the database lock proves earlier attempts cannot still be writing.
+        metadata.recover_interrupted_runs(request.asset_id)
+        prune_fragments(
+            metadata,
+            config.resolved_fragment_directory,
+            request.asset_id,
+            request.asset_name,
         )
 
         if request.use_cache:
@@ -123,6 +136,7 @@ async def materialize(
                     Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
                 ),
             )
+            metadata.claim_run_fragments(run_id)
             value = request.fn(*request.arguments, **request.keyword_arguments)
             if inspect.isawaitable(value):
                 value = await value
@@ -158,19 +172,41 @@ async def materialize(
                 duration_ms=duration_ms,
             )
             committed = True
-            drop_shaped_staging(connection, staging.shaped)
         except BaseException as error:
             if fragment_writer is not None:
-                fragment_writer.abort()
+                try:
+                    fragment_writer.abort()
+                except Exception:
+                    _LOGGER.warning(
+                        "Could not close fragments for run %s", run_id, exc_info=True
+                    )
             if not committed:
                 metadata.mark_run_failed(
                     run_id,
                     str(error),
                     int((perf_counter() - started) * 1_000),
                 )
+            prune_fragments(
+                metadata,
+                config.resolved_fragment_directory,
+                request.asset_id,
+                request.asset_name,
+            )
             connection.close()
             raise
 
+        try:
+            drop_shaped_staging(connection, staging.shaped)
+        except Exception:
+            _LOGGER.warning(
+                "Could not drop staging for published run %s", run_id, exc_info=True
+            )
+        prune_fragments(
+            metadata,
+            config.resolved_fragment_directory,
+            request.asset_id,
+            request.asset_name,
+        )
         try:
             if request.export is not None:
                 if not config.exports.enabled:

@@ -6,7 +6,7 @@ Date: 2026-09-10
 
 Assquack uses embedded DuckDB as its primary storage engine. The MVP write
 target is a native `.duckdb` database file on a local writable filesystem path.
-Bounded NDJSON fragments live beside the database as local working and replay
+Bounded NDJSON fragments live beside the database as local working and diagnostic
 evidence while DuckDB builds the typed asset table.
 
 The primary database file is not an object-storage artifact. Do not use ABFSS,
