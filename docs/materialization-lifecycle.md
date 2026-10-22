@@ -33,6 +33,23 @@ flowchart LR
 
 ## Storage Boundaries
 
+New run IDs follow the MAD.Prefect hash-based identifier pattern:
+`hashlib.md5(f"{asset_id}:{runtime.isoformat()}".encode()).hexdigest()`.
+The input is UTF-8 text containing the complete asset ID, a colon, and the
+captured UTC datetime in Python ISO format (including `+00:00` and any
+microseconds). The same datetime is stored in `assquack_meta.runs.runtime`.
+The result is a deterministic 32-character lowercase hexadecimal identifier,
+safe for local fragment paths. MD5 serves as an identifier, not a security hash.
+
+For example, an asset ID of 64 `a` characters and runtime
+`2026-10-22T01:02:03.456789+00:00` produce
+`091cf65dcfbef278d3bfe8a5ed142590`.
+
+An identical pair or hash collision is rejected by the run primary key before
+capture; it does not overwrite the existing run, fragments, or published table. An existing
+fragment directory also causes capture to fail, preserving any orphaned evidence.
+Cache hits return the existing run ID, including IDs created by older versions.
+
 The three paths are independent:
 
 - the fragment directory is local working and replay storage;

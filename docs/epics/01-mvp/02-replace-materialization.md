@@ -1,7 +1,7 @@
 # Replace Materialization
 
 Status: **In Progress**
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -122,6 +122,7 @@ acceptable shape is:
 - [x] Build shaped staging from current-run inferred schema.
 - [x] Replace the current asset table transactionally.
 - [x] Record successful and failed run metadata.
+- [x] Derive run IDs from asset identity and the exact persisted UTC runtime.
 - [ ] Enforce bounded staging retention after success, failure, and recovery.
 - [x] Verify current-run column removal, type changes, nested inference, and empty results.
 - [x] Verify source-field preservation and transactional publication rollback/retry.
@@ -136,6 +137,34 @@ acceptable shape is:
 - `git diff --check`
 
 ## Notes
+
+### Deterministic run identifiers
+
+New run IDs follow the MAD.Prefect `hashlib.md5(...encode()).hexdigest()`
+identifier pattern, hashing the UTF-8 encoding of
+`f"{asset_id}:{runtime.isoformat()}"`. Capture the UTC datetime once after a
+cache miss and bind it into the run insert. Keep the existing run primary key:
+duplicate asset/runtime pairs or hash collisions fail before capture and must
+not mark an existing run failed.
+Claim fragment directories exclusively so orphaned evidence cannot be overwritten.
+Existing records and cache-hit IDs remain unchanged. This phase remains
+**In Progress** for the previously listed input and retention work.
+
+Independent review of the MD5 derivation found no code defects. All **38 targeted
+tests** passed:
+
+```text
+poetry run pytest tests/test_run_identity.py tests/test_fragments.py tests/test_cache.py tests/test_schema_replacement.py tests/test_exports.py -q -p no:cacheprovider --tb=short
+```
+
+Coverage includes a fixed MD5 example, exact persisted runtime and microseconds, deterministic IDs,
+distinct assets/times, duplicate successful and failed runs, cache reuse, orphan
+fragment protection, publication rollback and exports. Production and test Ruff
+lint/format, targeted Pyright, Markdown links and diff whitespace checks passed.
+Pyright and tests needed offline access outside the sandbox for installed
+dependencies and local temporary directories. The terminology scan found only
+the existing historical observation and its validation note. No full-suite or
+live-system checks were run.
 
 This is the MVP spine. Prefer small, explicit components over a broad framework:
 decorator contract, materializer, fragment writer, schema strategy, and table

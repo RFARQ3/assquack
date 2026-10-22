@@ -39,7 +39,8 @@ class NDJSONFragmentWriter:
         self._fragments: list[FragmentFile] = []
         self._finished = False
 
-        directory.mkdir(parents=True, exist_ok=True)
+        # Existing evidence may outlive its catalog; never reuse a run directory.
+        directory.mkdir(parents=True, exist_ok=False)
 
     def write_rows(self, rows: Iterable[Mapping[str, Any]]) -> int:
         if self._finished:

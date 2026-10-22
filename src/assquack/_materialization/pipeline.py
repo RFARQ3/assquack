@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import inspect
+from datetime import UTC, datetime
 from decimal import Decimal
 from math import ceil
 from time import perf_counter
-from uuid import uuid4
 
 from assquack._cache import find_cached_run
 from assquack._config import AssquackConfig
@@ -94,28 +95,34 @@ async def materialize(
                     cached=True,
                 )
 
-        run_id = str(uuid4())
-        token = run_id.replace("-", "")
+        runtime = datetime.now(UTC)
+        run_id = hashlib.md5(
+            f"{request.asset_id}:{runtime.isoformat()}".encode()
+        ).hexdigest()
         staging = StagingTables(
-            shaped=TableReference(
-                "assquack_stage", f"shaped_{request.asset_id[:12]}_{token}"
-            ),
+            shaped=TableReference("assquack_stage", f"shaped_{run_id}"),
         )
-        metadata.start_run(run_id, request.asset_id)
-        fragment_writer = NDJSONFragmentWriter(
-            fragment_run_directory(
-                config.resolved_fragment_directory,
-                request.asset_name,
-                run_id,
-            ),
-            target_bytes=ceil(
-                Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
-            ),
-        )
+        # A duplicate must fail before capture without changing the existing run.
+        try:
+            metadata.start_run(run_id, request.asset_id, runtime)
+        except BaseException:
+            connection.close()
+            raise
 
+        fragment_writer = None
         committed = False
         row_count = 0
         try:
+            fragment_writer = NDJSONFragmentWriter(
+                fragment_run_directory(
+                    config.resolved_fragment_directory,
+                    request.asset_name,
+                    run_id,
+                ),
+                target_bytes=ceil(
+                    Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
+                ),
+            )
             value = request.fn(*request.arguments, **request.keyword_arguments)
             if inspect.isawaitable(value):
                 value = await value
@@ -153,7 +160,8 @@ async def materialize(
             committed = True
             drop_shaped_staging(connection, staging.shaped)
         except BaseException as error:
-            fragment_writer.abort()
+            if fragment_writer is not None:
+                fragment_writer.abort()
             if not committed:
                 metadata.mark_run_failed(
                     run_id,

@@ -159,7 +159,8 @@ def test_writer_counts_serialized_utf8_and_newline_bytes(
     expected_line = b'{"v":"\xc3\xa9\\n"}\n'
     assert len(expected_line) == 13
     rows = [record] * 4
-    writer = NDJSONFragmentWriter(tmp_path, target_bytes=target_bytes)
+    directory = tmp_path / "fragments"
+    writer = NDJSONFragmentWriter(directory, target_bytes=target_bytes)
     for start in range(0, len(rows), batch_size):
         assert writer.write_rows(rows[start : start + batch_size]) == len(
             rows[start : start + batch_size]
@@ -170,18 +171,19 @@ def test_writer_counts_serialized_utf8_and_newline_bytes(
     assert [Path(fragment.path).read_bytes() for fragment in fragments] == [
         expected_line * count for count in expected_counts
     ]
-    assert not list(tmp_path.glob("*.partial"))
-    assert (tmp_path / "_COMPLETE").exists()
+    assert not list(directory.glob("*.partial"))
+    assert (directory / "_COMPLETE").exists()
     assert writer.finish() == fragments
     with pytest.raises(RuntimeError, match="complete"):
         writer.write_rows([record])
 
 
 def test_empty_capture_has_no_fragment(tmp_path: Path) -> None:
-    writer = NDJSONFragmentWriter(tmp_path, target_bytes=10)
+    directory = tmp_path / "fragments"
+    writer = NDJSONFragmentWriter(directory, target_bytes=10)
     assert writer.write_rows([]) == 0
     assert writer.finish() == []
-    assert sorted(path.name for path in tmp_path.iterdir()) == ["_COMPLETE"]
+    assert sorted(path.name for path in directory.iterdir()) == ["_COMPLETE"]
 
 
 @pytest.mark.parametrize("previous_success", [False, True])

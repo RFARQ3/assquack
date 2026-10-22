@@ -40,14 +40,14 @@ class MetadataRepository:
             ],
         )
 
-    def start_run(self, run_id: str, asset_id: str) -> None:
+    def start_run(self, run_id: str, asset_id: str, runtime: datetime) -> None:
         self._connection.execute(
             """
             INSERT INTO assquack_meta.runs (
                 run_id, asset_id, status, runtime
-            ) VALUES (?, ?, 'running', current_timestamp)
+            ) VALUES (?, ?, 'running', ?)
             """,
-            [run_id, asset_id],
+            [run_id, asset_id, runtime],
         )
 
     def find_latest_successful_run(self, asset_id: str) -> SuccessfulRun | None:
