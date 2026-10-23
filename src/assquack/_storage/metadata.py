@@ -243,6 +243,9 @@ class MetadataRepository:
         uri: str,
         resolved_uri: str,
         row_count: int,
+        format_name: str = "parquet",
+        role: str = "default",
+        options: dict[str, object] | None = None,
     ) -> None:
         self._connection.execute(
             """
@@ -250,7 +253,7 @@ class MetadataRepository:
                 export_id, run_id, asset_id, alias, uri, resolved_uri,
                 format, role, row_count, options_json, created_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, 'parquet', 'default', ?, '{}', current_timestamp
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp
             )
             """,
             [
@@ -260,6 +263,9 @@ class MetadataRepository:
                 alias,
                 uri,
                 resolved_uri,
+                format_name,
+                role,
                 row_count,
+                json.dumps(options or {}),
             ],
         )

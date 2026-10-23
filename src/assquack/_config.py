@@ -64,6 +64,27 @@ class ExportsConfig(_ProcessSettings):
         default_factory=dict,
         validation_alias="ASSQUACK_EXPORTS__OPTIONS",
     )
+    azure_auth: Literal["auto", "credential_chain", "sas"] = Field(
+        default="auto",
+        validation_alias="ASSQUACK_EXPORTS__AZURE_AUTH",
+    )
+    azure_chain: (
+        Literal["cli", "managed_identity", "workload_identity", "env", "default"] | None
+    ) = Field(
+        default=None,
+        validation_alias="ASSQUACK_EXPORTS__AZURE_CHAIN",
+    )
+    azure_account_name: str | None = Field(
+        default=None,
+        pattern=r"^[a-z0-9]{3,24}$",
+        validation_alias="ASSQUACK_EXPORTS__AZURE_ACCOUNT_NAME",
+    )
+
+    @model_validator(mode="after")
+    def validate_azure_auth(self) -> Self:
+        if self.azure_auth == "sas" and self.azure_chain is not None:
+            raise ValueError("azure_chain cannot be combined with azure_auth='sas'.")
+        return self
 
 
 class IngestionConfig(_ProcessSettings):

@@ -11,8 +11,8 @@ from time import perf_counter
 from assquack._cache import find_cached_run
 from assquack._config import AssquackConfig
 from assquack._errors import ExportError
-from assquack._exports.parquet import ParquetExportWriter
-from assquack._exports.targets import parse_export_target
+from assquack._exports.targets import parse_export_targets
+from assquack._exports.writers import export_writer
 from assquack._materialization.commit import CommitStrategy, ReplaceCommitStrategy
 from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
@@ -50,6 +50,13 @@ async def materialize(
     started = perf_counter()
     strategy = strategy or ReplaceCommitStrategy()
     schema_strategy = replace_schema_strategy(config.schema)
+    targets = (
+        parse_export_targets(
+            request.export, asset_name=request.asset_name, config=config
+        )
+        if request.export is not None
+        else ()
+    )
 
     async with writer_lock(config.resolved_database_path):
         connection = open_database(config)
@@ -74,28 +81,14 @@ async def materialize(
         )
 
         if request.use_cache:
-            cache_target_uri = None
-            cache_target_is_valid = True
-            if request.export is not None:
-                try:
-                    cache_target_uri = parse_export_target(
-                        request.export,
-                        asset_name=request.asset_name,
-                        config=config,
-                    ).resolved_uri
-                except ExportError:
-                    cache_target_is_valid = False
-
-            cached = None
-            if cache_target_is_valid:
-                cached = find_cached_run(
-                    connection,
-                    metadata,
-                    asset_id=request.asset_id,
-                    table=request.table,
-                    expiration=request.cache_expiration,
-                    required_export_uri=cache_target_uri,
-                )
+            cached = find_cached_run(
+                connection,
+                metadata,
+                asset_id=request.asset_id,
+                table=request.table,
+                expiration=request.cache_expiration,
+                required_export_uris=tuple(target.resolved_uri for target in targets),
+            )
             if cached is not None:
                 connection.close()
                 return AssquackResult(
@@ -216,20 +209,21 @@ async def materialize(
                         "AssquackConfig(exports=ExportsConfig(enabled=True))."
                     )
 
-                target = parse_export_target(
-                    request.export,
-                    asset_name=request.asset_name,
-                    config=config,
-                )
-                ParquetExportWriter().write(connection, request.table, target)
-                metadata.record_export(
-                    run_id=run_id,
-                    asset_id=request.asset_id,
-                    alias=target.alias,
-                    uri=target.logical_uri,
-                    resolved_uri=target.resolved_uri,
-                    row_count=row_count,
-                )
+                for target in targets:
+                    export_writer(target.format, config.exports).write(
+                        connection, request.table, target
+                    )
+                    metadata.record_export(
+                        run_id=run_id,
+                        asset_id=request.asset_id,
+                        alias=target.alias,
+                        uri=target.logical_uri,
+                        resolved_uri=target.resolved_uri,
+                        row_count=row_count,
+                        format_name=target.format,
+                        role=target.role,
+                        options=target.options,
+                    )
 
             return AssquackResult(
                 config=config,

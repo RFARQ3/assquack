@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True, slots=True)
@@ -9,3 +9,5 @@ class ExportTarget:
     logical_uri: str
     resolved_uri: str
     format: str = "parquet"
+    role: str = "default"
+    options: dict[str, object] = field(default_factory=dict[str, object])

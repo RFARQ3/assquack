@@ -1,6 +1,7 @@
 # Assquack Roadmap
 
 Status: first-release scope narrowed by Rowan on 2026-10-21.
+Export formats clarified by Rowan on 2026-10-23: Parquet, CSV and JSON are required.
 
 This roadmap extracts implementation sequencing from the MVP plan. It tracks
 what to build, what should be true early, and which decisions remain open.
@@ -11,6 +12,9 @@ The implementation sequence and acceptance checks are recorded there.
 
 ## Baseline
 
+- Replacing useful MAD.Prefect data-asset workflows guides MVP scope decisions.
+  Use its behavior as a migration reference without adding a core dependency or
+  overriding explicit scope exclusions.
 - DuckDB 1.5+ is the baseline so `VARIANT` is available for durable
   semi-structured payloads.
 - The MVP starts with embedded, in-process DuckDB and a local writable
@@ -65,10 +69,14 @@ The implementation sequence and acceptance checks are recorded there.
 
 - Export the current table to local filesystem and Azure destinations. Both are
   MVP requirements; preserve the last successful output on failed materialization.
+- Support Parquet, CSV and JSON as the starting export formats, with Parquet as
+  the default and format writers separate from destination selection.
+- Support pipe-separated formats such as `orders.parquet|csv|json`, expanding
+  one declaration into multiple outputs from the same committed table.
 - Support `abfss://` exports through the DuckDB Azure extension where it works
   in the target deployment.
-- Keep a fsspec export fallback only if DuckDB-native Azure support is not
-  sufficient for the deployment target.
+- Use native DuckDB credential-chain or SAS authentication with explicit
+  selection and an environment SAS provider; no fsspec fallback in MVP.
 
 ## Deferred: Semi-Structured Evidence Policy
 
@@ -95,7 +103,7 @@ This track is outside the first release. It must not block the replace MVP.
   following the export destination into object storage.
 - Unknown or changing nested payloads can be retained as `VARIANT` while stable
   fields are promoted into typed columns.
-- The project can export current-state Parquet locally and to Azure for legacy
+- The project can export current-state Parquet, CSV and JSON locally and to Azure for legacy
   lake consumers. Verify the agreed MAD.Prefect compatibility baseline.
 - Tests cover temporary local DuckDB files, metadata bootstrap, replace
   materialization, cache checks, and basic export behavior.
@@ -109,7 +117,8 @@ promotion and optional adapters below are later design work, not MVP gates.
   surface.
 - How much Hydra configuration should ship in the core package versus examples
   or adapters.
-- The first supported ADLS credential pattern for DuckDB Azure exports.
+- Additional Azure authentication methods and credential providers beyond the
+  agreed MVP [credential chain and environment SAS](configuration.md#adls-credentials).
 - The default policy for when `_qa_payload` is retained or omitted from
   shaped/current tables. It is no longer mandatory for ingestion staging.
 - How schema promotion should be declared by asset authors without turning the

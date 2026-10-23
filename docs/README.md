@@ -64,6 +64,9 @@ the topic links that match the work in front of you.
 
 ## Implementation Tracking
 
+- [MVP extensibility defects](epics/01-mvp/06-extensibility-defects.md): numbered
+  source-review findings, proposed acceptance criteria and related release gaps
+  to work through individually before commissioning implementation.
 - [Epics](epics/README.md): phase files with status headers, checklists, and
   validation notes.
 - [8 September 2026 MVP scope journal](journal/2026-09-08-mvp-scope.md): huddle

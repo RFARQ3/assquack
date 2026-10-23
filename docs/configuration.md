@@ -38,6 +38,9 @@ AssquackConfig
     default_format
     snapshot_runs
     options
+    azure_auth
+    azure_chain
+    azure_account_name
 ```
 
 Configuration precedence should be explicit and predictable:
@@ -206,9 +209,9 @@ default from `DUCKDB_TEMP_DIRECTORY` when present, otherwise to a local path
 under `ASSQUACK_HOME`. The runtime must ensure this directory is writable and
 has sufficient capacity for the largest expected materialization.
 
-`extensions` lists DuckDB extensions Assquack should install and load during
-connection setup. The local MVP profile should include `json` and `parquet`.
-Profiles that read or write ADLS/ABFSS should include `azure`. Source and sink
+`extensions` lists already installed DuckDB extensions Assquack loads during
+connection setup. Assquack does not install extensions. The local MVP profile should include `json` and `parquet`.
+Azure exports load `azure` on demand; listing it here is optional. Source and sink
 integrations such as `postgres` are optional extensions, not core storage
 requirements.
 
@@ -218,7 +221,7 @@ Connection setup should be deterministic:
 2. Ensure local directories exist or fail with a clear error.
 3. Open DuckDB at the resolved `database_path`.
 4. Apply `threads`, `memory_limit`, and `temp_directory`.
-5. Install and load configured extensions.
+5. Load configured extensions (provision them separately).
 6. Bootstrap Assquack system schemas and tables.
 
 ## Exports
@@ -253,20 +256,119 @@ file, schema, or table.
 
 ## ADLS Credentials
 
-Assquack configuration should identify that ADLS/ABFSS access is needed by
-loading the DuckDB `azure` extension and setting an export or source URI. It
-should not store Azure secrets in checked-in YAML, decorators, or asset code.
+Azure exports register a temporary DuckDB secret on the connection performing
+`COPY`. Both automatic asset exports and explicit `result.export_parquet(...)`
+use this path. Local exports do not read SAS variables or register Azure secrets.
+Install the matching DuckDB `azure` extension in the deployment before use; the
+writer executes `LOAD azure` and never installs it itself. Listing `azure` in
+`duckdb.extensions` is optional for exports. Configured extensions also load on
+ordinary database opens.
 
-Credentials should be supplied by the deployment environment or by DuckDB
-secrets:
+### Authentication Configuration
 
-- Environment-based credentials are provided by the runtime before Assquack
-  starts, then discovered by DuckDB's Azure extension.
-- DuckDB secrets can be created outside Assquack or during controlled connection
-  initialization, then referenced by DuckDB for `abfss://` reads and writes.
+The complete public authentication configuration is under `ExportsConfig`:
 
-Assquack may validate that an ADLS profile has the `azure` extension configured,
-but credential ownership remains with the runtime and DuckDB secret mechanism.
+| Field | Default | Environment override | Meaning |
+| --- | --- | --- | --- |
+| `azure_auth` | `"auto"` | `ASSQUACK_EXPORTS__AZURE_AUTH` | Select `auto`, `credential_chain`, or `sas`. |
+| `azure_chain` | `None` | `ASSQUACK_EXPORTS__AZURE_CHAIN` | For credential-chain auth, omit `CHAIN` for SDK discovery or select one of `cli`, `env`, `managed_identity`, `workload_identity`, `default`. |
+| `azure_account_name` | `None` | `ASSQUACK_EXPORTS__AZURE_ACCOUNT_NAME` | Account for short URIs under credential-chain auth; 3 to 24 lowercase letters or digits. If also set for SAS, it must match the provider account. |
+
+Direct config values override process environment config settings. `azure_chain`
+accepts one method, not a semicolon-separated chain. `enabled` controls automatic
+exports; `base_uri` resolves relative and `mad://` aliases. Explicit
+`result.export_parquet(path)` uses the authentication configuration even when
+automatic exports are disabled. `default_format` remains `parquet`; `options`
+and `snapshot_runs` remain reserved settings not applied by this writer.
+
+### SAS Credential Provider And Selection
+
+The environment credential provider supplies the explicit SAS pair at export
+time. The token is not a field of `ExportsConfig`:
+
+| Process variable | Value |
+| --- | --- |
+| `AZURE_STORAGE_SAS_TOKEN` | Encoded SAS query token, optionally starting with `?`; supply the token rather than a full signed URL or connection string. |
+| `AZURE_STORAGE_ACCOUNT_NAME` | Account belonging to that SAS token; 3 to 24 lowercase letters or digits. |
+
+Surrounding whitespace is trimmed. Unset, empty and whitespace-only values count
+as absent. With `azure_auth="auto"`, a complete pair selects SAS, neither selects
+native credential discovery, and an incomplete pair raises `ConfigurationError`.
+An invalid complete pair fails validation; it never silently falls back to native
+authentication. Neither a fully qualified URI nor `azure_account_name` substitutes
+for the provider's required account variable.
+
+Explicit overrides are deterministic:
+
+- `azure_auth="credential_chain"` never reads either SAS variable, even if they
+  are present, partial or invalid.
+- `azure_auth="sas"` requires the complete provider pair.
+- Explicit SAS with `azure_chain` fails config validation. Automatic selection
+  of SAS with `azure_chain` fails at export time: remove the chain selection or
+  explicitly choose `credential_chain`. A selected chain is never ignored.
+- The provider account, optional configured account and fully qualified URI
+  account must agree when SAS is selected.
+
+```python
+from assquack import AssquackConfig, ExportsConfig
+
+config = AssquackConfig(
+    exports=ExportsConfig(
+        enabled=True,
+        base_uri="abfss://exampleaccount.dfs.core.windows.net/lake/exports",
+        azure_auth="credential_chain",  # Ignore any explicit SAS environment pair.
+        azure_chain="workload_identity",
+    ),
+)
+```
+
+For SAS, the deployment injects the two process variables and uses `auto` or
+`sas`. The application can construct configuration before credential injection;
+credentials are resolved when each Azure export runs. No `.env` files are loaded.
+Only these explicit SAS variables are read by Assquack. Native identity variables,
+managed identity and Azure CLI discovery remain entirely owned by DuckDB's SDK.
+
+### Native Secrets And Supported Paths
+
+Native credential discovery registers `TYPE azure, PROVIDER credential_chain`,
+optionally with `CHAIN` and `ACCOUNT_NAME`. SAS registers `TYPE azure, PROVIDER
+config` with a bound connection-string value equivalent to:
+
+```text
+AccountName=exampleaccount;BlobEndpoint=https://exampleaccount.blob.core.windows.net;SharedAccessSignature=<encoded SAS token>
+```
+
+The SDK derives the HTTPS DFS endpoint from `AccountName`, so SAS supports both
+Blob (`az://`, `azure://`) and ADLS (`abfss://`) paths. This MVP targets Azure
+public-cloud endpoints. Short paths such as `abfss://lake/exports/orders.parquet`
+use the selected account. Fully qualified paths use
+`abfss://exampleaccount.dfs.core.windows.net/lake/exports/orders.parquet` or
+`az://exampleaccount.blob.core.windows.net/lake/exports/orders.parquet`.
+Hadoop `filesystem@account` paths and signed URI query strings are not accepted.
+Keep SAS tokens in the provider, never in a decorator or export URI.
+
+The token retains its URL encoding. Raw semicolons, control characters, blank
+signatures and full URLs are rejected before registration. Account validation
+and bound SQL values prevent connection-string field and SQL injection. SAS
+backend errors are replaced with safe messages and their printed exception
+context is suppressed because SDK diagnostics can include signed URLs.
+
+Each secret uses a unique name and directory scope ending in `/`, and is dropped
+after COPY, including failure. The connection closes afterward. The token stays
+out of public config representations and Assquack's durable metadata; it is held
+only in memory for the temporary DuckDB secret and SDK use.
+
+Credential providers supply validated explicit credentials; authentication
+strategies register the corresponding DuckDB secret. These are small internal
+boundaries, inspired by Quackframe's separation, without a Quackframe dependency.
+No Prefect, fsspec, block adapter, arbitrary connection-string input or account-key
+authentication is implemented. Each downstream deployment owns credential injection.
+
+Verification is offline: synthetic credentials, SQL parsing, connection routing,
+redaction and failure handling. No real Azure authentication or writes are claimed.
+See [DuckDB authentication](https://duckdb.org/docs/current/core_extensions/azure#authentication),
+[Microsoft SAS connection strings](https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string#create-a-connection-string-using-a-shared-access-signature),
+and the [22 October scope amendment](journal/2026-09-08-mvp-scope.md#6-native-export-path-and-aliases).
 
 ## Hydra Adapter
 
@@ -302,7 +404,7 @@ assquack:
       - azure
   exports:
     enabled: true
-    base_uri: abfss://lake/exports/assquack
+    base_uri: abfss://exampleaccount.dfs.core.windows.net/lake/exports/assquack
     default_format: parquet
 ```
 

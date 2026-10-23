@@ -17,6 +17,7 @@ def find_cached_run(
     table: TableReference,
     expiration: timedelta | None = None,
     required_export_uri: str | None = None,
+    required_export_uris: tuple[str, ...] = (),
 ) -> SuccessfulRun | None:
     latest = metadata.find_latest_successful_run(asset_id)
     if latest is None or not table_exists(connection, table):
@@ -27,6 +28,8 @@ def find_cached_run(
         latest.run_id,
         required_export_uri,
     ):
+        return None
+    if any(not metadata.has_export(latest.run_id, uri) for uri in required_export_uris):
         return None
     return latest
 
@@ -48,9 +51,12 @@ def asset_exists(
     asset_id: str,
     table: TableReference,
 ) -> bool:
-    return find_cached_run(
-        connection,
-        metadata,
-        asset_id=asset_id,
-        table=table,
-    ) is not None
+    return (
+        find_cached_run(
+            connection,
+            metadata,
+            asset_id=asset_id,
+            table=table,
+        )
+        is not None
+    )

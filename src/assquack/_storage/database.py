@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 import duckdb
@@ -21,26 +21,31 @@ def open_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
         str(database_path),
         config={"storage_compatibility_version": ASSQUACK_STORAGE_VERSION},
     )
-    connection.execute(f"SET threads TO {config.duckdb.threads}")
-    connection.execute(
-        f"SET memory_limit TO {quote_literal(config.duckdb.memory_limit)}"
-    )
-    connection.execute(
-        f"SET temp_directory TO {quote_literal(str(config.resolved_temp_directory))}"
-    )
+    try:
+        connection.execute(f"SET threads TO {config.duckdb.threads}")
+        connection.execute(
+            f"SET memory_limit TO {quote_literal(config.duckdb.memory_limit)}"
+        )
+        connection.execute(
+            "SET temp_directory TO "
+            f"{quote_literal(str(config.resolved_temp_directory))}"
+        )
 
-    for extension in config.duckdb.extensions:
-        # Prototype assumes configured extensions are already installed or bundled.
-        connection.execute(f"LOAD {quote_identifier(extension)}")
+        for extension in config.duckdb.extensions:
+            # Prototype assumes configured extensions are already installed or bundled.
+            connection.execute(f"LOAD {quote_identifier(extension)}")
 
-    bootstrap_database(connection)
+        bootstrap_database(connection)
+    except BaseException:
+        connection.close()
+        raise
     return connection
 
 
 @contextmanager
 def transaction(
     connection: duckdb.DuckDBPyConnection,
-) -> Iterator[duckdb.DuckDBPyConnection]:
+) -> Generator[duckdb.DuckDBPyConnection, None, None]:
     connection.execute("BEGIN TRANSACTION")
     try:
         yield connection

@@ -135,6 +135,11 @@ an explicit format alias is supplied.
 Pipe syntax lets an asset request multiple compatibility artifacts while keeping
 the primary declaration compact.
 
+This is required for MVP by Rowan's 23 October 2026 decision, following the
+MAD.Prefect reference. Expansion produces one
+target per format before writer/destination selection, all from the same committed
+table without repeating extraction.
+
 ```python
 @asset("bronze/orders.parquet|json")
 def orders_with_legacy_json_export():
@@ -174,8 +179,11 @@ mad://customer_summary.parquet
 mad://customer_summary.json
 ```
 
-Assquack should reject ambiguous combinations, such as multiple base paths in
-one string, rather than guessing.
+Assquack rejects empty entries, duplicate formats, unsupported suffixes, multiple
+base paths, and conflicting structured `format`/suffix combinations before
+extraction. A structured target supplies one format; it cannot also use pipes.
+An extensionless path uses Parquet unless its structured `format` selects CSV or
+JSON. `result.export_parquet()` accepts one Parquet target only.
 
 ## ADLS And ABFSS Exports
 
@@ -184,26 +192,56 @@ DuckDB Azure extension supports Azure Blob and ADLSv2 paths, including
 `abfss://...`, and lets `COPY` write directly from the published DuckDB table to
 the lake target.
 
-The export lifecycle for an ABFSS Parquet target is:
+The native credential-chain path is equivalent to the following SQL, after
+the deployment provisions the Azure extension:
 
 ```sql
-INSTALL azure;
 LOAD azure;
+
+CREATE TEMPORARY SECRET azure_auth (
+  TYPE azure,
+  PROVIDER credential_chain
+);
 
 COPY (
   SELECT * FROM bronze.orders_current
-) TO 'abfss://lake/exports/assquack/bronze/orders.parquet'
+) TO 'abfss://exampleaccount.dfs.core.windows.net/lake/exports/assquack/bronze/orders.parquet'
   (FORMAT parquet);
 ```
 
-Credentials should be supplied through the deployment environment and DuckDB
-secrets. Assquack configuration should enable the extension and identify the
-export base URI, but asset authors should not embed storage credentials in
-decorators.
+For MVP, Assquack registers a temporary Azure secret on the export connection.
+Native `credential_chain` delegates runtime identity discovery to DuckDB's SDK;
+SAS uses the native `config` provider with an environment-supplied token.
+Authentication selection can be automatic or explicit. Asset authors
+do not embed credentials in decorators. See [ADLS credentials](configuration.md#adls-credentials)
+for the implemented registration contract and deployment requirements.
 
-Use an fsspec fallback only when the DuckDB Azure extension cannot satisfy a
-deployment target. The normal path should be DuckDB table to DuckDB `COPY` to
-the resolved export URI.
+The MVP path is DuckDB table to native DuckDB `COPY` to the resolved export URI.
+It has no fsspec or Prefect dependency. Credential providers supply explicit
+credentials independently of the strategies that register native DuckDB secrets.
+The SAS environment provider is implemented; credential blocks and arbitrary
+connection-string input remain outside this scope.
+
+## Implemented Azure Export Path
+
+All three format writers accept local/file paths and `abfss://`, `az://`, and `azure://`
+URIs, including aliases resolved against an Azure `exports.base_uri`. Other remote
+schemes remain unsupported. Automatic exports and `result.export_parquet()`
+register temporary credential-chain or SAS authentication on the actual COPY connection;
+see [ADLS credentials](configuration.md#adls-credentials) for all configuration.
+
+Exports start only after successful table publication. A failed extraction or
+materialization therefore leaves the previous export untouched. Export or
+credential-registration failure leaves the committed DuckDB table/run intact and
+adds no successful export manifest row. Native remote COPY writes directly to its
+target; Assquack does not yet guarantee preservation of the previous remote object
+if the COPY itself fails partway through. Remote staging/promotion remains separate
+export-phase work. Local writing retains its existing direct-COPY behavior.
+
+Azure routing and failures have offline synthetic coverage; no live Azure access
+has been verified. This implementation does not add partitioning, snapshots, or
+custom format options. Nonempty `exports.options` is rejected when resolving an
+export instead of silently ignoring it.
 
 ## Format Policy
 
@@ -211,7 +249,25 @@ Parquet is the default compatibility target because it preserves typed columns,
 is compact, is efficient for lake scans, and is already the expected bridge for
 existing file-backed consumers.
 
-JSON and CSV exports are optional legacy outputs:
+Parquet, JSON and CSV are required MVP export capabilities, confirmed by Rowan
+on 23 October 2026. Exporting remains optional per asset; Parquet is the default.
+MAD.Prefect output compatibility guides implementation and offline acceptance
+fixtures. All three formats are implemented through native DuckDB COPY.
+
+Serialization follows the useful MAD.Prefect artifact shape:
+
+- JSON is UTF-8 newline-delimited JSON: one row object per line, even though the
+  filename ends in `.json`. An empty table writes an empty JSON file.
+- CSV is UTF-8 comma-separated text with one header, no generated index, normal
+  CSV quoting, and empty fields for nulls. An empty table writes the header only.
+- Parquet retains DuckDB column types. JSON retains nested object/list values;
+  CSV uses DuckDB's text representation for nested values. CSV is intended for
+  flat exchange, not lossless nested-type round trips.
+- Outputs include the committed table's `_qa_run_id` and `_qa_loaded_at` columns,
+  preserving the existing Parquet projection. Values reflect the inferred DuckDB
+  schema; formatting and CSV quoting need not be byte-identical to MAD.Prefect.
+
+The additional formats serve existing consumers:
 
 - JSON is useful when existing downstream code expects the old row-oriented
   artifact shape.
@@ -238,6 +294,18 @@ to the implementor-facing
 `resolved_uri` stores the concrete target used by DuckDB, such as
 `abfss://lake/exports/assquack/bronze/orders.parquet`. `role` should distinguish
 the default compatibility export from secondary legacy exports.
+
+Each output records its actual format, resolved URI, row count and role: `default`
+for the first target and `legacy` for subsequent targets. `options_json` records
+CSV `header: true` and JSON `array: false`; Parquet uses native defaults.
+
+Outputs are written in declaration order. If one fails, the call raises and
+stops exporting. Earlier completed outputs and their manifests remain; the failed
+and unattempted outputs receive no success manifest. The committed table and its
+successful run remain queryable. A cache-first call requires manifests for every
+requested resolved URI on the latest successful run. A partial set forces a fresh
+extraction and export attempt. It does not combine outputs across run IDs or
+check whether exported files have since been deleted.
 
 The export manifest is append-oriented per run. A later successful run may write
 the same logical target and add a new manifest row. Consumers that need the

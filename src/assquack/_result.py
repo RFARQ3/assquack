@@ -8,8 +8,8 @@ import duckdb
 
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
-from assquack._exports.parquet import ParquetExportWriter
 from assquack._exports.targets import default_parquet_target
+from assquack._exports.writers import export_writer
 from assquack._query import execute_query, query_dataframe
 from assquack._storage.database import open_database
 from assquack._storage.locking import writer_lock
@@ -60,7 +60,9 @@ class AssquackResult:
         with writer_lock(self.config.resolved_database_path):
             connection = open_database(self.config)
             try:
-                ParquetExportWriter().write(connection, self.table, target)
+                export_writer(target.format, self.config.exports).write(
+                    connection, self.table, target
+                )
                 MetadataRepository(connection).record_export(
                     run_id=self.run_id,
                     asset_id=self.asset_id,
@@ -68,6 +70,9 @@ class AssquackResult:
                     uri=target.logical_uri,
                     resolved_uri=target.resolved_uri,
                     row_count=self.row_count,
+                    format_name=target.format,
+                    role=target.role,
+                    options=target.options,
                 )
             finally:
                 connection.close()
