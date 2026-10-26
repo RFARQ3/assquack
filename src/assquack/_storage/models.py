@@ -11,7 +11,7 @@ class AssetRecord:
     asset_signature: str
     schema_name: str
     table_name: str
-    materialization_mode: str = "replace"
+    materialization_mode: str
 
 
 @dataclass(frozen=True, slots=True)

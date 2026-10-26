@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
+from types import MappingProxyType
 from typing import Protocol
 
 import duckdb
@@ -58,3 +60,17 @@ class ReplaceCommitStrategy:
                 duration_ms=duration_ms,
                 row_count=row_count,
             )
+
+
+_STRATEGIES: Mapping[str, Callable[[], CommitStrategy]] = MappingProxyType(
+    {"replace": ReplaceCommitStrategy}
+)
+
+
+def commit_strategy(mode: str) -> CommitStrategy:
+    """Construct the declared mode's strategy from the framework-owned registry."""
+    try:
+        factory = _STRATEGIES[mode]
+    except KeyError:
+        raise ValueError(f"Unsupported materialization mode: {mode!r}") from None
+    return factory()

@@ -136,6 +136,11 @@ Because public contracts should be autocomplete-friendly, `mode` should be typed
 as a narrow literal or enum rather than accepted as an arbitrary string. The MVP
 contract is intentionally small: only `"replace"` is valid.
 
+The declared mode is carried into execution and stored as
+`assquack_meta.assets.materialization_mode`. Unsupported modes are rejected
+before extraction or database writes. Commit strategies are framework-owned;
+there is no public strategy registration or injection API.
+
 There is no `database=`, `database_path=`, `artifacts_dir=`, or equivalent
 per-asset database placement argument. Database path, locking, DuckDB options,
 and export base URI belong to Assquack configuration and deployment.

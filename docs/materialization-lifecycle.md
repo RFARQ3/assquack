@@ -19,7 +19,8 @@ flowchart LR
   Export --> Result[Return AssquackResult]
 ```
 
-1. Resolve the asset identity, table, export target, and runtime configuration.
+1. Resolve the asset identity, table, export target, and runtime configuration;
+   select the commit strategy using the declared mode.
 2. Return the current table immediately when `cache_first()` finds a valid run.
 3. Create a `running` metadata record.
 4. Normalize returned or yielded values in bounded memory chunks.
@@ -32,6 +33,11 @@ flowchart LR
 10. Write configured exports from the committed table.
 
 ## Storage Boundaries
+
+The request carries the asset's declared mode into execution. A framework-owned
+registry selects its commit strategy before opening the database, and the asset
+metadata records that same mode without a separate default. Only `replace` is
+supported; unknown modes fail before cache lookup or source capture.
 
 New run IDs follow the MAD.Prefect hash-based identifier pattern:
 `hashlib.md5(f"{asset_id}:{runtime.isoformat()}".encode()).hexdigest()`.

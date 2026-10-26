@@ -3,9 +3,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any
+from typing import Any, Literal
 
 from assquack._storage.tables import TableReference
+
+AssetMode = Literal["replace"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +20,7 @@ class MaterializationRequest:
     asset_signature: str
     table: TableReference
     export: str | Mapping[str, str] | None
+    mode: AssetMode
     use_cache: bool = False
     cache_expiration: timedelta | None = None
 

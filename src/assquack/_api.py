@@ -14,6 +14,7 @@ import duckdb
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
 from assquack._errors import MissingAssetSchemaWarning
+from assquack._materialization.models import AssetMode as AssetMode
 from assquack._materialization.models import MaterializationRequest
 from assquack._materialization.pipeline import materialize
 from assquack._query import execute_query
@@ -24,7 +25,6 @@ from assquack._storage.sql import sanitize_identifier
 from assquack._storage.tables import TableReference
 from assquack._templates import AssetTemplateFormatter
 
-AssetMode = Literal["replace"]
 ExportFormat = Literal["parquet", "json", "csv"]
 
 
@@ -196,6 +196,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
             asset_signature=str(signature),
             table=table,
             export=export,
+            mode=self.mode,
             use_cache=self.prefer_cache,
             cache_expiration=self.cache_expiration,
         )

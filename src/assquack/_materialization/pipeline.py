@@ -13,7 +13,7 @@ from assquack._config import AssquackConfig
 from assquack._errors import ExportError
 from assquack._exports.targets import parse_export_targets
 from assquack._exports.writers import export_writer
-from assquack._materialization.commit import CommitStrategy, ReplaceCommitStrategy
+from assquack._materialization.commit import commit_strategy
 from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
     fragment_run_directory,
@@ -42,12 +42,11 @@ _LOGGER = logging.getLogger(__name__)
 async def materialize(
     request: MaterializationRequest,
     config: AssquackConfig,
-    strategy: CommitStrategy | None = None,
 ) -> AssquackResult:
     """Capture fragments, infer the current schema, and publish one asset run."""
 
     started = perf_counter()
-    strategy = strategy or ReplaceCommitStrategy()
+    strategy = commit_strategy(request.mode)
     targets = (
         parse_export_targets(
             request.export, asset_name=request.asset_name, config=config
@@ -66,6 +65,7 @@ async def materialize(
                 asset_signature=request.asset_signature,
                 schema_name=request.table.schema_name,
                 table_name=request.table.table_name,
+                materialization_mode=request.mode,
             )
         )
 

@@ -35,6 +35,7 @@ def test_run_identity_matches_known_md5_digest(tmp_path: Path, run_clock: Mock) 
         asset_signature="orders()",
         table=TableReference("main", "orders"),
         export=None,
+        mode="replace",
     )
     result = asyncio.run(pipeline.materialize(request, AssquackConfig(home=tmp_path)))
 

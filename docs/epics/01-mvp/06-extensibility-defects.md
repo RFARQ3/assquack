@@ -54,7 +54,7 @@ Priorities below are review recommendations, not a revised approved release scop
 | EXT-03 | Parquet writing owns destination routing | Proposed pre-release repair | Open |
 | EXT-04 | Export format selection and metadata are hardcoded | Proposed pre-release repair | Open |
 | EXT-05 | Schema strategy selection and context are insufficient | Internal registry and argument-free resolution implemented | Complete |
-| EXT-06 | Materialization mode does not reach execution or metadata | Proposed pre-release repair | Open |
+| EXT-06 | Materialization mode does not reach execution or metadata | Internal registry and mode propagation implemented | Complete |
 | EXT-07 | Input conversion has no adapter selection boundary | Proposed repair; missing baseline inputs are already MVP work | Open |
 | EXT-08 | Observation extension point is undefined | Design decision required | Open |
 | EXT-09 | Catalog evolution has no versioned migration mechanism | Pre-release upgrade-policy decision required | Open |
@@ -201,7 +201,12 @@ The phase remains In Progress because other register items remain open.
 
 ## EXT-06: Materialization mode propagation
 
-**Evidence:** [asset API](../../../src/assquack/_api.py) stores `mode`, but
+**Status: Complete — 26 October 2026.** Approved scope: carry the declared
+mode through the request, select publication through a framework-owned registry,
+and persist that same mode. Only replace ships. No public registration/injection,
+mode-specific options, append/merge algorithms or compatibility layer is added.
+
+**Original finding:** [asset API](../../../src/assquack/_api.py) stores `mode`, but
 [MaterializationRequest](../../../src/assquack/_materialization/models.py) omits
 it. [pipeline.py](../../../src/assquack/_materialization/pipeline.py) defaults
 directly to `ReplaceCommitStrategy`; [AssetRecord](../../../src/assquack/_storage/models.py)
@@ -210,14 +215,29 @@ independently defaults its stored mode to `replace`.
 **Consequence:** adding another commit strategy is insufficient to select it
 from the asset declaration or record its mode correctly.
 
-**Proposed outcome and acceptance:**
+**Implemented:** the shared replace-only `AssetMode` type is required on
+`MaterializationRequest`; the asset forwards its declaration explicitly.
+`commit_strategy()` constructs a strategy from an immutable framework-owned
+registry before database access or cache lookup. The pipeline no longer accepts
+an injected strategy, and `AssetRecord` requires an explicit mode supplied from
+the request. The existing replacement transaction and schema implementation are
+unchanged. Future mode-specific settings require a separate design; no options
+or public extension API are introduced here.
 
-- Carry mode consistently from declaration through execution and metadata.
-- Define strategy selection and the boundary for future mode-specific settings.
-- Verify selected strategy execution and accurate stored mode using synthetic
-  tests; retain transactional replace behavior.
-- Keep unsupported modes rejected. Append/merge algorithms, primary keys and
-  snapshot publication remain outside this work unless separately approved.
+**Validation:** all 179 offline synthetic tests pass, including six new mode
+cases covering default/explicit declaration, registry-selected publication,
+persisted mode, replacement, cache reuse and unsupported-mode rejection before
+source/storage access. Existing rollback, schema failure/retry and empty-run
+tests also pass. Ruff lint, formatting of the seven changed Python files,
+documentation links and `git diff --check` pass. The terminology scan found only
+the existing historical locking observation and its epic explanation.
+Pyright reports the same 13 pre-existing errors in `_api.py`, `normalize.py`,
+`_query.py` and `_templates.py`; none concern mode propagation or the new tests.
+Sandbox temporary-directory/dependency access failures were resolved by running
+pytest and Pyright outside the sandbox with local dependencies and synthetic
+data. No live services or credentials were accessed.
+
+The phase remains In Progress because other register items remain open.
 
 ## EXT-07: Input adapters and compatibility
 
