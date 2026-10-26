@@ -8,9 +8,9 @@ fragments only. Prior published columns and types do not constrain the new table
 ```mermaid
 flowchart LR
   Rows[Normalized rows] --> Fragments[Completed NDJSON fragments]
-  Fragments --> Reader[DuckDB native inference]
-  Reader --> Strategy[Current-run schema strategy]
-  Strategy --> Candidate[Typed candidate table]
+  Fragments --> Strategy[Current-run schema strategy]
+  Strategy --> Reader[DuckDB native inference]
+  Reader --> Candidate[Typed candidate table]
   Candidate --> Current[Atomic table replacement]
 ```
 
@@ -35,16 +35,19 @@ override to apply configuration to an individual asset. See
   `_qa_loaded_at`; historical source columns are not retained.
 
 Downstream queries expecting removed columns can fail. Continuation is future
-work and is not an accepted configuration value. The internal strategy protocol
-provides the extension point without adding another decorator API.
+work and is not an accepted configuration value. The framework owns an internal
+registry with only `current_run` registered. Each strategy binds its own run
+resources and implements `resolve()` without schema or context arguments. The
+current-run strategy obtains completed fragments and performs inference itself;
+the pipeline does not infer a schema before calling it. There is no public
+registration or custom-strategy injection API.
 
 ## Schema Metadata
 
-`assquack_meta.schemas` records the resulting source-column projections for each
-candidate run. Successful run status identifies published schemas. The active
-flow neither reads historical schemas nor runs `json_group_structure`,
-`json_tree`, or detailed field/type observation writes. Existing observation
-metadata and internal helpers remain available but are inactive.
+The published DuckDB table is the source of truth for its schema. Assquack no
+longer creates or writes schema-history or observation tables. Obsolete history
+readers and observation helpers are removed. Existing database tables and records
+are not deleted by bootstrap; no compatibility shim or migration is introduced.
 
 ## VARIANT Policy
 

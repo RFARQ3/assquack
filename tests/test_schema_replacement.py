@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
+from collections.abc import Callable
 from pathlib import Path
 
 import duckdb
@@ -9,16 +9,15 @@ import pytest
 
 from assquack import AssquackConfig, IngestionConfig, SchemaConfig, asset
 from assquack._materialization import pipeline
-from assquack._materialization.models import ProjectionSpec
+from assquack._materialization.models import FragmentFile, ProjectionSpec
 from assquack._materialization.schema import (
-    CurrentRunSchemaStrategy,
     SchemaStrategy,
     replace_schema_strategy,
 )
 from assquack._storage.metadata import MetadataRepository
 
 
-def test_replacement_uses_only_current_fragments_and_records_final_schema(
+def test_replacement_uses_only_current_fragments(
     tmp_path: Path,
 ) -> None:
     rows: list[dict[str, object]] = [
@@ -45,7 +44,7 @@ def test_replacement_uses_only_current_fragments_and_records_final_schema(
         {"id": 3, "amount": 4, "shape": {"extra": True}, "items": [2, 3]},
         {"id": 4, "amount": None, "late": "present"},
     ]
-    result = asyncio.run(source(assquack_config=config))
+    asyncio.run(source(assquack_config=config))
 
     with duckdb.connect(str(config.resolved_database_path)) as connection:
         schema = dict(
@@ -58,14 +57,6 @@ def test_replacement_uses_only_current_fragments_and_records_final_schema(
             FROM main.current_schema ORDER BY id
             """
         ).fetchall()
-        observation_count = connection.execute(
-            "SELECT count(*) FROM assquack_meta.schema_observations"
-        ).fetchone()
-        recorded = connection.execute(
-            "SELECT schema_json FROM assquack_meta.schemas WHERE run_id = ?",
-            [result.run_id],
-        ).fetchone()
-
     assert set(schema) == {
         "_qa_run_id",
         "_qa_loaded_at",
@@ -83,16 +74,6 @@ def test_replacement_uses_only_current_fragments_and_records_final_schema(
         (3, 4, None, True, [2, 3], None),
         (4, None, None, None, None, "present"),
     ]
-    assert observation_count == (0,)
-    assert recorded is not None
-    recorded_schema = {
-        item["column_name"]: item["duckdb_type"] for item in json.loads(recorded[0])
-    }
-    assert recorded_schema == {
-        name: column_type
-        for name, column_type in schema.items()
-        if not name.startswith("_qa_")
-    }
 
 
 def test_per_asset_config_selects_the_strategy_used_for_publication(
@@ -102,21 +83,19 @@ def test_per_asset_config_selects_the_strategy_used_for_publication(
     selected_config = AssquackConfig(
         home=tmp_path, schema=SchemaConfig(replace="current_run")
     )
-    assert isinstance(
-        replace_schema_strategy(native_config.schema), CurrentRunSchemaStrategy
-    )
 
     class TextIdStrategy:
-        def resolve(
-            self, observed_schema: list[tuple[str, str]]
-        ) -> list[ProjectionSpec]:
-            assert observed_schema == [("id", "BIGINT")]
+        def resolve(self) -> list[ProjectionSpec]:
             return [ProjectionSpec("$.id", "id", "VARCHAR")]
 
-    def select_strategy(config: SchemaConfig) -> SchemaStrategy:
+    def select_strategy(
+        config: SchemaConfig,
+        connection: duckdb.DuckDBPyConnection,
+        fragments: Callable[[], list[FragmentFile]],
+    ) -> SchemaStrategy:
         if config is selected_config.schema:
             return TextIdStrategy()
-        return replace_schema_strategy(config)
+        return replace_schema_strategy(config, connection, fragments)
 
     # Substitute a policy at the internal extension point without adding an
     # unsupported public setting. Its output must reach the published table.
@@ -203,3 +182,55 @@ def test_failed_publication_rolls_back_table_and_success_status(
         assert connection.execute(
             "SELECT id, replacement, _qa_run_id FROM main.safe_replacement"
         ).fetchall() == [(2, "unpublished", recovered.run_id)]
+
+
+def test_schema_failure_preserves_published_table_and_allows_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from assquack._materialization.schema import CurrentRunSchemaStrategy
+
+    rows = [{"id": 1}]
+
+    @asset(table="main.inference_failure")
+    async def source() -> list[dict[str, int]]:
+        return rows
+
+    config = AssquackConfig(home=tmp_path)
+    first = asyncio.run(source(assquack_config=config))
+    rows[:] = [{"id": 2}]
+
+    def fail_resolve(self: CurrentRunSchemaStrategy) -> list[ProjectionSpec]:
+        raise RuntimeError("synthetic inference failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(CurrentRunSchemaStrategy, "resolve", fail_resolve)
+        with pytest.raises(RuntimeError, match="synthetic inference failure"):
+            asyncio.run(source(assquack_config=config))
+
+    with duckdb.connect(str(config.resolved_database_path)) as connection:
+        assert connection.execute(
+            "SELECT id, _qa_run_id FROM main.inference_failure"
+        ).fetchall() == [(1, first.run_id)]
+        assert connection.execute(
+            "SELECT count(*) FROM assquack_meta.runs WHERE status = 'failed'"
+        ).fetchone() == (1,)
+
+    asyncio.run(source(assquack_config=config))
+    with duckdb.connect(str(config.resolved_database_path)) as connection:
+        assert connection.execute(
+            "SELECT id FROM main.inference_failure"
+        ).fetchall() == [(2,)]
+
+
+def test_new_catalog_has_only_active_metadata_tables(tmp_path: Path) -> None:
+    @asset(table="main.catalog_check")
+    async def source() -> list[dict[str, int]]:
+        return [{"id": 1}]
+
+    config = AssquackConfig(home=tmp_path)
+    asyncio.run(source(assquack_config=config))
+    with duckdb.connect(str(config.resolved_database_path)) as connection:
+        assert connection.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'assquack_meta' ORDER BY table_name"
+        ).fetchall() == [("assets",), ("exports",), ("runs",)]

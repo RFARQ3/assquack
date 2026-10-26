@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-10-22
+Last updated: 2026-10-26
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -36,7 +36,7 @@ maintainers.
 
 ## Metadata Table Contracts
 
-Bootstrap should create the `assquack` schema and the MVP system tables:
+Bootstrap creates the `assquack_meta` schema and the MVP system tables:
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS assquack_meta;
@@ -64,26 +64,6 @@ CREATE TABLE assquack_meta.runs (
   fragments_owned BOOLEAN DEFAULT true
 );
 
-CREATE TABLE assquack_meta.schemas (
-  asset_id VARCHAR NOT NULL,
-  run_id VARCHAR NOT NULL,
-  schema_json JSON,
-  json_structure JSON,
-  created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE assquack_meta.schema_observations (
-  asset_id VARCHAR NOT NULL,
-  run_id VARCHAR NOT NULL,
-  path VARCHAR NOT NULL,
-  observed_type VARCHAR NOT NULL,
-  present_count BIGINT NOT NULL,
-  null_count BIGINT NOT NULL,
-  total_count BIGINT NOT NULL,
-  first_seen_at TIMESTAMPTZ NOT NULL,
-  last_seen_at TIMESTAMPTZ NOT NULL
-);
-
 CREATE TABLE assquack_meta.exports (
   export_id VARCHAR PRIMARY KEY,
   run_id VARCHAR NOT NULL,
@@ -100,6 +80,11 @@ CREATE TABLE assquack_meta.exports (
   created_at TIMESTAMPTZ NOT NULL
 );
 ```
+
+Schema-history and observation DDL was removed on 26 October 2026 as part of
+[EXT-05](06-extensibility-defects.md#ext-05-schema-strategy-selection-and-context).
+The published table owns its schema. No migration or deletion of existing
+records is performed.
 
 ## Implementation Checklist
 

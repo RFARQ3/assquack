@@ -2,22 +2,34 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable, Mapping
+from types import MappingProxyType
 from typing import Protocol
 
+import duckdb
+
 from assquack._config import SchemaConfig
-from assquack._materialization.models import ProjectionSpec
+from assquack._materialization.models import FragmentFile, ProjectionSpec
+from assquack._materialization.staging import describe_fragments
 
 
 class SchemaStrategy(Protocol):
-    def resolve(
-        self, observed_schema: list[tuple[str, str]]
-    ) -> list[ProjectionSpec]: ...
+    def resolve(self) -> list[ProjectionSpec]: ...
 
 
 class CurrentRunSchemaStrategy:
     """Use only the columns and types inferred from this extraction."""
 
-    def resolve(self, observed_schema: list[tuple[str, str]]) -> list[ProjectionSpec]:
+    def __init__(
+        self,
+        connection: duckdb.DuckDBPyConnection,
+        fragments: Callable[[], list[FragmentFile]],
+    ) -> None:
+        self._connection = connection
+        self._fragments = fragments
+
+    def resolve(self) -> list[ProjectionSpec]:
+        observed_schema = describe_fragments(self._connection, self._fragments())
         return [
             ProjectionSpec(
                 source_field=(
@@ -32,7 +44,24 @@ class CurrentRunSchemaStrategy:
         ]
 
 
-def replace_schema_strategy(config: SchemaConfig) -> SchemaStrategy:
-    if config.replace == "current_run":
-        return CurrentRunSchemaStrategy()
-    raise ValueError(f"Unsupported replacement schema strategy: {config.replace!r}")
+_STRATEGIES: Mapping[
+    str,
+    Callable[
+        [duckdb.DuckDBPyConnection, Callable[[], list[FragmentFile]]], SchemaStrategy
+    ],
+] = MappingProxyType({"current_run": CurrentRunSchemaStrategy})
+
+
+def replace_schema_strategy(
+    config: SchemaConfig,
+    connection: duckdb.DuckDBPyConnection,
+    fragments: Callable[[], list[FragmentFile]],
+) -> SchemaStrategy:
+    """Construct a run-local strategy from the framework's fixed registry."""
+    try:
+        factory = _STRATEGIES[config.replace]
+    except KeyError:
+        raise ValueError(
+            f"Unsupported replacement schema strategy: {config.replace!r}"
+        ) from None
+    return factory(connection, fragments)

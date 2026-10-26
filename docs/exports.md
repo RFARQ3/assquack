@@ -17,7 +17,7 @@ flowchart LR
 
 1. Materialize local NDJSON fragments into a candidate DuckDB table.
 2. Transactionally publish the current asset table.
-3. Record run and schema metadata in Assquack system tables.
+3. Record run metadata in Assquack system tables.
 4. Optionally export the published table to one or more file targets.
 5. Record each exported artifact in the export manifest.
 
@@ -318,7 +318,7 @@ Exports are not the primary storage source of truth for these reasons:
 
 - DuckDB tables hold the published current asset state and are queried directly
   by `.query()` and `cache_first()`.
-- Assquack system tables hold run status, resulting schemas, cache metadata,
+- Assquack system tables hold run status, cache metadata,
   and export metadata transactionally with materialization.
 - Replaying exported JSON, CSV, or Parquet would reintroduce the file-fragment
   first architecture that Assquack is replacing.

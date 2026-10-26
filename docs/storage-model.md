@@ -93,21 +93,19 @@ assquack_stage  typed candidate tables for active runs
 ## System Tables
 
 The MVP metadata catalog is stored inside the same DuckDB database file as the
-asset tables. Bootstrap must create the `assquack` schema and the following
+asset tables. Bootstrap creates the `assquack_meta` schema and the following
 tables.
 
 ```mermaid
 erDiagram
   ASSETS ||--o{ RUNS : materializes
-  ASSETS ||--o{ SCHEMAS : records
   RUNS ||--o{ EXPORTS : writes
 ```
 
 `assquack_meta.assets` is the asset manifest. `assquack_meta.runs` records
-materialization attempts and their final status. `assquack_meta.schemas` stores
-the resulting source-column schema for each candidate run.
-`assquack_meta.schema_observations` remains in the catalog for compatibility;
-current-run replacement does not populate it or JSON structure summaries.
+materialization attempts and their final status. The published asset table owns
+its schema; bootstrap does not create schema-history or observation tables.
+Existing tables and records are left untouched.
 `assquack_meta.exports` records external
 artifacts such as current-state Parquet or run snapshots. `uri` is the logical
 target, such as `mad://bronze/orders.parquet`; `resolved_uri` is the concrete
@@ -162,7 +160,7 @@ Whole records can exceed the target; records are never split between files.
 
 DuckDB's native JSON reader scans the complete fragment set and builds a typed
 candidate table in `assquack_stage`. The current asset table is updated only
-after the schema metadata and candidate are ready to commit.
+after the candidate is ready to commit.
 
 `VARIANT` remains available for columns whose values are genuinely
 heterogeneous; it is not a mandatory whole-row staging format. The target

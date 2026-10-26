@@ -369,35 +369,6 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
         ).fetchone() == ("running",)
 
 
-def test_existing_catalog_migrates_without_losing_run_history(tmp_path: Path) -> None:
-    config = AssquackConfig(home=tmp_path)
-    with open_database(config) as connection:
-        old = seed_run(
-            connection,
-            config.resolved_fragment_directory,
-            "ffffffff-ffff-ffff-ffff-ffffffffffff",
-            "success",
-            1,
-        )
-        retained = seed_run(
-            connection, config.resolved_fragment_directory, "a" * 32, "success", 2
-        )
-        connection.execute("ALTER TABLE assquack_meta.runs DROP COLUMN fragments_owned")
-
-    with open_database(config) as connection:
-        prune_fragments(
-            MetadataRepository(connection),
-            config.resolved_fragment_directory,
-            "asset-id",
-            "orders",
-        )
-        assert not old.exists()
-        assert retained.exists()
-        assert connection.execute(
-            "SELECT count(*) FROM assquack_meta.runs"
-        ).fetchone() == (2,)
-
-
 def test_catalog_cleanup_failure_preserves_successful_result(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

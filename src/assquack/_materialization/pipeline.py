@@ -27,7 +27,6 @@ from assquack._materialization.retention import prune_fragments
 from assquack._materialization.schema import replace_schema_strategy
 from assquack._materialization.staging import (
     create_shaped_staging,
-    describe_fragments,
     drop_shaped_staging,
 )
 from assquack._result import AssquackResult
@@ -49,7 +48,6 @@ async def materialize(
 
     started = perf_counter()
     strategy = strategy or ReplaceCommitStrategy()
-    schema_strategy = replace_schema_strategy(config.schema)
     targets = (
         parse_export_targets(
             request.export, asset_name=request.asset_name, config=config
@@ -138,20 +136,16 @@ async def materialize(
                 row_count += fragment_writer.write_rows(chunk.rows)
 
             fragments = fragment_writer.finish()
-            observed_schema = describe_fragments(connection, fragments)
-            projections = schema_strategy.resolve(observed_schema)
+            schema_strategy = replace_schema_strategy(
+                config.schema, connection, fragment_writer.finish
+            )
+            projections = schema_strategy.resolve()
             create_shaped_staging(
                 connection,
                 staging.shaped,
                 fragments,
                 projections,
-                [name for name, _ in observed_schema],
                 run_id,
-            )
-            metadata.record_schema(
-                request.asset_id,
-                run_id,
-                [item.as_dict() for item in projections],
             )
 
             duration_ms = int((perf_counter() - started) * 1_000)

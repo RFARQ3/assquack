@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Collection
-
 import duckdb
 
 from assquack._materialization.json_reader import read_json_sql
@@ -27,7 +25,6 @@ def create_shaped_staging(
     shaped: TableReference,
     fragments: list[FragmentFile],
     projections: list[ProjectionSpec],
-    observed_columns: Collection[str],
     run_id: str,
 ) -> None:
     shaped_table = quote_table(shaped.schema_name, shaped.table_name)
@@ -48,7 +45,11 @@ def create_shaped_staging(
         )
         return
 
-    projected = _projection_list(projections, observed_columns)
+    projected = ",\n                ".join(
+        f"try_cast({quote_identifier(item.column_name)} AS {item.duckdb_type}) "
+        f"AS {quote_identifier(item.column_name)}"
+        for item in projections
+    )
     suffix = f",\n                {projected}" if projected else ""
     source = read_json_sql([fragment.path for fragment in fragments])
     connection.execute(
@@ -70,24 +71,3 @@ def drop_shaped_staging(
     connection.execute(
         f"DROP TABLE {quote_table(shaped.schema_name, shaped.table_name)}"
     )
-
-
-def _projection_list(
-    projections: list[ProjectionSpec],
-    observed_columns: Collection[str],
-) -> str:
-    available = set(observed_columns)
-    return ",\n                ".join(
-        _projection_expression(projection, available) for projection in projections
-    )
-
-
-def _projection_expression(
-    projection: ProjectionSpec,
-    observed_columns: set[str],
-) -> str:
-    alias = quote_identifier(projection.column_name)
-    if projection.column_name not in observed_columns:
-        return f"CAST(NULL AS {projection.duckdb_type}) AS {alias}"
-
-    return f"try_cast({alias} AS {projection.duckdb_type}) AS {alias}"

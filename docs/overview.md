@@ -16,7 +16,7 @@ Assquack is a Python library for turning functions into DuckDB-backed assets. A
 decorated function yields or returns rows, batches, DataFrames, Arrow objects,
 DuckDB relations, or other supported source shapes. Assquack normalizes that
 data into local NDJSON fragments, materializes it into DuckDB candidate and
-current tables, records run and schema metadata, and exposes query/cache/export
+current tables, records run metadata, and exposes query/cache/export
 operations around the resulting table state.
 
 The library is intended to run inside ordinary Python processes. Orchestrators,

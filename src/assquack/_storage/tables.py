@@ -46,46 +46,6 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
         )
         """
     )
-    # Repeating ADD COLUMN IF NOT EXISTS can reset stored values to the default.
-    # Only migrate old catalogs so failed directory claims remain unowned.
-    ownership_column = connection.execute(
-        """
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'assquack_meta' AND table_name = 'runs'
-          AND column_name = 'fragments_owned'
-        """
-    ).fetchone()
-    if ownership_column is None:
-        connection.execute(
-            "ALTER TABLE assquack_meta.runs "
-            "ADD COLUMN fragments_owned BOOLEAN DEFAULT true"
-        )
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS assquack_meta.schemas (
-            asset_id VARCHAR NOT NULL,
-            run_id VARCHAR NOT NULL,
-            schema_json JSON,
-            json_structure JSON,
-            created_at TIMESTAMPTZ NOT NULL
-        )
-        """
-    )
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS assquack_meta.schema_observations (
-            asset_id VARCHAR NOT NULL,
-            run_id VARCHAR NOT NULL,
-            path VARCHAR NOT NULL,
-            observed_type VARCHAR NOT NULL,
-            present_count BIGINT NOT NULL,
-            null_count BIGINT NOT NULL,
-            total_count BIGINT NOT NULL,
-            first_seen_at TIMESTAMPTZ NOT NULL,
-            last_seen_at TIMESTAMPTZ NOT NULL
-        )
-        """
-    )
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS assquack_meta.exports (

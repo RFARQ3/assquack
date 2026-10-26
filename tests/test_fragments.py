@@ -61,20 +61,10 @@ def test_materialization_uses_bounded_local_ndjson_fragments(
         rows = connection.execute(
             "SELECT id, late_field FROM main.fragmented_orders ORDER BY id"
         ).fetchall()
-        observations = connection.execute(
-            """
-            SELECT path, sum(present_count), max(total_count)
-            FROM assquack_meta.schema_observations
-            WHERE run_id = ? AND path = '$.late_field'
-            GROUP BY path
-            """,
-            [result.run_id],
-        ).fetchall()
     finally:
         connection.close()
 
     assert rows == [(1, None), (2, None), (3, "found"), (4, None), (5, None)]
-    assert observations == []
 
     decoded = [
         json.loads(line)

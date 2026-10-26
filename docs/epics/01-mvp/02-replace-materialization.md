@@ -1,7 +1,7 @@
 # Replace Materialization
 
 Status: **In Progress**
-Last updated: 2026-10-22
+Last updated: 2026-10-26
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -82,8 +82,8 @@ Leave run metadata, published tables and exports intact. Log cleanup errors
 without changing successful publication or masking extraction failure. Retry
 starts a fresh extraction; retained evidence is diagnostic only.
 
-The additive `runs.fragments_owned` flag preserves legacy catalog behavior
-while new attempts start unowned. Set it only after exclusive directory creation
+The `runs.fragments_owned` flag tracks directory ownership;
+new attempts start unowned. Set it only after exclusive directory creation
 succeeds. A failed claim or interruption before recording ownership leaves that
 directory untouched, even after its run falls outside retention.
 
@@ -92,17 +92,16 @@ directory untouched, even after its run falls outside retention.
 The [approved scope journal](../../journal/2026-09-08-mvp-scope.md) supersedes
 historical schema continuity and detailed observations for MVP.
 
-`schema.replace="current_run"` selects `CurrentRunSchemaStrategy` through the
-internal `SchemaStrategy` protocol. Native DuckDB inference over this run's
-completed fragments supplies its columns and types. The strategy maps a
-heterogeneous `JSON` column to durable `VARIANT` and otherwise preserves native
-types. It does not read previous schemas or run observation queries.
+`schema.replace="current_run"` selects a fresh `CurrentRunSchemaStrategy` from
+an immutable internal registry. Each instance binds its run connection and
+fragment supplier. Its argument-free `resolve()` obtains completed fragments,
+performs native DuckDB inference and maps heterogeneous `JSON` columns to
+`VARIANT`. The pipeline neither supplies an inferred schema nor branches on
+strategy behavior. There is no public custom-strategy registration API.
 
-Record only the resulting source-column schema in `assquack_meta.schemas`;
-leave JSON structure and detailed observations unwritten. Existing catalog
-columns, observation helpers and historical records remain for compatibility,
-but are outside active materialization.
-
+Schema-history persistence, readers and observation helpers are removed.
+New catalogs contain only assets, runs and exports; existing database tables
+and records are not deleted. No compatibility shim or migration is introduced.
 An empty extraction publishes zero rows with only `_qa_run_id` and
 `_qa_loaded_at`. Removed source fields disappear, and scalar or nested types
 can change between runs. No unsupported continuation setting is exposed.
@@ -111,7 +110,7 @@ can change between runs. No unsupported continuation setting is exposed.
 
 Build the candidate from current-run projections only. Missing values within
 this extraction are handled by DuckDB's native field union. No historical
-column or type participates. Candidate creation and schema recording finish
+column or type participates. Candidate creation finishes
 before the publication transaction; failures leave the published table intact.
 
 ## Publish Contract
@@ -162,7 +161,8 @@ under the existing exclusive writer lock; retries always extract afresh.
 Review exposed an orphan-claim deletion bug and a DuckDB bootstrap behavior that
 reset ownership when repeating `ADD COLUMN IF NOT EXISTS ... DEFAULT true`.
 Both are fixed: new attempts claim fragments only after exclusive directory
-creation, and existing ownership columns bypass the additive migration entirely.
+creation. The legacy column migration and its upgrade test were removed on
+26 October: this unreleased MVP does not upgrade earlier catalog layouts.
 Filesystem deletion is confined to validated flat run directories; cleanup
 failures log warnings without changing publication or masking source errors.
 
@@ -173,7 +173,7 @@ poetry run pytest tests/test_fragment_retention.py tests/test_run_identity.py te
 ```
 
 Coverage includes retention counts and timestamp ties, shared asset-name folders,
-configured roots, legacy catalog migration and UUIDs, orphan preservation across
+configured roots, UUIDs, orphan preservation across
 reopen, redirected directories, unknown contents, cancellation/fresh retry,
 interrupted recovery on cache hits, cleanup errors, writer locks and exports.
 Targeted production/test Pyright and Ruff lint/format, Markdown links and diff
@@ -270,3 +270,12 @@ environment and per-call overrides, and first-run/refresh failure with safe retr
 Test-file Ruff lint/format and targeted Pyright checks passed. Tests used only
 synthetic data and temporary local databases; no full-suite or live-system checks
 were run. No remaining defect was found in this scope.
+
+## Internal schema registry — 26 October 2026
+
+The EXT-05 slice is complete: framework-owned selection, argument-free
+`resolve()`, strategy-owned inference, and removal of unused schema persistence
+and observation machinery. See [EXT-05 validation](06-extensibility-defects.md#ext-05-schema-strategy-selection-and-context)
+for the 173-test full-suite result, subsequent five-test inference run, lint,
+format, documentation checks and unrelated Pyright limitations. This phase
+remains In Progress for its other outstanding work.

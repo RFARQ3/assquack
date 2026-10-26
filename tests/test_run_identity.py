@@ -72,9 +72,6 @@ def test_run_identity_matches_persisted_runtime_and_fragments(
         assert connection.execute("SELECT _qa_run_id FROM main.orders").fetchall() == [
             (first.run_id,)
         ]
-        assert connection.execute(
-            "SELECT run_id FROM assquack_meta.schemas"
-        ).fetchall() == [(first.run_id,)]
 
     directory = fragment_run_directory(
         config.resolved_fragment_directory, "orders", first.run_id

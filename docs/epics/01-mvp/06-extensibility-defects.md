@@ -1,7 +1,7 @@
 # MVP Extensibility Defects
 
 Status: **In Progress**
-Last updated: 2026-10-23
+Last updated: 2026-10-26
 Epic: 01 MVP
 Phase: 06
 Related docs: [Scope journal](../../journal/2026-09-08-mvp-scope.md), [Roadmap](../../roadmap.md), [Export compatibility](04-export-compatibility.md)
@@ -53,7 +53,7 @@ Priorities below are review recommendations, not a revised approved release scop
 | EXT-02 | Credential providers cannot be supplied through normal exports | Proposed pre-release repair | Open |
 | EXT-03 | Parquet writing owns destination routing | Proposed pre-release repair | Open |
 | EXT-04 | Export format selection and metadata are hardcoded | Proposed pre-release repair | Open |
-| EXT-05 | Schema strategy selection and context are insufficient | Proposed pre-release repair | Open |
+| EXT-05 | Schema strategy selection and context are insufficient | Internal registry and argument-free resolution implemented | Complete |
 | EXT-06 | Materialization mode does not reach execution or metadata | Proposed pre-release repair | Open |
 | EXT-07 | Input conversion has no adapter selection boundary | Proposed repair; missing baseline inputs are already MVP work | Open |
 | EXT-08 | Observation extension point is undefined | Design decision required | Open |
@@ -166,26 +166,38 @@ for verification and the separate review outcome.
 
 ## EXT-05: Schema strategy selection and context
 
-**Evidence:** [schema.py](../../../src/assquack/_materialization/schema.py)
-hardcodes `current_run`; `resolve()` receives only observed columns/types.
-[pipeline.py](../../../src/assquack/_materialization/pipeline.py) provides no
-asset/history context. The substitution test in
-[test_schema_replacement.py](../../../tests/test_schema_replacement.py)
-monkeypatches the selector. A previous-successful-schema lookup already exists in
-[metadata.py](../../../src/assquack/_storage/metadata.py).
+**Approved direction, 26 October 2026 — Complete:** this is framework-owned
+machinery, not a public registration or custom-strategy injection API. The
+general public-extension acceptance rule above does not apply to EXT-05.
 
-**Consequence:** continuation cannot obtain previous schema through the present
-contract, and replacing the policy requires changing internal selection code.
+- An immutable internal registry selects only `current_run`.
+- The shared contract is `resolve(self)`, with no schema or context arguments.
+- Each strategy instance binds its own run connection and fragment dependency
+  internally. `CurrentRunSchemaStrategy` obtains completed fragments and performs
+  native inference itself. No global mutable run state is permitted.
+- The pipeline selects the strategy and calls `resolve()` without prefetching a
+  schema or branching on strategy-specific behavior.
+- Remove unused historical schema persistence and obsolete observation helpers.
+  New catalogs omit those tables; existing tables and records remain untouched.
+- Preserve current-run drift, missing fields, heterogeneous values, empty runs,
+  cache behavior and atomic replacement/failure behavior with offline tests.
 
-**Proposed outcome and acceptance:**
+Continuation, history access, public injection and public registration are
+deferred; no continuation config value is introduced. Future framework strategies
+own their dependencies without changing the shared `resolve()` contract.
 
-- Provide supported policy selection and explicit context or a history-access
-  capability sufficient for a future continuation implementation.
-- Keep current-run inference as the shipped default with no implicit historical
-  reconciliation or unsupported continuation switch.
-- Test a synthetic policy through normal per-call configuration, with access to
-  the correct asset's successful history and without monkeypatching.
-- Preserve current-run drift, missing-field and failed-refresh behavior.
+**Validation:** the full offline suite passed (173 tests), followed by all five
+schema-inference tests after adding explicit failed-cast coverage. Coverage
+includes independent run resources, native nested inference, drift, empty runs,
+cache hits, schema failure/retry, atomic rollback and fresh metadata catalogs.
+Ruff lint, changed-file formatting, documentation links and `git diff --check`
+pass. Pyright with the Poetry interpreter reports 13 errors in untouched code
+(`_api.py`, `normalize.py`, `_query.py`, `_templates.py`); none in this change.
+Sandbox restrictions prevented pytest temporary-directory access and dependency
+resolution for Pyright; the successful checks ran outside the sandbox using only
+offline synthetic data. No live services or credentials were accessed.
+
+The phase remains In Progress because other register items remain open.
 
 ## EXT-06: Materialization mode propagation
 
@@ -227,9 +239,9 @@ the agreed migration baseline is also incomplete.
 
 ## EXT-08: Observation extension contract
 
-**Evidence:** the scope calls for a practical observation extension point.
-[observation.py](../../../src/assquack/_materialization/observation.py) retains
-helpers, but the active pipeline offers no explicit observer hook.
+**Evidence:** the scope calls for a practical observation extension point, but
+the active pipeline offers no explicit observer hook. Obsolete observation
+helpers were removed under EXT-05; no observation API is shipped.
 
 **Decision needed:** what evidence is available, when observers run, who owns
 their persistence, and whether an observer failure blocks publication.

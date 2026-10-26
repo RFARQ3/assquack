@@ -19,12 +19,3 @@ class SuccessfulRun:
     run_id: str
     materialized_at: datetime
     row_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class SchemaObservation:
-    path: str
-    observed_type: str
-    present_count: int
-    null_count: int
-    total_count: int
