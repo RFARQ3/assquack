@@ -28,6 +28,15 @@ across agent sessions.
 
 ## Agent Workflow Preferences
 
+- This project is pre-release. Do not add backward-compatibility shims, legacy
+  aliases or migrations for earlier unreleased implementations. Update the repo
+  cohesively instead, without deleting user databases or live data.
+- Prefer clear failure over speculative recovery machinery for hypothetical
+  scenarios. Establish a concrete requirement before adding defensive complexity.
+- When Rowan requests an implementation agent in a visible chat, create and open
+  that chat before allowing implementation to begin. Hidden agents do not satisfy
+  that requirement. Report completion back for review when requested.
+
 - For non-trivial feature, API, storage, or architecture changes, establish the
   developer-facing direction before implementation. Use docs or a concise plan.
 - Confirm direction with the user when the change affects public API,

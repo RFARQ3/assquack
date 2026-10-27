@@ -70,4 +70,5 @@ the topic links that match the work in front of you.
 - [Epics](epics/README.md): phase files with status headers, checklists, and
   validation notes.
 - [8 September 2026 MVP scope journal](journal/2026-09-08-mvp-scope.md): huddle
-  suggestions, Rowan's responses, and the finalized 21 October first-release scope.
+  suggestions, Rowan's responses, the 21 October first-release scope, and later
+  amendments including the 26 October schema/mode and normalization review.

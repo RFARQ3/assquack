@@ -41,6 +41,30 @@ feature will require zero core changes.
 
 ## Work register
 
+### Agreed export design — 26 October 2026
+
+The [scope decision](../../journal/2026-09-08-mvp-scope.md#agreed-filesystem-destination-pattern-26-october-2026)
+now establishes `FileSystemDestination(base_uri, auth)` implementing the broader
+`ExportDestination` contract. One internal DuckDB filesystem adapter composes
+registered local/Azure preparation strategies with compatible authentication;
+the separate DuckDB writer performs shared COPY. Preparation classes remain
+small and retain explicit ownership rather than duplicating DuckDB internals.
+
+Writer and filesystem adapter are replaceable internally, but DuckDB is the only
+MVP implementation and neither is publicly configurable. Future public selection
+is deliberately left open. For EXT-03/04, demonstrate internal substitution via
+the registry/construction boundary without monkeypatching or changing the shared
+export flow; do not require a public alternative-writer/adapter setting to close
+that agreed slice. Formats are selected from asset declarations, independently
+of destination configuration. Database destinations remain a future extension
+of the parent contract, not a filesystem-adapter implementation.
+
+This records direction only: the findings remain open pending implementation
+and verification. REL-01 publication safety remains separate required work;
+direct Azure COPY is not made failure-preserving by the preparation refactor.
+See the [source research](../../research/2026-10-26-duckdb-filesystem-preparation.md)
+for verified setup differences and the unresolved ADLS parent behavior.
+
 Pipe-format implementation is assigned to the visible implementation chat, with
 independent review in the visible review chat. This slice covers built-in formats,
 target expansion, truthful manifests and all-target cache qualification. Broader
@@ -50,14 +74,14 @@ Priorities below are review recommendations, not a revised approved release scop
 | ID | Finding | Disposition | Status |
 |---|---|---|---|
 | EXT-01 | Azure authentication selection is hardcoded | Proposed pre-release repair | Open |
-| EXT-02 | Credential providers cannot be supplied through normal exports | Proposed pre-release repair | Open |
+| EXT-02 | Export credential-provider injection boundary | Internal entry point agreed; public injection and new providers deferred | Open |
 | EXT-03 | Parquet writing owns destination routing | Proposed pre-release repair | Open |
 | EXT-04 | Export format selection and metadata are hardcoded | Proposed pre-release repair | Open |
 | EXT-05 | Schema strategy selection and context are insufficient | Internal registry and argument-free resolution implemented | Complete |
 | EXT-06 | Materialization mode does not reach execution or metadata | Internal registry and mode propagation implemented | Complete |
-| EXT-07 | Input conversion has no adapter selection boundary | Proposed repair; missing baseline inputs are already MVP work | Open |
+| EXT-07 | Input support gaps and normalization design | Missing features separated from proposed refactor; writing path undecided | Open |
 | EXT-08 | Observation extension point is undefined | Design decision required | Open |
-| EXT-09 | Catalog evolution has no versioned migration mechanism | Pre-release upgrade-policy decision required | Open |
+| EXT-09 | Catalog evolution has no versioned migration mechanism | Earlier unreleased catalogs need no compatibility; future upgrades deferred | Deferred |
 | REL-01 | Export write failure preservation is incomplete | Existing export acceptance work | Open |
 | REL-02 | Public export settings/types exceed implemented behavior | Contract reconciliation required | Open |
 | REL-03 | Release validation evidence is incomplete | Existing release acceptance work | Open |
@@ -82,7 +106,10 @@ does not.
   editing the selector or branching on its concrete class.
 - Verify temporary secret cleanup and diagnostic redaction on failures.
 
-## EXT-02: Credential-provider injection
+## EXT-02: Export credential provider injection
+
+This item concerns obtaining credentials for export destinations. It does not
+cover authentication for source extraction or other application services.
 
 **Evidence:** [azure.py](../../../src/assquack/_exports/azure.py) accepts a provider
 in `azure_export_auth()`, defaulting to `EnvironmentSasProvider`.
@@ -91,17 +118,33 @@ in `azure_export_auth()`, defaulting to `EnvironmentSasProvider`.
 contains the provider protocol, but normal asset/result exports expose no route
 to inject a provider.
 
-**Consequence:** an external provider cannot participate through the supported
-execution path despite satisfying the internal protocol.
+**Decision, 26 October (Rowan):** retain a non-public entry point for direct
+provider-instance injection, defaulting to environment-based sourcing. Do not
+create a credential-provider registry or expose provider configuration yet.
+Implementations fetching Prefect blocks, vaults or other new sources are deferred.
+Future downstream providers can implement the contract themselves without being
+registered or included in the core package. Authentication and destination
+strategy registries remain separate and unchanged by this decision.
 
-**Proposed outcome and acceptance:**
+**Revised outcome and acceptance:**
 
-- Agree a supported provider-injection path, retaining the environment default.
-- Prove both automatic asset exports and explicit result exports use a supplied
-  synthetic provider, without monkeypatching or reading real credentials.
-- Resolve credentials at use; keep secrets out of public serialized settings,
-  metadata and diagnostics. Local exports must not invoke Azure providers.
-- Keep optional orchestrator adapters outside core dependencies.
+- Establish the internal injection boundary without a new public provider API;
+  preserve the environment default. Absence of public injection is intentional.
+- When implementing the boundary, verify internal substitution with a synthetic
+  provider through automatic and explicit export execution, without monkeypatching
+  or real credentials. Do not implement an external integration merely to test it.
+- The intended contract is asynchronous `load()` followed by synchronous
+  `get(name)`. Provider-owned loading needs no separate fetch callback. Resolve
+  synchronous execution integration before claiming support; this decision does
+  not claim that the current code already implements that lifecycle.
+- Retrieve only requested values; keep secrets out of public serialized settings,
+  metadata and diagnostics. Local exports must not fetch Azure credentials, and
+  native credential-chain discovery stays with DuckDB.
+- Keep external credential integrations outside core dependencies. Do not infer
+  that this entry point alone settles multiple-destination credential selection.
+
+This item remains open for the internal boundary work, not for delivery of a
+public provider registry or additional credential-source implementation.
 
 ## EXT-03: Destination strategies
 
@@ -241,21 +284,29 @@ The phase remains In Progress because other register items remain open.
 
 ## EXT-07: Input adapters and compatibility
 
-**Evidence:** [normalize.py](../../../src/assquack/_materialization/normalize.py)
-mixes type dispatch, conversion and recursive iteration. Arrow, DuckDB relations
-and HTTP responses remain TODOs, although the scope includes those inputs.
+**Clarification, 26 October:** this item combines missing input support with a
+proposed normalization refactor. It is not evidence that all normalization is
+missing or that the existing implementation cannot be extended. Editing a type
+dispatcher is not, by itself, an extensibility defect.
 
-**Consequence:** each new input type requires editing the central normalizer;
-the agreed migration baseline is also incomplete.
+**Current implementation:** [normalize.py](../../../src/assquack/_materialization/normalize.py)
+handles mappings, pandas DataFrames and sync/async iterables. Arrow tables/batches,
+DuckDB relations and HTTP responses remain TODOs. Asset/result input resolution
+also remains unimplemented.
 
-**Proposed outcome and acceptance:**
+**Direction discussed:** reuse conversion handlers through multiple resolution
+paths; a handler converts and delegates or reaches a terminal writer. Keep Arrow
+input support in scope rather than requiring an Arrow conversion for every input.
+Do not mandate a complete ingestion strategy per type or public adapter injection.
 
-- Separate input conversion from batching and define adapter selection priority,
-  including precedence over generic iterable handling.
-- Complete the agreed input types using offline representative fixtures.
-- Prove an extra adapter can be supplied without editing the normalizer.
-- Preserve sync/async batches, bounded output chunks and complete mapping
-  envelopes; do not implicitly extract an envelope's `data` field.
+**Still undecided:** exact dispatch and handler contracts, terminal writer paths,
+and whether native COPY's approximate rollover is acceptable. The benchmark and
+unapproved writing recommendation are recorded in the
+[scope journal's 26 October amendment](../../journal/2026-09-08-mvp-scope.md).
+No size-based switching threshold or normalization implementation was approved.
+Future acceptance must cover the supported inputs, bounded processing, complete
+records and JSON value semantics; preserve full mapping envelopes rather than
+implicitly extracting a `data` field.
 
 ## EXT-08: Observation extension contract
 
@@ -272,19 +323,20 @@ of the default MVP execution path. Do not infer that a generic event bus is need
 
 ## EXT-09: Catalog evolution
 
-**Evidence:** [tables.py](../../../src/assquack/_storage/tables.py) combines
-bootstrap with an individual column migration, without a versioned migration
-mechanism. Some inserts in [metadata.py](../../../src/assquack/_storage/metadata.py)
-depend on table column order.
+**Decision, 26 October - Deferred:** there are no released versions requiring
+catalog compatibility. Do not implement versioned migrations or preserve earlier
+unreleased catalog layouts merely to satisfy this review item. Future released
+upgrade support requires a real requirement and separate scope.
 
-**Consequence:** future metadata additions need ad hoc upgrade handling and can
-break existing databases. This is an upgrade-contract gap, not a requirement to
-replace DuckDB or introduce arbitrary database backends.
+The original evidence was an individual column migration in
+[tables.py](../../../src/assquack/_storage/tables.py). That migration and its
+upgrade test were removed in `cbc0150`; fresh catalogs include the active columns
+directly. Fragment ownership and retention behavior were retained. No existing
+user database was deleted or upgraded by this cleanup.
 
-**Decision and proposed acceptance:** agree the supported pre-release catalog
-baseline and upgrade policy; define ordered, repeatable migrations and explicit
-insert columns. Test fresh creation, supported old-catalog upgrades, repeated
-opening, and preservation of existing metadata on migration failure.
+The separate observation that some metadata inserts depend on column order does
+not establish a need for a migration framework. Fresh creation and ordinary
+reopening remain tested current behavior; upgrading old layouts is not an MVP gate.
 
 ## Related MVP release gaps
 
