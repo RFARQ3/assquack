@@ -48,11 +48,16 @@ does not edit those shared records or choose unresolved public defaults.
 
 ## What the existing code proves
 
-**Repository-confirmed:** [Assquack's writer](../../src/assquack/_exports/parquet.py)
+The source observations below describe the implementation at the date of this
+research. The old filenames are historical references. The 27 October refactor
+replaced them; see the [current source layout](../epics/01-mvp/06-extensibility-defects.md#agreed-export-source-layout)
+for the implemented ownership boundaries.
+
+**Repository-confirmed:** Assquack's writer (`src/assquack/_exports/parquet.py`)
 has a common native `COPY` helper but still branches on local/Azure itself.
-[Writer selection](../../src/assquack/_exports/writers.py) is currently keyed by
+Writer selection (`src/assquack/_exports/writers.py`) is currently keyed by
 format; the proposed writer-name registry is not implemented there.
-[Azure setup](../../src/assquack/_exports/azure.py) installs a temporary secret on
+Azure setup (`src/assquack/_exports/azure.py`) installs a temporary secret on
 the actual export connection and removes it. SAS sourcing and authentication
 selection remain separate concepts despite hardcoded selection today.
 

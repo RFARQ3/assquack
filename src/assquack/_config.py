@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Self
+from typing import Literal, Self, cast
 
-from pydantic import AliasChoices, Field, model_validator
+from pydantic import (
+    AliasChoices,
+    Field,
+    SerializeAsAny,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from assquack._exports.destinations import ExportDestination, FileSystemDestination
 
 
 class _ProcessSettings(BaseSettings):
@@ -39,52 +47,6 @@ class DuckDBConfig(_ProcessSettings):
         default=(),
         validation_alias="ASSQUACK_DUCKDB__EXTENSIONS",
     )
-
-
-class ExportsConfig(_ProcessSettings):
-    """Compatibility export settings; DuckDB tables remain authoritative."""
-
-    enabled: bool = Field(
-        default=False,
-        validation_alias="ASSQUACK_EXPORTS__ENABLED",
-    )
-    base_uri: str | None = Field(
-        default=None,
-        validation_alias="ASSQUACK_EXPORTS__BASE_URI",
-    )
-    default_format: Literal["parquet"] = Field(
-        default="parquet",
-        validation_alias="ASSQUACK_EXPORTS__DEFAULT_FORMAT",
-    )
-    snapshot_runs: bool = Field(
-        default=False,
-        validation_alias="ASSQUACK_EXPORTS__SNAPSHOT_RUNS",
-    )
-    options: dict[str, object] = Field(
-        default_factory=dict,
-        validation_alias="ASSQUACK_EXPORTS__OPTIONS",
-    )
-    azure_auth: Literal["auto", "credential_chain", "sas"] = Field(
-        default="auto",
-        validation_alias="ASSQUACK_EXPORTS__AZURE_AUTH",
-    )
-    azure_chain: (
-        Literal["cli", "managed_identity", "workload_identity", "env", "default"] | None
-    ) = Field(
-        default=None,
-        validation_alias="ASSQUACK_EXPORTS__AZURE_CHAIN",
-    )
-    azure_account_name: str | None = Field(
-        default=None,
-        pattern=r"^[a-z0-9]{3,24}$",
-        validation_alias="ASSQUACK_EXPORTS__AZURE_ACCOUNT_NAME",
-    )
-
-    @model_validator(mode="after")
-    def validate_azure_auth(self) -> Self:
-        if self.azure_auth == "sas" and self.azure_chain is not None:
-            raise ValueError("azure_chain cannot be combined with azure_auth='sas'.")
-        return self
 
 
 class IngestionConfig(_ProcessSettings):
@@ -130,7 +92,24 @@ class AssquackConfig(_ProcessSettings):
     duckdb: DuckDBConfig = Field(default_factory=DuckDBConfig)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     schema_settings: SchemaConfig = Field(default_factory=SchemaConfig, alias="schema")
-    exports: ExportsConfig = Field(default_factory=ExportsConfig)
+    exports: (
+        SerializeAsAny[FileSystemDestination | ExportDestination]
+        | list[SerializeAsAny[FileSystemDestination | ExportDestination]]
+    ) = Field(
+        default_factory=list[ExportDestination], validation_alias="ASSQUACK_EXPORTS"
+    )
+
+    @field_validator("exports", mode="before")
+    @classmethod
+    def normalize_exports(cls, value: object) -> list[ExportDestination]:
+        destinations = cast(list[object], value) if isinstance(value, list) else [value]
+        return [
+            item
+            if isinstance(item, ExportDestination)
+            else FileSystemDestination.model_validate(item)
+            for item in destinations
+        ]
+
     chunk_size: int = Field(
         default=1_000,
         ge=1,
@@ -153,9 +132,13 @@ class AssquackConfig(_ProcessSettings):
             self.ingestion.fragment_directory = (
                 self.resolved_database_path.parent / "fragments"
             )
-        if self.exports.base_uri is None:
-            self.exports.base_uri = str(self.home / self.environment / "exports")
         return self
+
+    @property
+    def export_destinations(self) -> list[ExportDestination]:
+        # Validation normalizes the public single-or-list input.
+        assert isinstance(self.exports, list)
+        return self.exports
 
     @property
     def resolved_database_path(self) -> Path:

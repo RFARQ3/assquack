@@ -5,15 +5,13 @@ from unittest.mock import MagicMock
 
 import duckdb
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr
 
-from assquack import AssquackConfig, ExportsConfig, asset
+from assquack import AssquackConfig, FileSystemDestination, asset
 from assquack._errors import ExportError
-from assquack._exports.azure import azure_export_auth
-from assquack._exports.models import ExportTarget
-from assquack._exports.parquet import ParquetExportWriter
+from assquack._exports.authentication.azure import CredentialChainAuth
+from assquack._exports.preparation.azure import AzurePreparationStrategy
 from assquack._storage.database import open_database
-from assquack._storage.tables import TableReference
 
 URI = "abfss://exampleaccount.dfs.core.windows.net/lake/orders.parquet"
 
@@ -21,76 +19,55 @@ URI = "abfss://exampleaccount.dfs.core.windows.net/lake/orders.parquet"
 @pytest.fixture(autouse=True)
 def isolated_sas_environment(monkeypatch):
     # Replace the read boundary, without retrieving any real credential values.
-    environment: dict[str, str] = {}
-    monkeypatch.setattr("assquack._exports.azure_credentials.getenv", environment.get)
+    environment = {
+        "AZURE_TENANT_ID": "tenant",
+        "AZURE_CLIENT_ID": "client",
+        "AZURE_CLIENT_SECRET": "synthetic-secret",
+    }
+    monkeypatch.setattr(
+        "assquack._exports.authentication.credentials.getenv", environment.get
+    )
     return environment
 
 
-def test_azure_config_defaults_environment_and_override(monkeypatch) -> None:
-    for name in ("AZURE_CHAIN", "AZURE_ACCOUNT_NAME"):
-        monkeypatch.delenv(f"ASSQUACK_EXPORTS__{name}", raising=False)
-    assert ExportsConfig().azure_chain is None
-    assert ExportsConfig().azure_account_name is None
-    monkeypatch.setenv("ASSQUACK_EXPORTS__AZURE_CHAIN", "workload_identity")
-    monkeypatch.setenv("ASSQUACK_EXPORTS__AZURE_ACCOUNT_NAME", "exampleaccount")
-    assert AssquackConfig().exports.azure_chain == "workload_identity"
-    assert AssquackConfig().exports.azure_account_name == "exampleaccount"
-    assert ExportsConfig(azure_chain=None, azure_account_name=None).azure_chain is None
-    with pytest.raises(ValidationError):
-        ExportsConfig.model_validate({"azure_chain": "cli;env"})
-    with pytest.raises(ValidationError):
-        ExportsConfig(azure_account_name="invalid'account")
-
-
-@pytest.mark.parametrize("chain", [None, "workload_identity"])
-def test_secret_is_temporary_scoped_and_removed(chain) -> None:
+def test_secret_is_temporary_scoped_and_removed() -> None:
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
-    config = ExportsConfig(azure_chain=chain, azure_account_name="exampleaccount")
     uri = URI.replace("orders", "O'Brien")
-    with azure_export_auth(connection, uri, config):
+    with AzurePreparationStrategy().prepare(
+        connection,
+        uri,
+        CredentialChainAuth(
+            {
+                name: SecretStr(value)
+                for name, value in {
+                    "AZURE_TENANT_ID": "tenant",
+                    "AZURE_CLIENT_ID": "client",
+                    "AZURE_CLIENT_SECRET": "synthetic-secret",
+                }.items()
+            }
+        ),
+    ):
         connection.execute("COPY marker")
     calls = connection.execute.call_args_list
     assert calls[0].args == ("LOAD azure",)
     sql, parameters = calls[1].args
     assert sql.startswith("CREATE TEMPORARY SECRET")
     assert "PROVIDER credential_chain" in sql
-    assert parameters["scope"] == uri.rsplit("/", 1)[0] + "/"
-    assert parameters["account_name"] == "exampleaccount"
-    assert ("CHAIN $chain" in sql) == (chain is not None)
-    assert parameters.get("chain") == chain
+    assert parameters == {"chain": "env", "scope": uri.rsplit("/", 1)[0] + "/"}
     assert calls[-1].args[0].startswith("DROP TEMPORARY SECRET")
     assert calls[-1].args[0].split('"')[1] == sql.split('"')[1]
-    # Parsing is real DuckDB; no extension loading or identity discovery occurs.
     with duckdb.connect(config={"autoload_known_extensions": False}) as parser:
         assert len(parser.extract_statements(sql)) == 1
         assert len(parser.extract_statements(calls[-1].args[0])) == 1
 
 
-def test_cleanup_does_not_mask_copy_failure() -> None:
-    connection = MagicMock(spec=duckdb.DuckDBPyConnection)
-    connection.execute.side_effect = [None, None, RuntimeError("cleanup failed")]
-    with (
-        pytest.raises(ValueError, match="copy failed"),
-        azure_export_auth(connection, URI, ExportsConfig()),
-    ):
-        raise ValueError("copy failed")
-
-
 @pytest.mark.parametrize("scheme", ["az", "azure", "abfss"])
-def test_short_azure_uri_requires_account_and_binds_destination(scheme) -> None:
+def test_short_azure_uri_requires_sas_account(scheme) -> None:
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
-    uri = f"{scheme}://lake/O'Brien.parquet"
-    target = ExportTarget(uri, uri, uri)
-    source = TableReference("main", "orders")
-    with pytest.raises(Exception, match="azure_account_name"):
-        ParquetExportWriter(ExportsConfig()).write(connection, source, target)
+    uri = f"{scheme}://lake/orders.parquet"
+    with pytest.raises(ExportError, match="account supplied by SAS"):
+        FileSystemDestination(base_uri=uri).resolve(uri, asset_name="orders")
     connection.execute.assert_not_called()
-    ParquetExportWriter(ExportsConfig(azure_account_name="exampleaccount")).write(
-        connection, source, target
-    )
-    sql, parameters = connection.execute.call_args_list[2].args
-    assert "TO $uri" in sql
-    assert parameters == {"uri": uri}
 
 
 @pytest.mark.parametrize("explicit", [False, True])
@@ -134,11 +111,9 @@ def test_actual_export_connection_lifecycle_and_manifest(
     )
     config = AssquackConfig(
         home=tmp_path,
-        exports=ExportsConfig(
-            enabled=True,
+        exports=FileSystemDestination(
             base_uri=URI.rsplit("/", 1)[0],
-            azure_auth=auth,
-            azure_chain="cli" if auth == "credential_chain" else None,
+            auth=auth,
         ),
     )
 
@@ -154,13 +129,7 @@ def test_actual_export_connection_lifecycle_and_manifest(
     if failure is None:
         run()
     else:
-        error_type = RuntimeError if auth == "credential_chain" else ExportError
-        message = (
-            "synthetic export failure"
-            if auth == "credential_chain"
-            else "Azure SAS export failed"
-        )
-        with pytest.raises(error_type, match=message):
+        with pytest.raises(ExportError, match="Azure export failed"):
             run()
     export_connection = connections[-1]
     statements = [
@@ -200,10 +169,10 @@ def test_local_exports_do_not_register_azure_and_failed_refresh_preserves_file(
         return [{"id": 1}]
 
     config = AssquackConfig(
-        home=tmp_path, exports=ExportsConfig(enabled=True, azure_chain="cli")
+        home=tmp_path, exports=FileSystemDestination(base_uri=str(tmp_path / "exports"))
     )
     result = asyncio.run(orders(assquack_config=config))
-    output = Path(config.exports.base_uri or "") / "orders.parquet"
+    output = (tmp_path / "exports") / "orders.parquet"
     original = output.read_bytes()
     fail = True
     with pytest.raises(ValueError, match="extraction failed"):

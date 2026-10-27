@@ -8,8 +8,8 @@ import duckdb
 
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
-from assquack._exports.targets import default_parquet_target
-from assquack._exports.writers import export_writer
+from assquack._exports import resolve_exports
+from assquack._exports.destinations import FileSystemDestination
 from assquack._query import execute_query, query_dataframe
 from assquack._storage.database import open_database
 from assquack._storage.locking import writer_lock
@@ -51,29 +51,36 @@ class AssquackResult:
         finally:
             connection.close()
 
-    def export_parquet(self, path: str | None = None) -> str:
-        target = default_parquet_target(
-            path,
-            asset_name=self.asset_name,
-            config=self.config,
-        )
-        with writer_lock(self.config.resolved_database_path):
-            connection = open_database(self.config)
-            try:
-                export_writer(target.format, self.config.exports).write(
-                    connection, self.table, target
-                )
-                MetadataRepository(connection).record_export(
-                    run_id=self.run_id,
-                    asset_id=self.asset_id,
-                    alias=target.alias,
-                    uri=target.logical_uri,
-                    resolved_uri=target.resolved_uri,
-                    row_count=self.row_count,
-                    format_name=target.format,
-                    role=target.role,
-                    options=target.options,
-                )
-            finally:
-                connection.close()
-        return target.resolved_uri
+    def export_parquet(self, path: str | None = None) -> str | list[str]:
+        """Export to configured destinations, or the default local base if disabled."""
+        destinations = self.config.export_destinations or [
+            FileSystemDestination(
+                base_uri=str(self.config.home / self.config.environment / "exports")
+            )
+        ]
+        with resolve_exports(
+            {"uri": path or "parquet", "format": "parquet"},
+            self.asset_name,
+            destinations,
+        ) as exports:
+            with writer_lock(self.config.resolved_database_path):
+                connection = open_database(self.config)
+                try:
+                    for destination, target in exports:
+                        destination.export(connection, self.table, target)
+                        MetadataRepository(connection).record_export(
+                            run_id=self.run_id,
+                            asset_id=self.asset_id,
+                            alias=target.alias,
+                            uri=target.logical_uri,
+                            resolved_uri=target.resolved_uri,
+                            destination_fingerprint=target.destination_fingerprint,
+                            row_count=self.row_count,
+                            format_name=target.format,
+                            role=target.role,
+                            options=target.options,
+                        )
+                finally:
+                    connection.close()
+            uris = [target.resolved_uri for _, target in exports]
+            return uris[0] if len(uris) == 1 else uris

@@ -46,7 +46,6 @@ assquack:
       - azure
       - postgres
   exports:
-    enabled: true
     base_uri: abfss://lake/exports/assquack
 ```
 
@@ -109,8 +108,16 @@ Existing tables and records are left untouched.
 `assquack_meta.exports` records external
 artifacts such as current-state Parquet or run snapshots. `uri` is the logical
 target, such as `mad://bronze/orders.parquet`; `resolved_uri` is the concrete
-target used by DuckDB; `role` distinguishes the default compatibility export
+target used by DuckDB; `destination_fingerprint` identifies the resolved
+configuration, including captured authentication inputs without storing their
+values; `role` distinguishes the default compatibility export
 from secondary legacy exports.
+
+These export records remain in DuckDB when an export target or its credentials
+change. They therefore need the resolved destination fingerprint as well as the
+output path to identify where an export succeeded, even with only one configured
+destination. See [why destinations need fingerprints](exports.md#why-destinations-need-fingerprints)
+for the distinction between materialization validity and export completion.
 
 Developer-facing docs describe the purpose of these tables. The concrete MVP
 DDL belongs to the implementor-facing
@@ -208,7 +215,7 @@ database location. Use object storage for:
 - compatibility with existing datalake conventions.
 
 `assquack_meta.exports` records each exported artifact with its run, asset, logical
-URI, resolved URI, role, format, row count, optional byte count/hash, options,
+URI, resolved URI, destination fingerprint, role, format, row count, optional byte count/hash, options,
 and creation timestamp. DuckDB's Azure extension should be the first choice for
 `abfss://` reads and writes when available. A filesystem fallback can be added
 only where DuckDB's native integration cannot satisfy the deployment target.

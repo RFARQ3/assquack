@@ -1,19 +1,31 @@
 import traceback
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import duckdb
 import pytest
-from pydantic import ValidationError
 
-from assquack import ExportsConfig
+from assquack import FileSystemDestination
 from assquack._errors import ConfigurationError, ExportError
-from assquack._exports.azure import (
-    CredentialChainAuth,
-    SasAuth,
-    azure_export_auth,
-    select_azure_auth,
+from assquack._exports.authentication.azure import CredentialChainAuth, SasAuth
+from assquack._exports.authentication.credentials import (
+    EnvironmentCredentialProvider,
+    load_credentials,
 )
-from assquack._exports.azure_credentials import EnvironmentSasProvider
+from assquack._exports.authentication.registry import default_authenticators
+from assquack._exports.preparation.azure import AzurePreparationStrategy
+
+
+def select_azure_auth(method, provider):
+    return default_authenticators().select("azure", method, provider)
+
+
+@contextmanager
+def azure_export_auth(connection, uri, method):
+    auth = select_azure_auth(method, EnvironmentCredentialProvider())
+    with AzurePreparationStrategy().prepare(connection, uri, auth):
+        yield
+
 
 URI = "abfss://exampleaccount.dfs.core.windows.net/lake/orders.parquet"
 
@@ -22,7 +34,9 @@ URI = "abfss://exampleaccount.dfs.core.windows.net/lake/orders.parquet"
 def environment(monkeypatch):
     # Replace the read boundary without retrieving any real credentials.
     values: dict[str, str] = {}
-    monkeypatch.setattr("assquack._exports.azure_credentials.getenv", values.get)
+    monkeypatch.setattr(
+        "assquack._exports.authentication.credentials.getenv", values.get
+    )
     return values
 
 
@@ -44,12 +58,17 @@ def test_auto_selection(token, account, expected, environment):
         environment["AZURE_STORAGE_SAS_TOKEN"] = token
     if account is not None:
         environment["AZURE_STORAGE_ACCOUNT_NAME"] = account
-    provider = EnvironmentSasProvider()
+    environment.update(
+        AZURE_TENANT_ID="tenant",
+        AZURE_CLIENT_ID="client",
+        AZURE_CLIENT_SECRET="synthetic-secret",
+    )
+    provider = EnvironmentCredentialProvider()
     if expected == "error":
         with pytest.raises(ConfigurationError, match="requires both"):
-            select_azure_auth(ExportsConfig(), provider)
+            select_azure_auth("auto", provider)
     else:
-        strategy = select_azure_auth(ExportsConfig(), provider)
+        strategy = select_azure_auth("auto", provider)
         assert isinstance(
             strategy, SasAuth if expected == "sas" else CredentialChainAuth
         )
@@ -58,29 +77,17 @@ def test_auto_selection(token, account, expected, environment):
             assert "fake" not in repr(strategy)
 
 
-def test_explicit_chain_does_not_resolve_credentials():
-    provider = MagicMock(spec=EnvironmentSasProvider)
-    provider.resolve.side_effect = AssertionError("must not read credentials")
-    assert isinstance(
-        select_azure_auth(ExportsConfig(azure_auth="credential_chain"), provider),
-        CredentialChainAuth,
-    )
-    provider.resolve.assert_not_called()
+def test_explicit_chain_requires_environment_inputs():
+    provider = MagicMock(spec=EnvironmentCredentialProvider)
+    provider.get.return_value = None
+    with pytest.raises(ConfigurationError, match="AZURE_TENANT_ID"):
+        select_azure_auth("credential_chain", provider)
+    provider.load.assert_awaited_once()
 
 
-def test_explicit_sas_and_chain_conflicts(environment):
-    provider = EnvironmentSasProvider()
+def test_explicit_sas_requires_credentials(environment):
     with pytest.raises(ConfigurationError, match="requires AZURE_STORAGE"):
-        select_azure_auth(ExportsConfig(azure_auth="sas"), provider)
-    with pytest.raises(ValidationError, match="cannot be combined"):
-        ExportsConfig(azure_auth="sas", azure_chain="cli")
-    environment.update(
-        AZURE_STORAGE_ACCOUNT_NAME="exampleaccount", AZURE_STORAGE_SAS_TOKEN="sig=fake"
-    )
-    with pytest.raises(ConfigurationError, match="conflict with azure_chain"):
-        select_azure_auth(ExportsConfig(azure_chain="cli"), provider)
-    with pytest.raises(ConfigurationError, match="conflicts with azure_account_name"):
-        select_azure_auth(ExportsConfig(azure_account_name="otheraccount"), provider)
+        select_azure_auth("sas", EnvironmentCredentialProvider())
 
 
 @pytest.mark.parametrize(
@@ -99,7 +106,7 @@ def test_invalid_sas_is_rejected_without_disclosure(token, environment):
         AZURE_STORAGE_ACCOUNT_NAME="exampleaccount", AZURE_STORAGE_SAS_TOKEN=token
     )
     with pytest.raises(ConfigurationError) as error:
-        EnvironmentSasProvider().resolve()
+        load_credentials(EnvironmentCredentialProvider())
     assert token not in str(error.value)
 
 
@@ -114,7 +121,7 @@ def test_sas_registration_connection_string_and_scope(scheme, qualified, environ
     prefix = f"exampleaccount.{endpoint}.core.windows.net/" if qualified else ""
     uri = f"{scheme}://{prefix}lake/O'Brien/orders.parquet"
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
-    with azure_export_auth(connection, uri, ExportsConfig()):
+    with azure_export_auth(connection, uri, "auto"):
         pass
     sql, parameters = connection.execute.call_args_list[1].args
     assert "PROVIDER config" in sql
@@ -150,7 +157,7 @@ def test_sas_errors_do_not_expose_signed_diagnostics(stage, environment, caplog)
     connection.execute.side_effect = execute
     with (
         pytest.raises(ExportError) as error,
-        azure_export_auth(connection, URI, ExportsConfig()),
+        azure_export_auth(connection, URI, "auto"),
     ):
         connection.execute("COPY synthetic")
     assert token not in "".join(traceback.format_exception(error.value))
@@ -176,31 +183,24 @@ def test_sas_rejects_signed_or_mismatched_targets(uri, environment):
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
     with (
         pytest.raises((ConfigurationError, ExportError)),
-        azure_export_auth(connection, uri, ExportsConfig()),
+        azure_export_auth(connection, uri, "auto"),
     ):
         pass
     connection.execute.assert_not_called()
 
 
 def test_sas_credentials_are_resolved_at_use_time(environment):
-    config = ExportsConfig()
-    assert isinstance(
-        select_azure_auth(config, EnvironmentSasProvider()), CredentialChainAuth
-    )
+    config = "auto"
+    with pytest.raises(ConfigurationError, match="AZURE_TENANT_ID"):
+        select_azure_auth(config, EnvironmentCredentialProvider())
     environment.update(
         AZURE_STORAGE_ACCOUNT_NAME="exampleaccount", AZURE_STORAGE_SAS_TOKEN="sig=fake"
     )
-    assert isinstance(select_azure_auth(config, EnvironmentSasProvider()), SasAuth)
+    assert isinstance(
+        select_azure_auth(config, EnvironmentCredentialProvider()), SasAuth
+    )
     assert "sig=fake" not in repr(config)
-    assert "sig=fake" not in config.model_dump_json()
-
-
-def test_auth_config_environment_and_direct_precedence(monkeypatch):
-    monkeypatch.setenv("ASSQUACK_EXPORTS__AZURE_AUTH", "sas")
-    assert ExportsConfig().azure_auth == "sas"
-    assert ExportsConfig(azure_auth="credential_chain").azure_auth == "credential_chain"
-    with pytest.raises(ValidationError):
-        ExportsConfig.model_validate({"azure_auth": "unknown"})
+    assert "sig=fake" not in FileSystemDestination(base_uri=URI).model_dump_json()
 
 
 @pytest.mark.parametrize(
@@ -211,5 +211,5 @@ def test_invalid_account_is_rejected_without_disclosure(account, environment):
         AZURE_STORAGE_ACCOUNT_NAME=account, AZURE_STORAGE_SAS_TOKEN="sig=fake"
     )
     with pytest.raises(ConfigurationError) as error:
-        EnvironmentSasProvider().resolve()
+        load_credentials(EnvironmentCredentialProvider())
     assert account not in str(error.value)

@@ -55,6 +55,7 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
             alias VARCHAR,
             uri VARCHAR NOT NULL,
             resolved_uri VARCHAR NOT NULL,
+            destination_fingerprint VARCHAR NOT NULL,
             format VARCHAR NOT NULL,
             role VARCHAR NOT NULL,
             row_count BIGINT,

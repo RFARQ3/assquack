@@ -6,7 +6,7 @@ from pathlib import Path
 
 import duckdb
 
-from assquack import AssquackConfig, ExportsConfig, asset
+from assquack import AssquackConfig, FileSystemDestination, asset
 
 
 def test_empty_cache_materializes(tmp_path: Path) -> None:
@@ -71,9 +71,7 @@ def test_expired_cache_rematerializes(tmp_path: Path) -> None:
         connection.close()
 
     second = asyncio.run(
-        orders.cache_first(expiration=timedelta(hours=1))(
-            assquack_config=config
-        )
+        orders.cache_first(expiration=timedelta(hours=1))(assquack_config=config)
     )
 
     assert calls == 2
@@ -117,7 +115,7 @@ def test_declared_export_requires_matching_manifest_row(tmp_path: Path) -> None:
 
     config = AssquackConfig(
         home=tmp_path,
-        exports=ExportsConfig(enabled=True),
+        exports=FileSystemDestination(base_uri=str(tmp_path / "exports")),
     )
     first = asyncio.run(orders(assquack_config=config))
     cached = asyncio.run(orders.cache_first()(assquack_config=config))

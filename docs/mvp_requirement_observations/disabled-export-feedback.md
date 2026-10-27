@@ -1,6 +1,10 @@
 # Disabled Export Feedback
 
-Status: Working MVP requirement observation
+Status: Historical observation; superseded 27 October 2026
+
+The destination refactor intentionally makes `exports=[]` skip automatic exports
+without an error. See [current configuration](../configuration.md#exports). The
+prototype behaviour below is retained as historical context.
 
 This document records prototype behaviour and does not change the contracts in
 the canonical documentation.

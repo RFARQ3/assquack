@@ -80,12 +80,17 @@ valid replacement for later exports and sufficient lifetime for the current one.
 
 ## What the repository already does
 
-[EnvironmentSasProvider](../../src/assquack/_exports/azure_credentials.py) reads
+The source observations below describe the implementation at the date of this
+research. The old filenames are historical references. The 27 October refactor
+replaced them; see the [current source layout](../epics/01-mvp/06-extensibility-defects.md#agreed-export-source-layout)
+for the implemented ownership boundaries.
+
+`EnvironmentSasProvider` (then in `src/assquack/_exports/azure_credentials.py`) reads
 `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_SAS_TOKEN` at use time.
-[Azure authentication](../../src/assquack/_exports/azure.py) chooses SAS or the
+Azure authentication (then in `src/assquack/_exports/azure.py`) chooses SAS or the
 native chain, registers a scoped temporary secret on the COPY connection and
 cleans it up. Explicit chain selection bypasses SAS lookup. The
-[writer](../../src/assquack/_exports/parquet.py) uses this context for Azure and
+writer (then in `src/assquack/_exports/parquet.py`) uses this context for Azure and
 does not call it for local paths. The internal `AzureSasProvider` protocol supplies
 only SAS credentials; it is not a general identity or token-refresh protocol.
 

@@ -10,9 +10,7 @@ from time import perf_counter
 
 from assquack._cache import find_cached_run
 from assquack._config import AssquackConfig
-from assquack._errors import ExportError
-from assquack._exports.targets import parse_export_targets
-from assquack._exports.writers import export_writer
+from assquack._exports import resolve_exports
 from assquack._materialization.commit import commit_strategy
 from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
@@ -47,131 +45,146 @@ async def materialize(
 
     started = perf_counter()
     strategy = commit_strategy(request.mode)
-    targets = (
-        parse_export_targets(
-            request.export, asset_name=request.asset_name, config=config
-        )
-        if request.export is not None
-        else ()
-    )
-
-    async with writer_lock(config.resolved_database_path):
-        connection = open_database(config)
-        metadata = MetadataRepository(connection)
-        metadata.save_asset(
-            AssetRecord(
-                asset_id=request.asset_id,
-                asset_name=request.asset_name,
-                asset_signature=request.asset_signature,
-                schema_name=request.table.schema_name,
-                table_name=request.table.table_name,
-                materialization_mode=request.mode,
-            )
-        )
-
-        # Owning the database lock proves earlier attempts cannot still be writing.
-        metadata.recover_interrupted_runs(request.asset_id)
-        prune_fragments(
-            metadata,
-            config.resolved_fragment_directory,
-            request.asset_id,
-            request.asset_name,
-        )
-
-        if request.use_cache:
-            cached = find_cached_run(
-                connection,
-                metadata,
-                asset_id=request.asset_id,
-                table=request.table,
-                expiration=request.cache_expiration,
-                required_export_uris=tuple(target.resolved_uri for target in targets),
-            )
-            if cached is not None:
-                connection.close()
-                return AssquackResult(
-                    config=config,
+    with resolve_exports(
+        request.export, request.asset_name, config.export_destinations
+    ) as exports:
+        async with writer_lock(config.resolved_database_path):
+            connection = open_database(config)
+            metadata = MetadataRepository(connection)
+            metadata.save_asset(
+                AssetRecord(
                     asset_id=request.asset_id,
                     asset_name=request.asset_name,
-                    run_id=cached.run_id,
+                    asset_signature=request.asset_signature,
+                    schema_name=request.table.schema_name,
+                    table_name=request.table.table_name,
+                    materialization_mode=request.mode,
+                )
+            )
+
+            # Owning the database lock proves earlier attempts cannot still be writing.
+            metadata.recover_interrupted_runs(request.asset_id)
+            prune_fragments(
+                metadata,
+                config.resolved_fragment_directory,
+                request.asset_id,
+                request.asset_name,
+            )
+
+            if request.use_cache:
+                cached = find_cached_run(
+                    connection,
+                    metadata,
+                    asset_id=request.asset_id,
                     table=request.table,
-                    row_count=cached.row_count,
-                    cached=True,
+                    expiration=request.cache_expiration,
+                    required_exports=tuple(
+                        (target.resolved_uri, target.destination_fingerprint)
+                        for _, target in exports
+                    ),
+                )
+                if cached is not None:
+                    connection.close()
+                    return AssquackResult(
+                        config=config,
+                        asset_id=request.asset_id,
+                        asset_name=request.asset_name,
+                        run_id=cached.run_id,
+                        table=request.table,
+                        row_count=cached.row_count,
+                        cached=True,
+                    )
+
+            runtime = datetime.now(UTC)
+            run_id = hashlib.md5(
+                f"{request.asset_id}:{runtime.isoformat()}".encode()
+            ).hexdigest()
+            staging = StagingTables(
+                shaped=TableReference("assquack_stage", f"shaped_{run_id}"),
+            )
+            # A duplicate must fail before capture without changing the existing run.
+            try:
+                metadata.start_run(run_id, request.asset_id, runtime)
+            except BaseException:
+                connection.close()
+                raise
+
+            fragment_writer = None
+            committed = False
+            row_count = 0
+            try:
+                fragment_writer = NDJSONFragmentWriter(
+                    fragment_run_directory(
+                        config.resolved_fragment_directory,
+                        request.asset_name,
+                        run_id,
+                    ),
+                    target_bytes=ceil(
+                        Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
+                    ),
+                )
+                metadata.claim_run_fragments(run_id)
+                value = request.fn(*request.arguments, **request.keyword_arguments)
+                if inspect.isawaitable(value):
+                    value = await value
+
+                async for chunk in normalize(value, chunk_size=config.chunk_size):
+                    row_count += fragment_writer.write_rows(chunk.rows)
+
+                fragments = fragment_writer.finish()
+                schema_strategy = replace_schema_strategy(
+                    config.schema, connection, fragment_writer.finish
+                )
+                projections = schema_strategy.resolve()
+                create_shaped_staging(
+                    connection,
+                    staging.shaped,
+                    fragments,
+                    projections,
+                    run_id,
                 )
 
-        runtime = datetime.now(UTC)
-        run_id = hashlib.md5(
-            f"{request.asset_id}:{runtime.isoformat()}".encode()
-        ).hexdigest()
-        staging = StagingTables(
-            shaped=TableReference("assquack_stage", f"shaped_{run_id}"),
-        )
-        # A duplicate must fail before capture without changing the existing run.
-        try:
-            metadata.start_run(run_id, request.asset_id, runtime)
-        except BaseException:
-            connection.close()
-            raise
-
-        fragment_writer = None
-        committed = False
-        row_count = 0
-        try:
-            fragment_writer = NDJSONFragmentWriter(
-                fragment_run_directory(
-                    config.resolved_fragment_directory,
-                    request.asset_name,
-                    run_id,
-                ),
-                target_bytes=ceil(
-                    Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
-                ),
-            )
-            metadata.claim_run_fragments(run_id)
-            value = request.fn(*request.arguments, **request.keyword_arguments)
-            if inspect.isawaitable(value):
-                value = await value
-
-            async for chunk in normalize(value, chunk_size=config.chunk_size):
-                row_count += fragment_writer.write_rows(chunk.rows)
-
-            fragments = fragment_writer.finish()
-            schema_strategy = replace_schema_strategy(
-                config.schema, connection, fragment_writer.finish
-            )
-            projections = schema_strategy.resolve()
-            create_shaped_staging(
-                connection,
-                staging.shaped,
-                fragments,
-                projections,
-                run_id,
-            )
-
-            duration_ms = int((perf_counter() - started) * 1_000)
-            strategy.publish(
-                connection,
-                metadata,
-                target=request.table,
-                staging=staging,
-                run_id=run_id,
-                row_count=row_count,
-                duration_ms=duration_ms,
-            )
-            committed = True
-        except BaseException as error:
-            if fragment_writer is not None:
-                try:
-                    fragment_writer.abort()
-                except Exception:
-                    _LOGGER.warning(
-                        "Could not close fragments for run %s", run_id, exc_info=True
+                duration_ms = int((perf_counter() - started) * 1_000)
+                strategy.publish(
+                    connection,
+                    metadata,
+                    target=request.table,
+                    staging=staging,
+                    run_id=run_id,
+                    row_count=row_count,
+                    duration_ms=duration_ms,
+                )
+                committed = True
+            except BaseException as error:
+                if fragment_writer is not None:
+                    try:
+                        fragment_writer.abort()
+                    except Exception:
+                        _LOGGER.warning(
+                            "Could not close fragments for run %s",
+                            run_id,
+                            exc_info=True,
+                        )
+                if not committed:
+                    metadata.mark_run_failed(
+                        run_id,
+                        str(error),
+                        int((perf_counter() - started) * 1_000),
                     )
-            if not committed:
-                metadata.mark_run_failed(
-                    run_id,
-                    str(error),
-                    int((perf_counter() - started) * 1_000),
+                prune_fragments(
+                    metadata,
+                    config.resolved_fragment_directory,
+                    request.asset_id,
+                    request.asset_name,
+                )
+                connection.close()
+                raise
+
+            try:
+                drop_shaped_staging(connection, staging.shaped)
+            except Exception:
+                _LOGGER.warning(
+                    "Could not drop staging for published run %s", run_id, exc_info=True
                 )
             prune_fragments(
                 metadata,
@@ -179,53 +192,29 @@ async def materialize(
                 request.asset_id,
                 request.asset_name,
             )
-            connection.close()
-            raise
-
-        try:
-            drop_shaped_staging(connection, staging.shaped)
-        except Exception:
-            _LOGGER.warning(
-                "Could not drop staging for published run %s", run_id, exc_info=True
-            )
-        prune_fragments(
-            metadata,
-            config.resolved_fragment_directory,
-            request.asset_id,
-            request.asset_name,
-        )
-        try:
-            if request.export is not None:
-                if not config.exports.enabled:
-                    raise ExportError(
-                        f"Export target {request.export!r} was declared, but exports "
-                        "are disabled. Set ASSQUACK_EXPORTS__ENABLED=true, or pass "
-                        "AssquackConfig(exports=ExportsConfig(enabled=True))."
-                    )
-
-                for target in targets:
-                    export_writer(target.format, config.exports).write(
-                        connection, request.table, target
-                    )
+            try:
+                for destination, target in exports:
+                    destination.export(connection, request.table, target)
                     metadata.record_export(
                         run_id=run_id,
                         asset_id=request.asset_id,
                         alias=target.alias,
                         uri=target.logical_uri,
                         resolved_uri=target.resolved_uri,
+                        destination_fingerprint=target.destination_fingerprint,
                         row_count=row_count,
                         format_name=target.format,
                         role=target.role,
                         options=target.options,
                     )
 
-            return AssquackResult(
-                config=config,
-                asset_id=request.asset_id,
-                asset_name=request.asset_name,
-                run_id=run_id,
-                table=request.table,
-                row_count=row_count,
-            )
-        finally:
-            connection.close()
+                return AssquackResult(
+                    config=config,
+                    asset_id=request.asset_id,
+                    asset_name=request.asset_name,
+                    run_id=run_id,
+                    table=request.table,
+                    row_count=row_count,
+                )
+            finally:
+                connection.close()

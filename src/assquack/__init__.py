@@ -10,11 +10,11 @@ from assquack._api import (
 from assquack._config import (
     AssquackConfig,
     DuckDBConfig,
-    ExportsConfig,
     IngestionConfig,
     SchemaConfig,
 )
 from assquack._errors import MissingAssetSchemaWarning
+from assquack._exports.destinations import ExportDestination, FileSystemDestination
 from assquack._result import AssquackResult
 
 __all__ = [
@@ -23,9 +23,10 @@ __all__ = [
     "AssquackConfig",
     "AssquackResult",
     "DuckDBConfig",
+    "ExportDestination",
     "ExportFormat",
     "ExportSpec",
-    "ExportsConfig",
+    "FileSystemDestination",
     "IngestionConfig",
     "MissingAssetSchemaWarning",
     "SchemaConfig",

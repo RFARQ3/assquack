@@ -21,6 +21,20 @@ Recheck the relevant code before assigning an item because other chats may chang
 
 ## Extensibility goal
 
+Fingerprint ownership clarified on 27 October: `destinations/base.py` owns
+resolved-state capture on `ExportDestination`, plus exception-frame cleanup.
+`destinations/fingerprint.py` owns fingerprint input assembly, deterministic
+serialization, and hashing. `FileSystemDestination.resolve()` coordinates target
+parsing, preparation/authentication selection, `_resolve_file_paths()`, and
+fingerprint generation. File-path operations and base-path normalization live
+in focused filesystem methods. One fingerprint is calculated per resolved
+destination configuration, independently of pipe-expanded output paths.
+The base destination owns the captured state and releases it through `_release()`.
+`FileSystemDestination.resolve()` passes the completed fingerprint, preparation,
+authentication, and targets to the inherited state-capture method.
+Filesystem path resolution stays in the filesystem destination;
+`models.py` contains export data shapes.
+
 The MVP should provide a useful standalone base for future features. Adding an
 implementation at an agreed boundary should not require rewriting unrelated
 execution code. An interface alone is insufficient if callers cannot select an
@@ -45,10 +59,13 @@ feature will require zero core changes.
 
 The [scope decision](../../journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026)
 retains `FileSystemDestination(base_uri, auth)` under `ExportDestination`, leaving
-room for future database destinations. DuckDB is the filesystem adapter and
-writer. Separate preparation, authentication and COPY responsibilities remain
-useful, as do `filesystem_adapter/` and `writer/` directories; interchangeable
-adapter/writer registries and injection are deliberately out of scope.
+room for future database destinations. `FileSystemDestination` coordinates
+preparation and authentication through their registries and calls
+`DuckDBFileWriter` directly. Preparation classes and authenticators remain
+separate composed objects. No `DuckDBFileSystemAdapter` wrapper is needed;
+DuckDB still supplies filesystem access and writing. Interchangeable writer and
+adapter registries or injection are deliberately out of scope. Registry-based
+preparation and authentication selection must not become if/elif dispatch.
 
 The broader design received detailed consideration and is preserved in commit
 `8bacb3d`. It was reduced because replacement machinery overcomplicates the
@@ -60,159 +77,211 @@ remains to support future multi-destination exports whose credentials may come
 from different sources. Public provider configuration is deferred; providers do
 not settle per-destination credential selection on their own.
 
-This records direction only; implementation and verification remain outstanding.
+This direction is implemented and verified in the working tree; paired review
+has no unresolved actionable findings.
 REL-01 publication safety remains separate required work. See the
 [source research](../../research/2026-10-26-duckdb-filesystem-preparation.md)
 for setup differences and the unresolved ADLS parent behavior.
 
 Pipe-format implementation is assigned to the visible implementation chat, with
 independent review in the visible review chat. This slice covers built-in formats,
-target expansion, truthful manifests and all-target cache qualification. Broader
-destination composition and authentication extensibility remain open; writer
-registration is no longer required.
+target expansion, truthful manifests and all-target cache qualification. Destination composition and authentication extensibility are implemented in the
+27 October refactor below; writer registration is not required.
 Priorities below are review recommendations, not a revised approved release scope.
 
 | ID | Finding | Disposition | Status |
 |---|---|---|---|
-| EXT-01 | Azure authentication selection is hardcoded | Proposed pre-release repair | Open |
-| EXT-02 | Export credential-provider injection boundary | Internal entry point agreed; public injection and new providers deferred | Open |
-| EXT-03 | Parquet writing owns destination routing | Proposed pre-release repair | Open |
-| EXT-04 | Export format selection and metadata are hardcoded | Built-in formats implemented; shared DuckDB writing refactor pending; writer registration dropped | Open |
+| EXT-01 | Azure authentication selection | Instance-owned compatible-auth registry implemented | Complete |
+| EXT-02 | Export credential-provider injection boundary | Internal async load/get injection implemented; public API and integrations deferred | Complete |
+| EXT-03 | Destination routing | Destination contract and registered preparation implemented | Complete |
+| EXT-04 | Export writing and metadata | Shared DuckDB writer and multi-destination manifests/cache verified | Complete |
 | EXT-05 | Schema strategy selection and context are insufficient | Internal registry and argument-free resolution implemented | Complete |
 | EXT-06 | Materialization mode does not reach execution or metadata | Internal registry and mode propagation implemented | Complete |
 | EXT-07 | Input support gaps and normalization design | Missing features separated from proposed refactor; writing path undecided | Open |
 | EXT-08 | Observation extension point is undefined | Design decision required | Open |
 | EXT-09 | Catalog evolution has no versioned migration mechanism | Earlier unreleased catalogs need no compatibility; future upgrades deferred | Deferred |
 | REL-01 | Export write failure preservation is incomplete | Existing export acceptance work | Open |
-| REL-02 | Public export settings/types exceed implemented behavior | Contract reconciliation required | Open |
+| REL-02 | Public export settings/types exceed implemented behavior | Destination configuration reconciled; unsupported fields rejected | Complete |
 | REL-03 | Release validation evidence is incomplete | Existing release acceptance work | Open |
+
+## Agreed export source layout
+
+**Implemented and reviewed 27 October 2026.** The working tree uses this
+layout. The phase remains In Progress because unrelated register and release
+items remain open.
+
+```text
+src/
+└── assquack/
+    └── _exports/
+        ├── __init__.py              # Export package entry points
+        ├── models.py                # Export targets and output metadata
+        ├── targets.py               # Alias and pipe-format expansion
+        ├── destinations/
+        │   ├── __init__.py          # Expose destination classes
+        │   ├── base.py              # ExportDestination contract
+        │   └── filesystem.py        # FileSystemDestination: prepare, then write
+        ├── preparation/
+        │   ├── __init__.py          # Preparation package entry points
+        │   ├── registry.py          # Select preparation strategy by URI scheme
+        │   ├── local.py             # Resolve paths and create parent directories
+        │   └── azure.py             # Resolve Azure URIs and load DuckDB extension
+        ├── authentication/
+        │   ├── __init__.py          # Authentication package entry points
+        │   ├── base.py              # Authenticator lifecycle contract
+        │   ├── registry.py          # Select compatible authentication methods
+        │   ├── local.py             # No-op local authentication
+        │   ├── azure.py             # SAS and credential-chain authentication
+        │   └── credentials.py       # Internal providers; environment default
+        └── writer/
+            ├── __init__.py          # Internal writer entry points
+            └── file.py              # DuckDBFileWriter: COPY to Parquet, CSV or JSON
+```
+
+The destination owns export coordination, not serialization. It obtains the
+preparation strategy and compatible authenticator from their registries, enters
+the composed preparation context, and invokes the separate `DuckDBFileWriter`.
+Preparation classes own local/Azure setup; authenticators own authentication
+resource lifetimes. The writer performs shared COPY with validated format options.
+Both automatic and explicit exports must use this composition.
+
+`destinations/filesystem.py` calls `writer/file.py` directly. No writer registry,
+engine injection or adapter wrapper is introduced. A future database destination
+and DuckDB table writer would live in `destinations/database.py` and
+`writer/table.py`; do not create them now. Their configuration, target-path
+interpretation and write semantics need a separate design. Different destination
+types implement the common `ExportDestination` contract, allowing shared export
+coordination without destination-type branching or file-format assumptions.
 
 ## EXT-01: Azure authentication strategy registry
 
-**Evidence:** [azure.py](../../../src/assquack/_exports/azure.py) defines
-`AzureAuthStrategy`, `CredentialChainAuth` and `SasAuth`, but
-`select_azure_auth()` chooses concrete classes through conditionals. The context
-manager uses `isinstance(strategy, SasAuth)` for error handling.
+The generic `Authenticator` protocol requires only fingerprint inputs and
+authentication. `account_name` belongs exclusively to `AzureAuthenticator` and
+its Azure implementations. Azure preparation uses that Azure-specific contract;
+local and independently registered non-Azure authenticators need no account field.
+The synthetic registered-authenticator regression exercises this without an
+`account_name` attribute.
 
-**Consequence:** adding an authentication strategy requires editing selection
-logic and potentially shared error handling. Strategy classes exist; a registry
-does not.
+**Complete — 27 October 2026.**
+[AuthenticationRegistry](../../../src/assquack/_exports/authentication/registry.py)
+selects factories by preparation kind and authentication name. Supplied choices
+are local `auto`/`none` and Azure `auto`/`sas`/`credential_chain`. Automatic Azure
+selection retains complete/absent/partial SAS-pair semantics. Native identity
+selection loads and validates the environment credential inputs. Unknown/incompatible names fail;
+duplicate registration fails; each filesystem destination owns its registries.
 
-**Proposed outcome and acceptance:**
-
-- Select registered authentication strategies through a defined boundary.
-- Preserve automatic selection and explicit override precedence for built-ins.
-- Give strategies a common lifecycle and credential-safe failure contract.
-- Exercise a synthetic extra strategy through normal export execution without
-  editing the selector or branching on its concrete class.
-- Verify temporary secret cleanup and diagnostic redaction on failures.
+The authenticator context owns temporary-secret registration and cleanup.
+[Azure authentication](../../../src/assquack/_exports/authentication/azure.py)
+uses safe failures without concrete-strategy type checks. Synthetic registered
+authentication is exercised through automatic and explicit execution, including
+cleanup. No new authentication integrations are supplied.
 
 ## EXT-02: Export credential provider injection
 
-This item concerns obtaining credentials for export destinations. It does not
-cover authentication for source extraction or other application services.
+**Complete — 27 October 2026.**
+[CredentialProvider](../../../src/assquack/_exports/authentication/credentials.py)
+defines asynchronous `load()` and synchronous `get(name)`. A destination's private
+`_credential_provider` accepts a provider instance and defaults to
+`EnvironmentCredentialProvider`. No public provider field, provider registry,
+Prefect block or vault integration is added.
 
-**Evidence:** [azure.py](../../../src/assquack/_exports/azure.py) accepts a provider
-in `azure_export_auth()`, defaulting to `EnvironmentSasProvider`.
-[parquet.py](../../../src/assquack/_exports/parquet.py) never supplies one.
-[azure_credentials.py](../../../src/assquack/_exports/azure_credentials.py)
-contains the provider protocol, but normal asset/result exports expose no route
-to inject a provider.
-
-**Decision, 26 October (Rowan):** retain a non-public entry point for direct
-provider-instance injection, defaulting to environment-based sourcing. Do not
-create a credential-provider registry or expose provider configuration yet.
-Implementations fetching Prefect blocks, vaults or other new sources are deferred.
-Future downstream providers can implement the contract themselves without being
-registered or included in the core package. Authentication and destination
-strategy registries remain separate and unchanged by this decision.
-
-**Retention rationale, 27 October:** future exports to multiple destinations may
-need different credentials or credential sources. Keep the internal provider
-boundary for that need, with public injection deferred; per-destination provider
-selection remains to be resolved.
-
-**Revised outcome and acceptance:**
-
-- Establish the internal injection boundary without a new public provider API;
-  preserve the environment default. Absence of public injection is intentional.
-- When implementing the boundary, verify internal substitution with a synthetic
-  provider through automatic and explicit export execution, without monkeypatching
-  or real credentials. Do not implement an external integration merely to test it.
-- The intended contract is asynchronous `load()` followed by synchronous
-  `get(name)`. Provider-owned loading needs no separate fetch callback. Resolve
-  synchronous execution integration before claiming support; this decision does
-  not claim that the current code already implements that lifecycle.
-- Retrieve only requested values; keep secrets out of public serialized settings,
-  metadata and diagnostics. Local exports must not fetch Azure credentials, and
-  native credential-chain discovery stays with DuckDB.
-- Keep external credential integrations outside core dependencies. Do not infer
-  that this entry point alone settles multiple-destination credential selection.
-
-This item remains open for the internal boundary work, not for delivery of a
-public provider registry or additional credential-source implementation.
+Synchronous destination resolution runs loading to completion. If the caller already
+has a running event loop, a worker thread runs a separate loop and the caller
+waits for it. Providers must not depend on work scheduled on the blocked caller
+loop. Tests exercise this boundary through both automatic and explicit exports,
+including an explicit export inside an async function. Each destination may have
+its own injected instance. Local exports never load
+or retrieve SAS values. Provider failures suppress sensitive diagnostics and no
+provider is included in public serialization or representations.
 
 ## EXT-03: Destination strategies
 
-**Evidence:** [parquet.py](../../../src/assquack/_exports/parquet.py) directly
-branches between Azure and local paths and rejects other URI schemes.
+**Complete — 27 October 2026.**
+[ExportDestination](../../../src/assquack/_exports/destinations/base.py) defines
+`resolve()` and `export()` without filesystem-format assumptions.
+Config accepts one destination or a list, normalizing to a list; mappings and
+`ASSQUACK_EXPORTS` JSON construct the supplied filesystem destination. Empty lists
+disable automatic exports and manifest cache requirements.
 
-**Consequence:** adding S3 requires modifying format-writing code. Moving Azure
-files into a folder alone would not remove this coupling.
+[FileSystemDestination](../../../src/assquack/_exports/destinations/filesystem.py)
+uses `resolve()` to select registered preparation and authentication, capture
+required inputs once, freeze paths/formats, and fingerprint destination configuration.
+Private state is operation-owned. Its `export()` uses those selections, enters the
+preparation context and calls `DuckDBFileWriter` directly. Preparation owns setup;
+authentication owns temporary secrets. There is
+no adapter wrapper, writer registry or alternative-engine injection.
 
-**Proposed outcome and acceptance:**
-
-- Resolve a destination strategy by URI scheme, separate from format writing.
-- Define ownership of URI validation, connection preparation, cleanup and output
-  publication. Coordinate publication guarantees with REL-01.
-- Demonstrate an additional synthetic destination using the shared Parquet writer
-  without changing it or the materialization pipeline.
-- Preserve local paths, file URIs, Azure URIs and alias behavior.
+Both registries are instance-owned and reject duplicates and unknown selections.
+Synthetic preparation/authentication uses real DuckDB COPY without changing the
+pipeline. A synthetic non-file destination demonstrates independent declaration
+interpretation and manifest/cache participation. Local/file and Azure support
+remain supplied scope. Database output and remote staged publication are deferred.
 
 ## EXT-04: Export writers and manifest data
 
-**Evidence:** [pipeline.py](../../../src/assquack/_materialization/pipeline.py)
-and [result API](../../../src/assquack/_result.py) instantiate
-`ParquetExportWriter` directly. [targets.py](../../../src/assquack/_exports/targets.py)
-rejects other formats and appends Parquet suffixes.
-[metadata.py](../../../src/assquack/_storage/metadata.py) records fixed
-`parquet`, `default` and empty options values.
+**Complete — 27 October 2026.**
+[DuckDBFileWriter](../../../src/assquack/_exports/writer/file.py) owns shared COPY
+with fixed Parquet, CSV and NDJSON options. Formats expand per destination before
+execution. Both export paths record successful output format, role, options and
+resolved URI and destination fingerprint; failures stop remaining writes without
+recording false successes. Cache qualification requires every resolved write path
+and fingerprint on the latest successful run. A plain operation dictionary rejects
+the same write path only when fingerprints differ. No remote alias detection is
+performed. The fingerprint describes the destination, not each output format/path.
 
-**Consequence:** implementing the existing `ExportWriter` protocol alone does
-not make another format usable or accurately recorded.
+Destinations execute in configuration order, each in format declaration order.
+`export_parquet()` keeps Parquet-only semantics, returning a string for one output
+or a list for multiple outputs. With no configured destinations it uses the
+default local base and automatic authentication. Unsupported old configuration
+fields are removed/rejected rather than silently accepted.
 
-**Proposed outcome and acceptance:**
+### Resolve/export follow-through — environment chain decision implemented
 
-- Use shared DuckDB writing with format-specific options and carry the actual
-  format/options through target resolution, execution and manifest recording.
-  Do not introduce writer or filesystem-adapter replacement registries.
-- Share selection behavior between automatic and explicit exports.
-- Support the pipe-separated formats required by Rowan on 23 October: expand
-  declarations into targets before destination execution, using the same
-  committed table for all outputs. Cover path and type-only forms, manifest
-  records for each successful output and failure partway through the output list.
-- Verify accurate manifest data and no success manifest after DuckDB write
-  failure through both execution paths; no synthetic alternative writer is needed.
-- Preserve the existing Parquet convenience API. Rowan confirmed on 23 October
-  that Parquet, CSV and JSON must all ship in MVP. Alternative writer registration
-  is deliberately excluded by the 27 October scope decision.
+On 27 October Rowan approved fingerprinting the supported credential-provider
+inputs present in the deployment environment. Require one complete client-secret,
+certificate, or workload-identity set. Explicitly restrict DuckDB's chain to
+`env`, `workload_identity`, or both in that order; do not use CLI or managed-identity
+fallback. Capture input values once during resolution and retain redacted private
+state until completion or failure. Token acquisition remains with DuckDB.
+This fingerprints configuration values, not the issued token or contents of
+certificate/token files. See [configuration](../../configuration.md#credential-chain-environment-inputs).
+Offline tests cover complete and incomplete input sets, explicit chain SQL,
+provider loading, fingerprint changes, and cleanup. Live Azure verification is
+not part of these checks. The broader phase remains In Progress.
 
-### Implemented pipe-format slice — 23 October 2026
+### Validation and paired review — 27 October 2026
 
-The commissioned implementation now selects built-in Parquet, CSV and NDJSON
-writers after expanding path/type-only aliases. It records each successful
-output's actual format, role and fixed options; cache qualification requires all
-requested resolved targets on the same run. Malformed declarations fail before
-extraction, and a failure partway through exports keeps only completed manifests.
-Automatic and explicit Parquet exports share writer selection.
+Implementation chat: `01a17af5-c7e9-7e90-bd6e-702f4aa1bda3`.
+Read-only reviewer chat: `01a17af5-d370-78e0-9765-cfe4f66075fa`.
+Independent re-review found no unresolved actionable in-scope findings after
+fixes for single-destination constructor typing/JSON schema, equivalent URI
+collisions, absolute local paths under remote bases and historical source links.
 
-This implements the built-in-format portion of EXT-04 and REL-02. The 27 October
-scope decision drops additional-writer registration; EXT-04 remains open for the
-shared DuckDB writing refactor and verification under that revised scope. Custom export
-options are now rejected; snapshot settings and the remaining REL-02 contract
-work are unchanged. REL-01 staged publication and all destination/authentication
-registry work remain open. See the [export phase](04-export-compatibility.md#pipe-formats-implementation-23-october-2026)
-for verification and the separate review outcome.
+- Full offline synthetic suite: `poetry run pytest -q` — **198 passed**.
+- Focused Pyright over `_exports/`, `_config.py`, `_result.py`, pipeline and all
+  affected export/config/cache tests — **0 errors, 0 warnings**; independently
+  confirmed by the reviewer.
+- `poetry run ruff check src tests` and `poetry run ruff format --check src tests`
+  pass. Documentation link/anchor validation and `git diff --check` pass.
+- Terminology scan found only the existing historical locking observation and
+  its epic explanation.
+- Full `poetry run pyright` retains the same **13 pre-existing errors** in
+  `_api.py`, `normalize.py`, `_query.py` and `_templates.py`. No refactor-specific
+  type errors remain. Sandbox restrictions on temporary directories and Python
+  subprocess discovery required offline checks outside the sandbox.
+
+Coverage includes local/file and intercepted Azure execution, all three formats,
+multi-destination success/failure/retry and manifests, all-target cache checks,
+empty destination lists, registry duplicate/unknown/incompatible choices and
+isolation, synthetic preparation/authentication and non-file destinations,
+per-destination asynchronous provider substitution, active-loop explicit exports,
+secret cleanup and safe diagnostics. No live credentials or systems were used.
+
+EXT-01 through EXT-04 and REL-02 are complete for the approved refactor.
+The phase remains In Progress: REL-01 direct-COPY preservation, REL-03 live Azure
+and broader release evidence, unrelated typing failures and other open register
+items remain separate work. ADLS parent creation is unverified. No commit, branch,
+push or PR was created.
 
 ## EXT-05: Schema strategy selection and context
 
@@ -361,14 +430,11 @@ all object stores provide local-filesystem rename semantics. Coordinate with EXT
 
 ### REL-02: Reconcile exposed settings and supported behavior
 
-[asset API](../../../src/assquack/_api.py) advertises JSON/CSV in `ExportFormat`,
-while parsing rejects them. Rowan confirmed on 23 October that both formats are
-required MVP capabilities, so these are implementation gaps rather than unresolved
-format-scope decisions. [configuration](../../../src/assquack/_config.py)
-exposes export options and snapshot settings that execution does not consume.
-Agree whether to implement, reject or defer each setting, then align types,
-validation, documentation and tests. Do not silently accept nonfunctional switches
-or expand MVP scope merely because a field already exists. Coordinate with EXT-04.
+The 27 October refactor removes `ExportsConfig` and its unimplemented options
+and snapshot fields. `FileSystemDestination` accepts only `base_uri` and `auth`;
+unknown fields fail validation. Parquet, CSV and JSON all use the shared writer.
+The destination review and acceptance checks verify this reconciliation.
+Snapshots, custom COPY options and public provider injection remain deferred.
 
 ### REL-03: Complete release evidence
 

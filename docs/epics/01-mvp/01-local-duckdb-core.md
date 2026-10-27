@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -71,6 +71,7 @@ CREATE TABLE assquack_meta.exports (
   alias VARCHAR,
   uri VARCHAR NOT NULL,
   resolved_uri VARCHAR NOT NULL,
+    destination_fingerprint VARCHAR NOT NULL,
   format VARCHAR NOT NULL,
   role VARCHAR NOT NULL,
   row_count BIGINT,
@@ -119,3 +120,11 @@ the existing broader core checklist has not been revalidated by this change.
 
 Keep the storage boundary explicit. The mutable `.duckdb` file is local
 configuration state; export paths are not part of database placement.
+
+## Destination fingerprint metadata — 27 October 2026
+
+The exports DDL includes `destination_fingerprint` alongside `resolved_uri`.
+Successful output records and cache requirements use both; asset identity is
+unchanged. This is a pre-release schema change without a migration shim. The
+[export phase](04-export-compatibility.md) tracks validation and the unresolved
+native credential-chain decision. The broader core phase remains In Progress.

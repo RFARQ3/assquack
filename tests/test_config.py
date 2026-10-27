@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from assquack import AssquackConfig, ExportsConfig, IngestionConfig, SchemaConfig
+from assquack import (
+    AssquackConfig,
+    IngestionConfig,
+    SchemaConfig,
+)
 
 
 def test_process_environment_populates_the_full_config_tree(
@@ -26,14 +30,7 @@ def test_process_environment_populates_the_full_config_tree(
         str(tmp_path / "spill"),
     )
     monkeypatch.setenv("ASSQUACK_DUCKDB__EXTENSIONS", '["json", "parquet"]')
-    monkeypatch.setenv("ASSQUACK_EXPORTS__ENABLED", "true")
-    monkeypatch.setenv("ASSQUACK_EXPORTS__BASE_URI", str(tmp_path / "exports"))
-    monkeypatch.setenv("ASSQUACK_EXPORTS__DEFAULT_FORMAT", "parquet")
-    monkeypatch.setenv("ASSQUACK_EXPORTS__SNAPSHOT_RUNS", "true")
-    monkeypatch.setenv(
-        "ASSQUACK_EXPORTS__OPTIONS",
-        '{"compression": "zstd", "overwrite": true}',
-    )
+    monkeypatch.setenv("ASSQUACK_EXPORTS", '{"base_uri": "./exports", "auth": "auto"}')
 
     config = AssquackConfig()
 
@@ -47,11 +44,11 @@ def test_process_environment_populates_the_full_config_tree(
     assert config.duckdb.memory_limit == "4GB"
     assert config.duckdb.temp_directory == tmp_path / "spill"
     assert config.duckdb.extensions == ("json", "parquet")
-    assert config.exports.enabled is True
-    assert config.exports.base_uri == str(tmp_path / "exports")
-    assert config.exports.default_format == "parquet"
-    assert config.exports.snapshot_runs is True
-    assert config.exports.options == {"compression": "zstd", "overwrite": True}
+    assert len(config.export_destinations) == 1
+    assert config.export_destinations[0].model_dump() == {
+        "base_uri": "./exports",
+        "auth": "auto",
+    }
 
 
 def test_fragment_directory_defaults_beside_database(tmp_path: Path) -> None:
@@ -72,15 +69,15 @@ def test_direct_ingestion_config_controls_fragment_size() -> None:
 
 def test_direct_values_override_environment(monkeypatch) -> None:
     monkeypatch.setenv("ASSQUACK_ENVIRONMENT", "environment-value")
-    monkeypatch.setenv("ASSQUACK_EXPORTS__ENABLED", "true")
+    monkeypatch.setenv("ASSQUACK_EXPORTS", '{"base_uri": "./exports"}')
 
     config = AssquackConfig(
         environment="direct-value",
-        exports=ExportsConfig(enabled=False),
+        exports=[],
     )
 
     assert config.environment == "direct-value"
-    assert config.exports.enabled is False
+    assert config.export_destinations == []
 
 
 def test_documented_environment_names_remain_supported(

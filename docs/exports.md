@@ -4,39 +4,82 @@ Assquack stores asset state in DuckDB tables first. Exports are compatibility
 artifacts for lake readers, legacy consumers, recovery workflows, and manual
 inspection. They are not the source of truth for an asset.
 
-**Agreed refactor direction, 27 October 2026 (not yet implemented):** expose
-`FileSystemDestination(base_uri, auth)` under a general `ExportDestination`
-contract. Compose one DuckDB filesystem adapter, registered local/Azure
-preparation strategies, compatible authentication and a shared DuckDB writer.
-DuckDB is the filesystem adapter and writer; neither has replacement registries
-or injection points. Filesystem support follows DuckDB's core and community
-extensions, with local and Azure support in MVP. Formats remain asset-declaration
-choices. Destination types remain extensible for a future `DatabaseDestination`
-with connection/table settings, and authentication methods remain extensible.
-Credential sourcing retains the environment default and an internal provider
-injection boundary: future multi-destination exports may need credentials from
-different sources. Public provider injection is deferred; per-destination
-credential selection still needs design. No new provider integration is included.
-See the [scope decision](journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026)
-for the proposed API and ownership boundaries. Existing configuration examples
-below describe the current implementation until that refactor is delivered.
+`FileSystemDestination(base_uri, auth)` implements the general `ExportDestination`
+contract. It selects registered local/Azure preparation and compatible
+authentication, then calls the separate `DuckDBFileWriter` directly. DuckDB owns
+filesystem access and serialization; there is no adapter wrapper, writer registry
+or replacement-engine injection. Local and Azure are supplied. Database destinations
+remain future work. See [Configuration](configuration.md#exports) for the public
+single-or-list configuration and [implementation layout](epics/01-mvp/06-extensibility-defects.md#agreed-export-source-layout)
+for ownership and extension boundaries.
 
-This keeps the runtime model simple:
+`resolve()` expands the declaration into formats and exact write paths, selects
+preparation and authentication through their registries, retrieves required inputs
+once, and retains the resolved configuration privately for the operation.
+`export()` uses those selections and calls `DuckDBFileWriter` directly. Preparation
+sets up the connection and authentication; it cannot replace the resolved path.
 
 ```mermaid
 flowchart LR
-  Alias[Declared export alias] --> Logical[mad:// logical URI]
-  Logical --> Base[Configured export base]
-  Base --> Resolved[Resolved URI]
-  Resolved --> Copy[DuckDB COPY from current table]
-  Copy --> Manifest[assquack_meta.exports row]
+  Declaration[Export declaration] --> Resolve[Destination resolve]
+  Resolve --> Captured[Private configuration and fingerprint]
+  Captured --> Cache[Match path and fingerprint]
+  Cache --> Export[Destination export]
+  Export --> Writer[DuckDBFileWriter]
+  Writer --> Manifest[Successful export metadata]
 ```
 
-1. Materialize local NDJSON fragments into a candidate DuckDB table.
-2. Transactionally publish the current asset table.
-3. Record run metadata in Assquack system tables.
-4. Optionally export the published table to one or more file targets.
-5. Record each exported artifact in the export manifest.
+## Why Destinations Need Fingerprints
+
+Assquack keeps asset metadata and materialized tables in DuckDB, independently
+of export storage. Changing an export target or its credentials leaves that
+DuckDB metadata in place. The same export path can therefore refer to a different
+destination on a later invocation; the path alone cannot identify which
+destination received the previous export.
+
+The deterministic destination fingerprint identifies the full resolved
+destination configuration. Export metadata records that fingerprint alongside
+the output path and materialization reference, so a successful export to the
+previous destination cannot satisfy an export requested for the new destination.
+This requirement applies even with **one configured destination**. It follows
+from separating metadata storage from export storage, not from supporting
+multiple destinations.
+
+In the MAD.Prefect reference, asset metadata is stored through the same configured
+filesystem as the exported result. Switching to a destination without that
+metadata produces a cache miss. In Assquack, the existing DuckDB metadata remains
+available, so it must explicitly identify the destinations already written to.
+
+The agreed cache behavior keeps materialization validity separate from export
+completion: while the DuckDB table remains within its cache period, a missing or
+failed export, or a changed destination fingerprint, requires exporting that
+table without rematerializing it. Exporting does not restart the materialization
+cache period. This records the intended behavior; separating those cache
+decisions remains implementation work.
+
+One fingerprint describes the resolved destination configuration, including its
+base, selected preparation and authentication, and captured authentication inputs.
+Individual output filenames, formats, and format options do not enter it. Credential
+changes produce a different fingerprint without changing the asset ID. Only the
+whole configuration SHA-256 digest is stored, never credentials or reversible
+encodings. Deterministic hashes do not protect weak secrets from guessed inputs;
+`SecretStr` provides display redaction, not memory encryption or guaranteed erasure.
+
+Each operation uses private destination copies. Captured authentication is released
+on cache hits, successful completion, and failures; temporary DuckDB secrets are
+removed after execution. An operation-scoped dictionary maps exact write paths to
+fingerprints. A different fingerprint at an already registered path is an error;
+repeating the same path and fingerprint is allowed. No persistent collision registry
+or remote physical-alias discovery is involved.
+
+Credential-chain resolution captures the supported environment inputs through the
+credential provider and fingerprints their values together with the selected chain.
+At least one complete client-secret, certificate, or workload-identity input set
+is required. DuckDB receives an explicit `env`, `workload_identity`, or
+`env;workload_identity` chain; CLI and managed-identity fallback are disabled.
+Token acquisition remains DuckDB's job. The fingerprint covers the captured
+settings, including configured file paths, not token-file contents or issued tokens.
+See [credential-chain inputs](configuration.md#credential-chain-environment-inputs).
 
 ## Export Aliases
 
@@ -70,7 +113,7 @@ Export aliases resolve in this order:
 4. Pipe syntax expands one alias into multiple export targets.
 
 `mad://` is Assquack's logical export scheme. It resolves to
-`assquack.exports.base_uri` at runtime, preserving the legacy MAD-style path
+each filesystem destination's `base_uri` at runtime, preserving the legacy MAD-style path
 shape without making object storage the primary database location.
 
 Example configuration:
@@ -78,7 +121,6 @@ Example configuration:
 ```yaml
 assquack:
   exports:
-    enabled: true
     base_uri: abfss://lake/exports/assquack
 ```
 
@@ -188,11 +230,13 @@ mad://customer_summary.parquet
 mad://customer_summary.json
 ```
 
-Assquack rejects empty entries, duplicate formats, unsupported suffixes, multiple
-base paths, and conflicting structured `format`/suffix combinations before
-extraction. A structured target supplies one format; it cannot also use pipes.
+When a filesystem destination is configured, Assquack rejects empty entries,
+duplicate formats, unsupported suffixes, multiple base paths, and conflicting
+structured `format`/suffix combinations before extraction. With `exports=[]`,
+automatic export declarations are not resolved or validated. A structured target supplies one format; it cannot also use pipes.
 An extensionless path uses Parquet unless its structured `format` selects CSV or
-JSON. `result.export_parquet()` accepts one Parquet target only.
+JSON. `result.export_parquet()` requests one Parquet target per destination; it
+returns a URI for one output or a list for multiple outputs.
 
 ## ADLS And ABFSS Exports
 
@@ -209,7 +253,8 @@ LOAD azure;
 
 CREATE TEMPORARY SECRET azure_auth (
   TYPE azure,
-  PROVIDER credential_chain
+  PROVIDER credential_chain,
+  CHAIN 'workload_identity'
 );
 
 COPY (
@@ -233,8 +278,8 @@ connection-string input remain outside this scope.
 
 ## Implemented Azure Export Path
 
-All three format writers accept local/file paths and `abfss://`, `az://`, and `azure://`
-URIs, including aliases resolved against an Azure `exports.base_uri`. Other remote
+The shared DuckDB file writer supports all three formats with local/file paths and `abfss://`, `az://`, and `azure://`
+URIs, including aliases resolved against an Azure destination base. Other remote
 schemes remain unsupported. Automatic exports and `result.export_parquet()`
 register temporary credential-chain or SAS authentication on the actual COPY connection;
 see [ADLS credentials](configuration.md#adls-credentials) for all configuration.
@@ -249,8 +294,8 @@ export-phase work. Local writing retains its existing direct-COPY behavior.
 
 Azure routing and failures have offline synthetic coverage; no live Azure access
 has been verified. This implementation does not add partitioning, snapshots, or
-custom format options. Nonempty `exports.options` is rejected when resolving an
-export instead of silently ignoring it.
+custom format options. These unsupported destination fields are rejected during
+configuration validation.
 
 ## Format Policy
 
@@ -304,15 +349,20 @@ to the implementor-facing
 `abfss://lake/exports/assquack/bronze/orders.parquet`. `role` should distinguish
 the default compatibility export from secondary legacy exports.
 
-Each output records its actual format, resolved URI, row count and role: `default`
+Each output records its destination fingerprint, actual format, resolved URI, row count and role: `default`
 for the first target and `legacy` for subsequent targets. `options_json` records
 CSV `header: true` and JSON `array: false`; Parquet uses native defaults.
 
-Outputs are written in declaration order. If one fails, the call raises and
+Destinations run in configuration order, with formats in declaration order within
+each destination. With `exports=[]`, no automatic output or export-manifest cache
+requirement is added. Explicit exports still use the configured destinations or
+the default local base as described in [Configuration](configuration.md#exports).
+
+Outputs are written in that order. If one fails, the call raises and
 stops exporting. Earlier completed outputs and their manifests remain; the failed
 and unattempted outputs receive no success manifest. The committed table and its
 successful run remain queryable. A cache-first call requires manifests for every
-requested resolved URI on the latest successful run. A partial set forces a fresh
+requested resolved URI and destination fingerprint on the latest successful run. A partial set forces a fresh
 extraction and export attempt. It does not combine outputs across run IDs or
 check whether exported files have since been deleted.
 

@@ -11,3 +11,4 @@ class ExportTarget:
     format: str = "parquet"
     role: str = "default"
     options: dict[str, object] = field(default_factory=dict[str, object])
+    destination_fingerprint: str = ""

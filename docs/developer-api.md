@@ -158,7 +158,9 @@ should provide:
 - `.query(sql=None, params=None)` to query the result table.
 - `.to_df()` to collect results into a pandas DataFrame where pandas is
   available.
-- `.export_parquet()` to write a Parquet compatibility export.
+- `.export_parquet(path=None)` to write Parquet to each configured destination,
+  returning one URI string or a list of strings. With no configured destinations,
+  it uses the default local export base. See [Exports](exports.md).
 - `.exists()` to check whether the latest successful materialization is
   available.
 

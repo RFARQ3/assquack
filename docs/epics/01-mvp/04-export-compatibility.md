@@ -36,6 +36,33 @@ Excluded:
 
 ## Architecture Notes
 
+### Resolve/export amendment — 27 October 2026
+
+Implementation is in progress. `FileSystemDestination.resolve()` resolves all
+write paths and formats, selects preparation and authentication through their
+registries, captures required inputs once, and fingerprints the resolved
+destination configuration. Private operation state retains these selections.
+`FileSystemDestination.export()` uses that state and calls `DuckDBFileWriter`.
+There is no plan object or replacement execution API.
+
+An operation owns its destination instances and releases captured state on cache
+hit, success, and failure. Preparation cannot change the resolved writer path.
+The collision dictionary maps each resolved write path to its destination
+fingerprint and rejects a different fingerprint at that path. Manifest/cache
+matching uses both values; output formats and individual filenames are excluded
+from the destination fingerprint, and asset identity remains unchanged.
+
+Rowan's environment-chain decision is implemented: resolution captures and
+fingerprints the supported environment input values, requires one complete
+authentication method, and restricts DuckDB to `env`, `workload_identity`, or
+both in order. No CLI or managed-identity fallback is allowed. Token acquisition
+still happens during DuckDB execution; token-file contents and issued tokens
+are not fingerprinted. See [supported inputs](../../configuration.md#credential-chain-environment-inputs).
+
+Validation for this amendment: full offline suite **228 passed**; focused export
+type checks, touched-file lint, documentation links, and whitespace checks pass.
+Azure calls were mocked; no live credentials or customer systems were accessed.
+
 Model export writers as a narrow strategy boundary around the committed current
 table. Export formats and URI schemes should not leak back into asset identity
 or materialization state.
@@ -208,3 +235,48 @@ No complete-suite or live Azure result is claimed.
 Windows sandbox temporary-directory permissions prevented the first pytest run;
 the same targeted synthetic checks passed using the existing Poetry environment
 outside the sandbox. No credentials or live systems were accessed.
+
+## Destination refactor — 27 October 2026
+
+The destination refactor is complete and independently reviewed. Configuration
+accepts one `FileSystemDestination(base_uri, auth)` or a list; `[]` disables
+automatic exports without an error. Registered preparation and authentication
+are composed by the destination, which calls the shared DuckDB file writer.
+Earlier `ExportsConfig`/Azure configuration details in the dated implementation
+notes above are superseded by [current configuration](../../configuration.md#exports).
+
+Multi-destination formats, explicit exports, manifests, cache qualification,
+internal async provider substitution and cleanup are covered. The full offline
+suite passes 198 tests, focused Pyright has no errors, and lint/format/docs/diff
+checks pass. The paired reviewer reports no unresolved actionable in-scope
+findings. See [EXT-01 through EXT-04](06-extensibility-defects.md#ext-01-azure-authentication-strategy-registry)
+for implementation and validation evidence.
+
+This phase remains In Progress. Direct COPY still does not guarantee preservation
+of a prior artifact after a partial write, live Azure/ADLS verification remains
+outstanding, and the 13 unrelated repository type errors are unchanged.
+
+## Resolve/export checkpoint validation — 27 October 2026
+
+The local/SAS and generic explicit-input implementation is complete enough for
+review, but this feature is **not complete**. The user must choose native
+credential-chain behavior: reject it until full capture is supported, or explicitly
+accept configuration-only fingerprinting without native token-rotation detection.
+The working implementation currently raises an explicit pending-decision error for
+native fingerprints; this placeholder is not an approved final policy.
+
+- Full offline suite excluding native-related cases: **196 passed, 14 deselected**.
+- Focused type checks on changed source/tests: **0 errors**.
+- Ruff lint across source/tests: passed. Changed Python formatting: checked
+  separately; the broad check flags pre-existing formatting in untouched
+  `tests/test_azure_sas.py`.
+- Documentation link/anchor and whitespace checks: passed; terminology scan only
+  finds the two pre-existing historical references.
+- Paired review found and corrected cleanup on a rejected stale target and
+  captured authentication retained by caught exception frames. Regression tests
+  cover both, resolution failures, non-Azure inputs, cache/metadata, credential
+  rotation, single retrieval, interleaving and temporary-secret cleanup.
+
+All tests use synthetic credentials and local temporary DuckDB files. No live
+systems, credentials, commits or branch changes were used. Existing uncommitted
+work is preserved against the external baseline manifest.

@@ -377,12 +377,17 @@ gap and commission the smallest explicit adapter or dependency decision.
 
 ## Current Assquack and MAD.Prefect comparison
 
-The inspected [writer implementation](../../src/assquack/_exports/parquet.py)
+The source observations below describe the implementation at the date of this
+research. The old filenames are historical references. The 27 October refactor
+replaced them; see the [current source layout](../epics/01-mvp/06-extensibility-defects.md#agreed-export-source-layout)
+for the implemented ownership boundaries.
+
+The inspected writer implementation (`src/assquack/_exports/parquet.py`)
 already has a common `DuckDBExportWriter._copy` and subclasses whose differences
 are options: Parquet, CSV with a header, and JSON with `ARRAY false`.
-[Selection](../../src/assquack/_exports/writers.py) maps the three names to these
+Selection (`src/assquack/_exports/writers.py`) maps the three names to these
 classes. Destination routing still lives in that writer and permits local/Azure
-only. [Azure setup](../../src/assquack/_exports/azure.py) registers temporary
+only. Azure setup (`src/assquack/_exports/azure.py`) registers temporary
 credentials around COPY. Thus this research supports extracting destination
 lifecycle responsibility, not creating fifteen writer implementations.
 

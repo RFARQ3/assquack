@@ -111,14 +111,16 @@ class MetadataRepository:
         ).fetchall()
         return [row[0] for row in rows]
 
-    def has_export(self, run_id: str, resolved_uri: str) -> bool:
+    def has_export(
+        self, run_id: str, resolved_uri: str, destination_fingerprint: str
+    ) -> bool:
         row = self._connection.execute(
             """
             SELECT count(*)
             FROM assquack_meta.exports
-            WHERE run_id = ? AND resolved_uri = ?
+            WHERE run_id = ? AND resolved_uri = ? AND destination_fingerprint = ?
             """,
-            [run_id, resolved_uri],
+            [run_id, resolved_uri, destination_fingerprint],
         ).fetchone()
         return bool(row and row[0])
 
@@ -160,6 +162,7 @@ class MetadataRepository:
         alias: str | None,
         uri: str,
         resolved_uri: str,
+        destination_fingerprint: str,
         row_count: int,
         format_name: str = "parquet",
         role: str = "default",
@@ -169,9 +172,10 @@ class MetadataRepository:
             """
             INSERT INTO assquack_meta.exports (
                 export_id, run_id, asset_id, alias, uri, resolved_uri,
+                destination_fingerprint,
                 format, role, row_count, options_json, created_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp
             )
             """,
             [
@@ -181,6 +185,7 @@ class MetadataRepository:
                 alias,
                 uri,
                 resolved_uri,
+                destination_fingerprint,
                 format_name,
                 role,
                 row_count,

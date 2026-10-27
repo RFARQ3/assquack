@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import urlsplit
 
-from assquack._config import AssquackConfig
 from assquack._errors import ExportError
 from assquack._exports.models import ExportTarget
 
@@ -20,11 +19,9 @@ def parse_export_targets(
     export: str | Mapping[str, str],
     *,
     asset_name: str,
-    config: AssquackConfig,
+    base_uri: str,
 ) -> tuple[ExportTarget, ...]:
     """Expand one declaration, retaining its first format as the default output."""
-    if config.exports.options:
-        raise ExportError("Custom export options are not implemented.")
     explicit_format = None
     if isinstance(export, Mapping):
         alias = export.get("uri")
@@ -64,7 +61,7 @@ def parse_export_targets(
             raise ExportError(f"Unsupported export suffix: {suffix!r}.")
         stem = first[: -len(suffix)]
     else:
-        selected_format = explicit_format or config.exports.default_format
+        selected_format = explicit_format or "parquet"
         stem = first
     if explicit_format is not None and explicit_format != selected_format:
         raise ExportError("Explicit export format conflicts with the alias or suffix.")
@@ -80,13 +77,16 @@ def parse_export_targets(
         options = _FORMAT_OPTIONS[format_name].copy()
         if uri.startswith("mad://"):
             relative_path = uri.removeprefix("mad://").lstrip("/")
-        elif "://" in uri:
+        elif (
+            "://" in uri
+            or PurePosixPath(uri).is_absolute()
+            or PureWindowsPath(uri).is_absolute()
+        ):
             targets.append(ExportTarget(alias, uri, uri, format_name, role, options))
             continue
         else:
             relative_path = uri
 
-        base_uri = config.exports.base_uri or ""
         resolved = (
             f"{base_uri.rstrip('/')}/{relative_path}"
             if "://" in base_uri
@@ -98,28 +98,3 @@ def parse_export_targets(
             )
         )
     return tuple(targets)
-
-
-def parse_export_target(
-    export: str | Mapping[str, str],
-    *,
-    asset_name: str,
-    config: AssquackConfig,
-) -> ExportTarget:
-    targets = parse_export_targets(export, asset_name=asset_name, config=config)
-    if len(targets) != 1:
-        raise ExportError("This operation requires a single export target.")
-    return targets[0]
-
-
-def default_parquet_target(
-    path: str | None,
-    *,
-    asset_name: str,
-    config: AssquackConfig,
-) -> ExportTarget:
-    return parse_export_target(
-        {"uri": path or "parquet", "format": "parquet"},
-        asset_name=asset_name,
-        config=config,
-    )
