@@ -229,6 +229,17 @@ Connection setup should be deterministic:
 Exports are configured compatibility artifacts. They are not the source of truth
 for an asset; the current DuckDB table and Assquack system metadata are.
 
+**Planned configuration refactor (27 October 2026):** `AssquackConfig.exports`
+will accept one `ExportDestination` or a list, initially using
+`FileSystemDestination(base_uri, auth)`. An empty list means no automatic exports.
+Destination types and authentication methods remain extensible, including room
+for future database destinations; the filesystem adapter and writer remain
+DuckDB-only, without replacement selectors or registries. Credential providers
+retain an internal injection boundary for future multi-destination credential
+needs, with public injection deferred. See the
+[scope decision](journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026).
+The fields below describe the existing implementation until that refactor lands.
+
 Recommended export fields:
 
 - `enabled`: whether successful materializations write compatibility artifacts;

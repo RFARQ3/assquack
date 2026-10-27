@@ -71,4 +71,5 @@ the topic links that match the work in front of you.
   validation notes.
 - [8 September 2026 MVP scope journal](journal/2026-09-08-mvp-scope.md): huddle
   suggestions, Rowan's responses, the 21 October first-release scope, and later
-  amendments including the 26 October schema/mode and normalization review.
+  amendments including the 26 October schema/mode and normalization review and
+  the 27 October DuckDB-only export scope decision.

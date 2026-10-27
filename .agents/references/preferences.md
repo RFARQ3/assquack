@@ -16,6 +16,10 @@ across agent sessions.
 - Use DuckDB 1.5+ as the likely baseline because `VARIANT` is central to the
   design.
 - Treat exports as compatibility artifacts, not canonical storage.
+- Use DuckDB as the export filesystem adapter and writer; do not add replacement
+  registries or injection for other engines. Keep destination types and
+  authentication extensible. Retain internal credential-provider injection for
+  future multi-destination credential needs; public provider injection is deferred.
 
 ## Documentation Direction
 

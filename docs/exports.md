@@ -4,16 +4,20 @@ Assquack stores asset state in DuckDB tables first. Exports are compatibility
 artifacts for lake readers, legacy consumers, recovery workflows, and manual
 inspection. They are not the source of truth for an asset.
 
-**Agreed refactor direction, 26 October 2026 (not yet implemented):** expose
+**Agreed refactor direction, 27 October 2026 (not yet implemented):** expose
 `FileSystemDestination(base_uri, auth)` under a general `ExportDestination`
 contract. Compose one DuckDB filesystem adapter, registered local/Azure
 preparation strategies, compatible authentication and a shared DuckDB writer.
-Writer and adapter are replaceable internally but fixed to DuckDB in MVP; there
-are no public writer/adapter selectors. Formats remain asset-declaration choices.
-Credential sourcing retains the environment default, with a non-public entry
-point for future direct provider injection. No credential-provider registry,
-public provider setting or additional provider integration is included.
-See the [scope decision](journal/2026-09-08-mvp-scope.md#agreed-filesystem-destination-pattern-26-october-2026)
+DuckDB is the filesystem adapter and writer; neither has replacement registries
+or injection points. Filesystem support follows DuckDB's core and community
+extensions, with local and Azure support in MVP. Formats remain asset-declaration
+choices. Destination types remain extensible for a future `DatabaseDestination`
+with connection/table settings, and authentication methods remain extensible.
+Credential sourcing retains the environment default and an internal provider
+injection boundary: future multi-destination exports may need credentials from
+different sources. Public provider injection is deferred; per-destination
+credential selection still needs design. No new provider integration is included.
+See the [scope decision](journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026)
 for the proposed API and ownership boundaries. Existing configuration examples
 below describe the current implementation until that refactor is delivered.
 

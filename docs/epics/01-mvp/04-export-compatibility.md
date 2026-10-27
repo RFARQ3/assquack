@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-10-23
+Last updated: 2026-10-27
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -192,8 +192,10 @@ exercise nulls, Unicode, quoted multiline text and empty tables, and intercept
 Azure COPY/secret setup without contacting Azure. Custom options are rejected;
 `export_parquet()` remains a single-format convenience API.
 
-Writer registration, destination/authentication registries, staged publication,
-and live Azure verification remain separate work. The phase remains In Progress.
+The [27 October scope decision](../../journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026)
+drops writer/adapter replacement registration. Destination composition,
+authentication extensibility, staged publication and live Azure verification
+remain separate work. The phase remains In Progress.
 Validation: 96 targeted offline tests passed across `test_pipe_exports.py`,
 `test_exports.py`, `test_cache.py`, `test_azure_exports.py` and `test_azure_sas.py`.
 Targeted Ruff lint/format and Pyright checks passed (zero type errors), as did the

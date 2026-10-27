@@ -32,8 +32,9 @@ Use this reference for implementation work once the Python package exists.
 - Do not use patterns as decoration. If a plain function or small dataclass is
   easier to understand and change, use that.
 - Keep extension points explicit at boundaries: asset decorators, config
-  loading, storage transactions, schema inference policy, export writers, and
-  optional adapters.
+  loading, storage transactions, schema inference policy, export destination types and authentication. Export
+  filesystem adapters and writers are DuckDB-only implementation responsibilities,
+  not replacement extension points.
 
 ## Code Like Prose
 

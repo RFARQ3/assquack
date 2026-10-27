@@ -1,7 +1,7 @@
 # MVP Extensibility Defects
 
 Status: **In Progress**
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 Epic: 01 MVP
 Phase: 06
 Related docs: [Scope journal](../../journal/2026-09-08-mvp-scope.md), [Roadmap](../../roadmap.md), [Export compatibility](04-export-compatibility.md)
@@ -41,34 +41,35 @@ feature will require zero core changes.
 
 ## Work register
 
-### Agreed export design — 26 October 2026
+### Agreed export design — 27 October 2026
 
-The [scope decision](../../journal/2026-09-08-mvp-scope.md#agreed-filesystem-destination-pattern-26-october-2026)
-now establishes `FileSystemDestination(base_uri, auth)` implementing the broader
-`ExportDestination` contract. One internal DuckDB filesystem adapter composes
-registered local/Azure preparation strategies with compatible authentication;
-the separate DuckDB writer performs shared COPY. Preparation classes remain
-small and retain explicit ownership rather than duplicating DuckDB internals.
+The [scope decision](../../journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026)
+retains `FileSystemDestination(base_uri, auth)` under `ExportDestination`, leaving
+room for future database destinations. DuckDB is the filesystem adapter and
+writer. Separate preparation, authentication and COPY responsibilities remain
+useful, as do `filesystem_adapter/` and `writer/` directories; interchangeable
+adapter/writer registries and injection are deliberately out of scope.
 
-Writer and filesystem adapter are replaceable internally, but DuckDB is the only
-MVP implementation and neither is publicly configurable. Future public selection
-is deliberately left open. For EXT-03/04, demonstrate internal substitution via
-the registry/construction boundary without monkeypatching or changing the shared
-export flow; do not require a public alternative-writer/adapter setting to close
-that agreed slice. Formats are selected from asset declarations, independently
-of destination configuration. Database destinations remain a future extension
-of the parent contract, not a filesystem-adapter implementation.
+The broader design received detailed consideration and is preserved in commit
+`8bacb3d`. It was reduced because replacement machinery overcomplicates the
+product and conflicts with its DuckDB-native goal. The general substitution
+acceptance rule above does not apply to writers or filesystem adapters.
 
-This records direction only: the findings remain open pending implementation
-and verification. REL-01 publication safety remains separate required work;
-direct Azure COPY is not made failure-preserving by the preparation refactor.
-See the [source research](../../research/2026-10-26-duckdb-filesystem-preparation.md)
-for verified setup differences and the unresolved ADLS parent behavior.
+Authentication methods remain extensible. Internal credential-provider injection
+remains to support future multi-destination exports whose credentials may come
+from different sources. Public provider configuration is deferred; providers do
+not settle per-destination credential selection on their own.
+
+This records direction only; implementation and verification remain outstanding.
+REL-01 publication safety remains separate required work. See the
+[source research](../../research/2026-10-26-duckdb-filesystem-preparation.md)
+for setup differences and the unresolved ADLS parent behavior.
 
 Pipe-format implementation is assigned to the visible implementation chat, with
 independent review in the visible review chat. This slice covers built-in formats,
 target expansion, truthful manifests and all-target cache qualification. Broader
-writer registration and destination/authentication registries remain open.
+destination composition and authentication extensibility remain open; writer
+registration is no longer required.
 Priorities below are review recommendations, not a revised approved release scope.
 
 | ID | Finding | Disposition | Status |
@@ -76,7 +77,7 @@ Priorities below are review recommendations, not a revised approved release scop
 | EXT-01 | Azure authentication selection is hardcoded | Proposed pre-release repair | Open |
 | EXT-02 | Export credential-provider injection boundary | Internal entry point agreed; public injection and new providers deferred | Open |
 | EXT-03 | Parquet writing owns destination routing | Proposed pre-release repair | Open |
-| EXT-04 | Export format selection and metadata are hardcoded | Proposed pre-release repair | Open |
+| EXT-04 | Export format selection and metadata are hardcoded | Built-in formats implemented; shared DuckDB writing refactor pending; writer registration dropped | Open |
 | EXT-05 | Schema strategy selection and context are insufficient | Internal registry and argument-free resolution implemented | Complete |
 | EXT-06 | Materialization mode does not reach execution or metadata | Internal registry and mode propagation implemented | Complete |
 | EXT-07 | Input support gaps and normalization design | Missing features separated from proposed refactor; writing path undecided | Open |
@@ -125,6 +126,11 @@ Implementations fetching Prefect blocks, vaults or other new sources are deferre
 Future downstream providers can implement the contract themselves without being
 registered or included in the core package. Authentication and destination
 strategy registries remain separate and unchanged by this decision.
+
+**Retention rationale, 27 October:** future exports to multiple destinations may
+need different credentials or credential sources. Keep the internal provider
+boundary for that need, with public injection deferred; per-destination provider
+selection remains to be resolved.
 
 **Revised outcome and acceptance:**
 
@@ -177,19 +183,19 @@ not make another format usable or accurately recorded.
 
 **Proposed outcome and acceptance:**
 
-- Resolve writers by format and carry the actual format/options through target
-  resolution, execution and successful manifest recording.
+- Use shared DuckDB writing with format-specific options and carry the actual
+  format/options through target resolution, execution and manifest recording.
+  Do not introduce writer or filesystem-adapter replacement registries.
 - Share selection behavior between automatic and explicit exports.
 - Support the pipe-separated formats required by Rowan on 23 October: expand
-  declarations into targets before writer/destination selection, using the same
+  declarations into targets before destination execution, using the same
   committed table for all outputs. Cover path and type-only forms, manifest
   records for each successful output and failure partway through the output list.
-- Demonstrate a synthetic second writer without changing either execution path;
-  assert accurate manifest data and no success manifest after writer failure.
+- Verify accurate manifest data and no success manifest after DuckDB write
+  failure through both execution paths; no synthetic alternative writer is needed.
 - Preserve the existing Parquet convenience API. Rowan confirmed on 23 October
-  that Parquet, CSV and JSON must all ship in MVP. Prove extension separately with
-  a synthetic writer; implementing only the three built-ins does not prove that
-  another writer can be registered.
+  that Parquet, CSV and JSON must all ship in MVP. Alternative writer registration
+  is deliberately excluded by the 27 October scope decision.
 
 ### Implemented pipe-format slice — 23 October 2026
 
@@ -200,8 +206,9 @@ requested resolved targets on the same run. Malformed declarations fail before
 extraction, and a failure partway through exports keeps only completed manifests.
 Automatic and explicit Parquet exports share writer selection.
 
-This implements the built-in-format portion of EXT-04 and REL-02. Registration of
-an additional writer remains unimplemented, so EXT-04 stays open. Custom export
+This implements the built-in-format portion of EXT-04 and REL-02. The 27 October
+scope decision drops additional-writer registration; EXT-04 remains open for the
+shared DuckDB writing refactor and verification under that revised scope. Custom export
 options are now rejected; snapshot settings and the remaining REL-02 contract
 work are unchanged. REL-01 staged publication and all destination/authentication
 registry work remain open. See the [export phase](04-export-compatibility.md#pipe-formats-implementation-23-october-2026)
