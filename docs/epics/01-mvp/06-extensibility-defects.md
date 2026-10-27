@@ -87,46 +87,6 @@ Priorities below are review recommendations, not a revised approved release scop
 | REL-02 | Public export settings/types exceed implemented behavior | Contract reconciliation required | Open |
 | REL-03 | Release validation evidence is incomplete | Existing release acceptance work | Open |
 
-## Resolved destination fingerprint follow-up
-
-**Agreed 27 October 2026. Status: Planned; not implemented.** The phase remains
-In Progress. Earlier refactor completion and review evidence do not cover this
-subsequently agreed change. This follow-up concerns resolved export identity,
-not asset identity or additional destination implementations.
-
-- Make resolution produce an operation-scoped export plan containing the resolved
-  target, preparation strategy, authenticator and its required credential inputs.
-  Authenticators identify their requirements; resolve actual provider/environment
-  values once rather than recording only variable names or authentication labels.
-- Produce a deterministic fingerprint from the resolved destination configuration
-  and inputs using a destination-independent representation. Stable ordering,
-  value normalization and fingerprint versioning must be defined so equivalent
-  inputs produce the same fingerprint across runs. Do not use random GUIDs,
-  process-randomized hashes or an Azure-specific account/container/path contract.
-- Protect credential-derived fingerprint inputs; never persist or log raw
-  credentials, reversible encodings, or the private resolved plan. Choose secure
-  fingerprint construction before implementation rather than treating plain
-  serialization as protection. Keep the resulting identity stable across runs.
-- Store the destination fingerprint alongside the output path in successful export
-  metadata; require both when qualifying export cache records. Different resolved
-  inputs must not reuse another destination's export record. The asset ID remains
-  unchanged. Changed credentials intentionally change the fingerprint and require
-  a fresh export; that behavior is accepted, not a defect.
-- Execute the same resolved plan after a cache miss. Do not retrieve credentials
-  or reselect preparation/authentication during export. Keep extension loading,
-  temporary-secret application and writing in execution rather than identity
-  resolution. Preserve preparation and authentication registry composition.
-- Keep credentials off reusable config/destination state. Release plan-owned
-  credential references on cache hit, success and failure, and clean up any
-  temporary authentication resources created during execution.
-- Verify determinism, different resolved inputs at the same path, credential
-  rotation, unchanged asset identity, one credential retrieval per operation,
-  cleanup and absence of credential values in persisted metadata using synthetic
-  offline fixtures. Include a non-Azure case to verify the shared mechanism.
-
-See [export semantics](../../exports.md#resolved-destination-fingerprints) and the
-[decision record](../../journal/2026-09-08-mvp-scope.md#deterministic-export-destination-fingerprints-27-october-2026).
-
 ## EXT-01: Azure authentication strategy registry
 
 **Evidence:** [azure.py](../../../src/assquack/_exports/azure.py) defines

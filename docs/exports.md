@@ -296,34 +296,6 @@ exported to Parquet according to DuckDB's Parquet support. JSON text retention
 through `_qa_raw_json` remains an explicit audit choice, not the default export
 or storage model.
 
-## Resolved destination fingerprints
-
-**Agreed direction, 27 October 2026; not yet implemented.** Export cache matching
-will use a deterministic destination fingerprint together with the output path.
-The fingerprint represents the fully resolved destination configuration, including
-its preparation strategy, authentication method and actual authentication inputs
-retrieved from credential providers or environment variables. Environment-variable
-names alone are insufficient when their resolved values differ between runs.
-
-This is a destination-independent mechanism, not an Azure URI identity rule.
-Different resolved credentials or destination settings produce a different
-fingerprint. Credential rotation intentionally requires a fresh export even when
-the physical output path stays the same. It changes the export destination's
-identity, never the canonical asset ID.
-
-Resolution retrieves the required inputs once and produces an operation-scoped
-plan. Cache qualification uses its fingerprint and output path; export executes
-that same plan without retrieving credentials or selecting strategies again.
-Persist only the fingerprint and output path in export metadata, never credential
-values or a serialized copy of the private plan. Retained credentials must stay
-private and redacted and be released on cache hit, success or failure.
-
-The fingerprint is a stable comparison value, not a randomly generated GUID.
-Secure fingerprint construction and canonical serialization are implementation
-requirements; plain serialization or encoding does not protect credential values.
-See the [implementation acceptance](epics/01-mvp/06-extensibility-defects.md#resolved-destination-fingerprint-follow-up)
-and [decision record](journal/2026-09-08-mvp-scope.md#deterministic-export-destination-fingerprints-27-october-2026).
-
 ## Export Manifest
 
 Every successful export should be recorded in `assquack_meta.exports`. The manifest
