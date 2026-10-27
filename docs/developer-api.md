@@ -26,17 +26,22 @@ changing asset definitions.
 `@asset` decorates a Python function and returns an `AssquackAsset` definition.
 Calling the asset materializes it and returns an `AssquackResult`.
 
+**Agreed 27 October 2026; implementation pending:** the table-first signature
+below supersedes the current positional-export implementation. See the
+[decision record](journal/2026-09-08-mvp-scope.md#table-first-decorator-decision-27-october-2026).
+
 Minimal shape:
 
 ```python
-@asset("bronze/orders.parquet")
+@asset("sales.orders")
 async def orders():
     ...
 ```
 
-The first positional argument is optional and, when present, is an export alias.
-It is not the DuckDB database path and does not control where the mutable
-`.duckdb` file lives.
+The first positional argument is the DuckDB schema/table name. It can instead be
+written explicitly as `table="sales.orders"`. The remaining arguments are
+keyword-only, ordered `mode`, `name`, then optional `export`. Database-file
+placement remains configuration-level. Omitting table retains existing inference.
 
 Typed contract shape:
 
@@ -53,11 +58,11 @@ class ExportSpec(TypedDict):
     format: ExportFormat
 
 asset(
-    export: str | ExportSpec | None = None,
-    *,
-    name: str | None = None,
     table: str | None = None,
+    *,
     mode: AssetMode = "replace",
+    name: str | None = None,
+    export: str | ExportSpec | None = None,
 )
 ```
 
@@ -66,22 +71,17 @@ placement must remain configuration-level rather than a decorator argument.
 
 ## Export Aliases
 
-The positional string and the `export=` keyword describe the same export target.
-These two forms are equivalent:
+Export declarations use the keyword-only `export=` argument, after `name`.
+For example:
 
 ```python
-@asset("bronze/orders.parquet")
-@asset(export="bronze/orders.parquet")
+@asset("sales.orders", export="sales/orders.parquet")
+@asset(table="sales.orders", export="sales/orders.parquet")
 ```
 
-A path-like export alias resolves to a configured export URI. For legacy
-compatibility, a plain relative path conventionally maps to `mad://...`; for
-example, `bronze/orders.parquet` resolves as if the developer had written
-`mad://bronze/orders.parquet`.
-
-`export=` should be used when readability matters or when no positional
-argument is desired. It must not conflict with a positional export alias. If
-both are supplied, the implementation should reject ambiguous input.
+These two declarations are equivalent. With `export` omitted, the asset has no
+automatic export declaration. Relative export paths retain `mad://` alias
+resolution; that behavior does not make them positional decorator arguments.
 
 ## File Type Aliases
 

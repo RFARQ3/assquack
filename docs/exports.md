@@ -40,32 +40,24 @@ flowchart LR
 
 ## Export Aliases
 
-The public `@asset` decorator keeps the legacy path-first ergonomics. The first
-positional string argument is an export alias, not the internal storage path.
+**Decorator decision, 27 October 2026; implementation pending:** the first
+argument identifies the DuckDB table. The optional export declaration is supplied
+with `export=`, last after `mode` and `name`. See the
+[table-first decision](journal/2026-09-08-mvp-scope.md#table-first-decorator-decision-27-october-2026).
 
 ```python
 from assquack import asset
 
 
-@asset("bronze/orders.parquet")
+@asset(table="bronze.orders", export="bronze/orders.parquet")
 def orders():
     return rows
 ```
 
-The example above resolves as if it had been written:
-
-```python
-@asset(export="mad://bronze/orders.parquet")
-def orders():
-    return rows
-```
-
-The positional path does not choose the DuckDB database file, schema, or table.
-Those are derived from Assquack configuration, the asset name, the optional
-`table=` override, and bound arguments. The declared path may seed the default
-logical asset name when `name=` is omitted, but the resolved export destination
-only describes the compatibility artifact written after a successful
-materialization.
+`export="bronze/orders.parquet"` retains its logical alias interpretation as
+`mad://bronze/orders.parquet`. It specifies a secondary output, not the primary
+DuckDB table or database file. Historical positional-export examples below
+describe the current implementation until the new decorator signature lands.
 
 ## Target Resolution
 

@@ -1,36 +1,34 @@
 # Assquack Developer Examples
 
-Assquack should feel like simple Python data assets first and DuckDB storage
-machinery second. The common case is a single decorator argument and a function.
+The examples below follow the [table-first decision](journal/2026-09-08-mvp-scope.md#table-first-decorator-decision-27-october-2026),
+agreed on 27 October 2026. The decorator signature change is not implemented yet;
+the existing code still treats a positional string as an export declaration.
 
-## Legacy-Style Asset
+## Table-first asset
 
 ```python
 from assquack import asset
 
 
-@asset("this/is/a/legacy/asset.parquet")
-def legacy_asset():
-    return [{"id": 1, "value": "hello"}]
+@asset(
+    table="sales.orders",
+    mode="replace",
+    name="sales_orders",
+    export="sales/orders.parquet",
+)
+def orders():
+    return [{"order_id": 1, "amount": 125.0}]
 ```
 
-The positional string is an export alias. The example above is equivalent to:
-
-```python
-@asset(export="mad://this/is/a/legacy/asset.parquet")
-def legacy_asset():
-    return [{"id": 1, "value": "hello"}]
-```
-
-Assquack infers the internal table, asset name, and materialization mode from
-convention. The default mode is `replace`.
+The table may also be positional: `@asset("sales.orders")`. Omitting `export`
+leaves a DuckDB-only asset. Keyword arguments make each setting explicit.
 
 ## Zero-Configuration Local Storage
 
 Calling an asset requires no database configuration during local development:
 
 ```python
-result = await legacy_asset()
+result = await orders()
 ```
 
 Assquack uses the current working directory as its default home and creates the
@@ -42,12 +40,12 @@ DuckDB database at `./dev/assquack.duckdb`. `ASSQUACK_HOME` or
 The export target can be a path or a file type alias.
 
 ```python
-@asset("bronze/orders.parquet")
+@asset(table="bronze.orders", export="bronze/orders.parquet")
 def orders():
     return rows
 
 
-@asset("bronze/orders.parquet|json")
+@asset(table="bronze.orders", export="bronze/orders.parquet|json")
 def orders_with_legacy_json_export():
     return rows
 
@@ -68,8 +66,8 @@ Names, tables, and modes are escape hatches. They are optional. In the MVP,
 
 ```python
 @asset(
-    "bronze/salesforce/opportunities.parquet",
     table="bronze.salesforce_opportunities",
+    export="bronze/salesforce/opportunities.parquet",
 )
 async def opportunities(customer: str):
     yield rows
@@ -96,7 +94,7 @@ rows = await acme_orders.query("SELECT * FROM data WHERE amount > 100")
 ## Semi-Structured Payloads
 
 ```python
-@asset("raw/vendor/events.parquet")
+@asset(table="raw.events", export="raw/vendor/events.parquet")
 async def vendor_events():
     yield api_pages()
 ```

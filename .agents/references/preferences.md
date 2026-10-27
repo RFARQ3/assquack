@@ -8,8 +8,10 @@ across agent sessions.
 - Assquack is standalone and framework-agnostic.
 - MAD.Prefect is reference material only. Optional adapters may depend on
   Assquack; Assquack must not depend on them.
-- Keep the developer API simple and path-first:
-  `@asset("this/is/an/export.parquet")`.
+- The agreed decorator order is `table`, `mode`, `name`, then optional `export`.
+  Accept the table positionally (`@asset("sales.orders")`) or by `table=`; keep
+  other arguments keyword-only. Export paths must not be positional. This
+  27 October decision supersedes path-first guidance; implementation is pending.
 - Keep `name`, `table`, and `mode` optional.
 - Do not reintroduce `database_scope` or database placement as public asset
   decorator arguments.

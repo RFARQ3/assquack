@@ -46,11 +46,10 @@ function, not a deployment object. Assquack should support sync and async
 producers, broad batch input types, queryable results, and cache checks without
 requiring an orchestrator-specific runtime.
 
-**Path-first convention.** The default authoring shape is path-first: a single
-positional string acts as an export alias, while Assquack infers the asset name,
-internal table, and default materialization mode. Overrides such as `name`,
-`table`, and `mode` are escape hatches. Database placement belongs to Assquack
-configuration, not per-asset decorators.
+**Table-first convention (agreed 27 October; implementation pending).** The
+argument order is `table`, `mode`, `name`, then optional keyword-only `export`.
+The table accepts either positional or keyword syntax. Database placement remains
+configuration-level. See the [developer contract](developer-api.md#asset).
 
 **DuckDB-native storage.** DuckDB is the storage and query engine, not just a
 merge step over temporary files. Asset state lives in DuckDB tables, run history
@@ -74,7 +73,7 @@ Initial scope should focus on:
 
 - core package and configuration primitives;
 - DuckDB connection, locking, transactions, and metadata tables;
-- `@asset` with path-first export aliases;
+- `@asset` with a table-first contract and optional keyword export aliases;
 - bounded local NDJSON evidence and shaped candidate tables;
 - conservative schema observation across runs;
 - transactional replacement of the current table;
