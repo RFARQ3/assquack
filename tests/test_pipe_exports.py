@@ -142,12 +142,12 @@ def test_actual_formats_contents_manifests_and_cache(
     cached = asyncio.run(orders.cache_first()(assquack_config=config))
     assert cached.cached and cached.run_id == result.run_id and calls == 1
 
-    # A missing secondary manifest must prevent a cache hit, even when the file remains.
+    # A missing secondary manifest requires only that output to be retried.
     with duckdb.connect(str(config.resolved_database_path)) as db:
         db.execute("DELETE FROM assquack_meta.exports WHERE format = 'json'")
     refreshed = asyncio.run(orders.cache_first()(assquack_config=config))
-    assert not refreshed.cached and calls == 2
-    assert refreshed.run_id != result.run_id
+    assert refreshed.cached and calls == 1
+    assert refreshed.run_id == result.run_id
 
 
 @pytest.mark.parametrize("failure_format", ["csv", "json"])
@@ -192,7 +192,7 @@ def test_partial_failure_keeps_only_completed_manifests_and_retries(
     assert not (Path(str(tmp_path / "exports")) / "orders.json").exists()
     monkeypatch.setattr(DuckDBFileWriter, "write", original)
     retry = asyncio.run(orders.cache_first()(assquack_config=config))
-    assert not retry.cached and calls == 2
+    assert retry.cached and calls == 1
     assert asyncio.run(orders.cache_first()(assquack_config=config)).cached
 
 

@@ -54,7 +54,11 @@ def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) 
             [str(tmp_path / "b/orders.csv")],
         )
     result = asyncio.run(orders.cache_first()(assquack_config=config))
-    assert not result.cached and calls == 2
+    assert result.cached and calls == 1
+    with duckdb.connect(str(config.resolved_database_path)) as db:
+        assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
+            6,
+        )
     assert result.export_parquet("manual.parquet") == [
         str(tmp_path / name / "manual.parquet") for name in ("a", "b")
     ]

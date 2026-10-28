@@ -50,12 +50,11 @@ filesystem as the exported result. Switching to a destination without that
 metadata produces a cache miss. In Assquack, the existing DuckDB metadata remains
 available, so it must explicitly identify the destinations already written to.
 
-The agreed cache behavior keeps materialization validity separate from export
+Cache behavior keeps materialization validity separate from export
 completion: while the DuckDB table remains within its cache period, a missing or
 failed export, or a changed destination fingerprint, requires exporting that
 table without rematerializing it. Exporting does not restart the materialization
-cache period. This records the intended behavior; separating those cache
-decisions remains implementation work.
+cache period.
 
 One fingerprint describes the resolved destination configuration, including its
 base, selected preparation and authentication, and captured authentication inputs.
@@ -361,10 +360,14 @@ the default local base as described in [Configuration](configuration.md#exports)
 Outputs are written in that order. If one fails, the call raises and
 stops exporting. Earlier completed outputs and their manifests remain; the failed
 and unattempted outputs receive no success manifest. The committed table and its
-successful run remain queryable. A cache-first call requires manifests for every
-requested resolved URI and destination fingerprint on the latest successful run. A partial set forces a fresh
-extraction and export attempt. It does not combine outputs across run IDs or
-check whether exported files have since been deleted.
+successful run remain queryable. Within its TTL, a cache-first call reuses that
+materialization and writes only outputs lacking a manifest for its run ID,
+resolved URI and destination fingerprint. Successful partial outputs are skipped;
+retry failures still raise. The original run ID and publication timestamp remain
+unchanged, so retries do not restart TTL. Expired or missing tables materialize
+again. Uncached calls still materialize and export every requested output.
+Assquack does not combine outputs across run IDs or check whether exported files
+have since been deleted.
 
 The export manifest is append-oriented per run. A later successful run may write
 the same logical target and add a new manifest row. Consumers that need the

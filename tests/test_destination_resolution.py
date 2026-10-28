@@ -140,9 +140,10 @@ def test_fingerprint_cache_matching_preserves_asset_identity(tmp_path, monkeypat
     cached = asyncio.run(orders.cache_first()(assquack_config=config))
     provider.token = "sig=synthetic-rotated"
     changed = asyncio.run(orders.cache_first()(assquack_config=config))
-    assert cached.cached and not changed.cached
+    assert cached.cached and changed.cached
+    assert first.run_id == changed.run_id
     assert first.asset_id == changed.asset_id
-    assert len(extractions) == 2 and provider.loads == 3
+    assert len(extractions) == 1 and provider.loads == 3
     assert all(item._resolved is None for item in captured)
     assert destination._resolved is None
     with duckdb.connect(str(config.resolved_database_path)) as connection:

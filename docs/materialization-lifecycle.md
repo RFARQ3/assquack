@@ -10,7 +10,9 @@ exports happen afterwards.
 ```mermaid
 flowchart LR
   Resolve[Resolve identity and config] --> Cache[Check cache metadata]
-  Cache --> Run[Create run record]
+  Cache -->|Miss or expired| Run[Create run record]
+  Cache -->|Valid table| Retry[Write missing exports]
+  Retry --> Result
   Run --> Capture[Write local NDJSON fragments]
   Capture --> Infer[Infer current-run schema]
   Infer --> Candidate[Build candidate table]
@@ -21,7 +23,8 @@ flowchart LR
 
 1. Resolve the asset identity, table, export target, and runtime configuration;
    select the commit strategy using the declared mode.
-2. Return the current table immediately when `cache_first()` finds a valid run.
+2. When `cache_first()` finds a valid run, write only missing exports for that
+   run/path/fingerprint, then return the cached table without renewing its TTL.
 3. Create a `running` metadata record.
 4. Normalize returned or yielded values in bounded memory chunks.
 5. Write rows into size-controlled local NDJSON fragments.
