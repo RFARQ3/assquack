@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -201,7 +201,7 @@ Azure authentication or write test.
   suite, commit or push. Native SDK syntax was checked against upstream source;
   installed DuckDB remains 1.5.2 without its Azure extension, so real SAS/identity
   authentication and Azure writes are unverified. Phase remains **In Progress**
-  for the broader export work, including partial remote-write preservation.
+  for the broader export verification work.
 
 
 ## Pipe formats implementation — 23 October 2026
@@ -221,7 +221,7 @@ Azure COPY/secret setup without contacting Azure. Custom options are rejected;
 
 The [27 October scope decision](../../journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026)
 drops writer/adapter replacement registration. Destination composition,
-authentication extensibility, staged publication and live Azure verification
+authentication extensibility and live Azure verification
 remain separate work. The phase remains In Progress.
 Validation: 96 targeted offline tests passed across `test_pipe_exports.py`,
 `test_exports.py`, `test_cache.py`, `test_azure_exports.py` and `test_azure_sas.py`.
@@ -252,9 +252,24 @@ checks pass. The paired reviewer reports no unresolved actionable in-scope
 findings. See [EXT-01 through EXT-04](06-extensibility-defects.md#ext-01-azure-authentication-strategy-registry)
 for implementation and validation evidence.
 
-This phase remains In Progress. Direct COPY still does not guarantee preservation
-of a prior artifact after a partial write, live Azure/ADLS verification remains
-outstanding, and the 13 unrelated repository type errors are unchanged.
+This phase remains In Progress. Live Azure/ADLS verification remains outstanding,
+and the 13 unrelated repository type errors reported at this checkpoint are unchanged.
+
+### Temporary export files — 28 October 2026
+
+The shared writer now explicitly sets `USE_TMP_FILE true` for Parquet, CSV and
+JSON exports. DuckDB writes a temporary file before replacing the destination
+after successful completion. This makes the intended behavior explicit rather
+than relying on `auto`. The earlier claim that direct COPY lacked this protection
+was unsupported and is withdrawn; it is not an outstanding implementation defect.
+No separate staging/promotion system is required. See [Exports](../../exports.md)
+for the filesystem-dependent replacement contract.
+
+Validation for this change: focused Ruff, Markdown links and whitespace checks
+passed. The focused export test run reached 5 passing tests, with 48 setup errors
+from temporary-directory permissions. An unsandboxed retry was blocked by
+automatic approval review. Scoped Pyright could not resolve the installed DuckDB
+import with its selected interpreter. No live storage checks were performed.
 
 ## Resolve/export checkpoint validation — 27 October 2026
 

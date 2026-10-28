@@ -19,6 +19,11 @@ once, and retains the resolved configuration privately for the operation.
 `export()` uses those selections and calls `DuckDBFileWriter` directly. Preparation
 sets up the connection and authentication; it cannot replace the resolved path.
 
+Exports explicitly set DuckDB `USE_TMP_FILE true`: write a temporary file before
+replacing the destination after a successful write. DuckDB owns this operation;
+Assquack does not add a separate staging/promotion layer. Replacement atomicity
+depends on the destination filesystem's rename behavior.
+
 ```mermaid
 flowchart LR
   Declaration[Export declaration] --> Resolve[Destination resolve]

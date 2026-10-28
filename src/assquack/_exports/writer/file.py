@@ -30,6 +30,6 @@ class DuckDBFileWriter:
             raise ExportError("Custom export options are not implemented.")
         table = quote_table(source.schema_name, source.table_name)
         connection.execute(
-            f"COPY (SELECT * FROM {table}) TO $uri ({options})",
+            f"COPY (SELECT * FROM {table}) TO $uri ({options}, USE_TMP_FILE true)",
             {"uri": uri},
         )
