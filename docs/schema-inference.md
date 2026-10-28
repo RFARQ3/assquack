@@ -29,6 +29,8 @@ override to apply configuration to an individual asset. See
 [Configuration](configuration.md#replacement-schema) for an example.
 
 - New source fields appear in the next published table.
+- `_qa_run_id` and `_qa_loaded_at` are reserved: publication generates them for
+  the current run, including when the input is another materialized result.
 - Fields absent from the entire current extraction disappear.
 - Types are inferred afresh, including nested objects and arrays.
 - An empty extraction publishes zero rows with only `_qa_run_id` and

@@ -212,15 +212,19 @@ depend on a particular orchestration framework.
 
 ## Accepted Inputs
 
-Asset functions may return or yield batches. Supported inputs should remain
-broad and framework-agnostic:
+Asset functions may return or yield batches. Supported inputs are:
 
 - Python mappings and lists of mappings;
 - sync and async iterables;
 - pandas DataFrames;
 - Arrow Tables and RecordBatches;
 - DuckDB relations;
-- `httpx.Response` values.
+- `AssquackResult` table references and `AssquackAsset` definitions.
+
+Asset authors must decode HTTP responses before returning their JSON data.
+Results read their materialized table directly; assets execute with their normal
+cache preference and the calling asset's configuration. Mixed sync/async yields
+are supported, and empty inputs produce no fragments.
 
 Assquack treats these values as observed data for the current run. The
 materializer normalizes them into local NDJSON fragments, uses DuckDB's native

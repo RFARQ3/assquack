@@ -26,7 +26,7 @@ flowchart LR
 2. When `cache_first()` finds a valid run, write only missing exports for that
    run/path/fingerprint, then return the cached table without renewing its TTL.
 3. Create a `running` metadata record.
-4. Normalize returned or yielded values in bounded memory chunks.
+4. Dispatch returned or yielded values to the Python or native relation writer.
 5. Write rows into size-controlled local NDJSON fragments.
 6. Complete each fragment through an atomic rename, then mark the run directory
    complete after capture succeeds.
@@ -73,17 +73,45 @@ the database.
 ## Fragment Capture
 
 `AssquackConfig.ingestion.fragment_target_mb` controls the target byte size of
-each fragment independently of `chunk_size`, which bounds in-memory normalization.
-One chunk can contribute to a fragment, and a large chunk can span fragments.
-The writer counts serialized UTF-8 bytes including each newline, then completes
+each fragment. Python inputs stream one record at a time; `chunk_size` does not
+control capture or fragment boundaries.
+The Python writer counts serialized UTF-8 bytes including each newline, then completes
 the fragment after a whole record reaches or exceeds the target. Oversized
 records stay intact; capture never creates an empty trailing fragment. See
 [Configuration](configuration.md#local-ingestion-fragments) for units and defaults.
+
+The shared Python byte writer accepts mappings and iterables of mappings directly.
+DuckDB relations use native `COPY`; pandas DataFrames, Arrow Tables and Arrow
+RecordBatches first become relations and use that same writer. COPY size targets
+are approximate and may be substantially exceeded. Optional pandas and Arrow
+libraries are needed only when supplying their corresponding objects.
+
+Sync and async iterables dispatch each yielded item through its matching route,
+including mixed batches. An `AssquackResult` reads its materialized table without
+cache lookup or reexecution. An `AssquackAsset` executes normally (including its
+cache preference), then follows the result route using the caller's configuration.
+Asset authors decode HTTP responses themselves; direct response handling is not
+supported. This 29 October approval supersedes earlier HTTP support and pending
+pandas/Arrow routing notes in the [writer decisions](journal/2026-09-08-mvp-scope.md#fragment-writer-decisions-28-october-2026).
+
+Direct nested asset execution in the same async task shares the existing database
+writer lock. Other tasks and processes still wait. Nested runs retain independent
+run records; recovery excludes active runs, and only the outer call releases the
+lock. A dependency awaited through a separate task cannot share that lock.
 
 A fragment is first written with a `.partial` suffix. Assquack flushes and
 renames it to `.ndjson` only when that fragment is complete. DuckDB receives an
 explicit list of completed fragments; partial files are never inference input.
 The run directory receives `_COMPLETE` only after source capture finishes.
+
+**Hard requirement: no empty fragments, regardless of input type or writer.**
+Empty inputs and empty batches produce no fragment files. Every completed
+fragment must contain at least one record. If a native writer such as DuckDB
+`COPY` creates empty output files, Assquack must delete those files before
+registering completed fragments or marking capture complete. Empty files must
+never enter fragment metadata or the schema-inference input list. An empty
+extraction remains a valid replacement with zero fragments; `_COMPLETE` is a
+run marker, not a fragment.
 
 ## Schema And Candidate Table
 
@@ -128,7 +156,8 @@ by runtime. Run IDs break exact timestamp ties deterministically.
 Metadata, published tables, and export artifacts are not deleted by this policy.
 
 At the next call for an asset, acquiring the exclusive database writer lock
-proves that its earlier `running` attempts are no longer active. Those attempts
+proves that its earlier `running` attempts are no longer active, except direct
+nested runs tracked in the current task. Abandoned attempts
 are marked failed before cache lookup and retention. Cleanup itself ignores
 `running` and unknown runs. No cursor or fragment reuse is introduced.
 

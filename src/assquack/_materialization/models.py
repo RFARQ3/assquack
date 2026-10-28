@@ -26,12 +26,6 @@ class MaterializationRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class NormalizedChunk:
-    batch_id: int
-    rows: list[dict[str, Any]]
-
-
-@dataclass(frozen=True, slots=True)
 class FragmentFile:
     index: int
     path: str

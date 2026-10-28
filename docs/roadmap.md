@@ -46,7 +46,7 @@ The implementation sequence and acceptance checks are recorded there.
 
 - Implement the `@asset` decorator and asset callable lifecycle.
 - Support sync and async yielded batches.
-- Normalize supported Python, HTTP response, Arrow, pandas, and DuckDB inputs
+- Normalize supported Python, Arrow, pandas, DuckDB, and Assquack result/asset inputs
   for fragment capture; preserve argument binding and path templates.
 - Write local NDJSON fragments using a configurable megabyte target; never split
   records, and allow the last record to exceed the target.

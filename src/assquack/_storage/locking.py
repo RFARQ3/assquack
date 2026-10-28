@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from contextvars import ContextVar
 from pathlib import Path
 from time import sleep
 from types import TracebackType
@@ -13,6 +14,9 @@ else:
     import fcntl
 
 _LOCK_RETRY_SECONDS = 0.05
+_ASYNC_LOCKS: ContextVar[tuple[tuple[Path, asyncio.Task[object]], ...]] = ContextVar(
+    "assquack_writer_locks", default=()
+)
 
 
 class WriterLock:
@@ -21,6 +25,7 @@ class WriterLock:
     def __init__(self, database_path: Path) -> None:
         self._lock_path = Path(f"{database_path.resolve()}.lock")
         self._handle: BinaryIO | None = None
+        self._nested = False
 
     def __enter__(self) -> None:
         handle = _open_lock_file(self._lock_path)
@@ -42,6 +47,13 @@ class WriterLock:
         self._release()
 
     async def __aenter__(self) -> None:
+        task = asyncio.current_task()
+        assert task is not None
+        # Only direct nested calls in the owning task share its lock. A child
+        # task inherits context variables, but must still wait for the lock.
+        if (self._lock_path, task) in _ASYNC_LOCKS.get():
+            self._nested = True
+            return
         handle = _open_lock_file(self._lock_path)
         try:
             while not _try_lock(handle):
@@ -51,6 +63,7 @@ class WriterLock:
             raise
 
         self._handle = handle
+        _ASYNC_LOCKS.set((*_ASYNC_LOCKS.get(), (self._lock_path, task)))
 
     async def __aexit__(
         self,
@@ -58,6 +71,11 @@ class WriterLock:
         exception: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        if self._nested:
+            return
+        _ASYNC_LOCKS.set(
+            tuple(entry for entry in _ASYNC_LOCKS.get() if entry[0] != self._lock_path)
+        )
         self._release()
 
     def _release(self) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import logging
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from decimal import Decimal
 from math import ceil
@@ -19,13 +20,13 @@ from assquack._materialization.commit import commit_strategy
 from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
     fragment_run_directory,
+    write_fragments,
 )
 from assquack._materialization.json_reader import JsonReadRecovery
 from assquack._materialization.models import (
     MaterializationRequest,
     StagingTables,
 )
-from assquack._materialization.normalize import normalize
 from assquack._materialization.retention import prune_fragments
 from assquack._materialization.schema import replace_schema_strategy
 from assquack._materialization.staging import (
@@ -40,6 +41,9 @@ from assquack._storage.models import AssetRecord
 from assquack._storage.tables import TableReference
 
 _LOGGER = logging.getLogger(__name__)
+_ACTIVE_RUNS: ContextVar[tuple[str, ...]] = ContextVar(
+    "assquack_active_runs", default=()
+)
 
 
 async def materialize(
@@ -67,8 +71,8 @@ async def materialize(
                 )
             )
 
-            # Owning the database lock proves earlier attempts cannot still be writing.
-            metadata.recover_interrupted_runs(request.asset_id)
+            # Nested assets share this task's lock; their outer runs are still live.
+            metadata.recover_interrupted_runs(request.asset_id, _ACTIVE_RUNS.get())
             prune_fragments(
                 metadata,
                 config.resolved_fragment_directory,
@@ -122,6 +126,7 @@ async def materialize(
                 raise
 
             fragment_writer = None
+            active_runs = _ACTIVE_RUNS.set((*_ACTIVE_RUNS.get(), run_id))
             committed = False
             row_count = 0
             try:
@@ -140,8 +145,7 @@ async def materialize(
                 if inspect.isawaitable(value):
                     value = await value
 
-                async for chunk in normalize(value, chunk_size=config.chunk_size):
-                    row_count += fragment_writer.write_rows(chunk.rows)
+                row_count = await write_fragments(value, fragment_writer, config)
 
                 fragments = fragment_writer.finish()
                 reader = JsonReadRecovery()
@@ -193,6 +197,8 @@ async def materialize(
                 )
                 connection.close()
                 raise
+            finally:
+                _ACTIVE_RUNS.reset(active_runs)
 
             try:
                 drop_shaped_staging(connection, staging.shaped)

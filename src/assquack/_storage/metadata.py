@@ -76,7 +76,9 @@ class MetadataRepository:
             row_count=row[2],
         )
 
-    def recover_interrupted_runs(self, asset_id: str) -> None:
+    def recover_interrupted_runs(
+        self, asset_id: str, active_run_ids: tuple[str, ...] = ()
+    ) -> None:
         """Mark abandoned attempts failed while holding the database writer lock."""
 
         self._connection.execute(
@@ -84,8 +86,9 @@ class MetadataRepository:
             UPDATE assquack_meta.runs
             SET status = 'failed', error = 'Interrupted before publication completed'
             WHERE asset_id = ? AND status = 'running'
+                AND run_id NOT IN (SELECT unnest(?::VARCHAR[]))
             """,
-            [asset_id],
+            [asset_id, list(active_run_ids)],
         )
 
     def find_obsolete_fragment_runs(self, asset_id: str) -> list[str]:

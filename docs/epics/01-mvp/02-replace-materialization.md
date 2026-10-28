@@ -1,7 +1,7 @@
 # Replace Materialization
 
-Status: **In Progress**
-Last updated: 2026-10-28
+Status: **Complete**
+Last updated: 2026-10-29
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -72,6 +72,50 @@ The reviewer independently passed **247 tests**, Ruff lint, fix-file formatting,
 Markdown links, and `git diff --check`.
 This phase remains **In Progress** for the separate documented input-support work.
 
+## Approved input routes — 29 October 2026
+
+Status: implementation and focused validation complete. This direction
+supersedes previous direct HTTP-response support and unconfirmed pandas/Arrow
+routing notes. Preserve earlier benchmark evidence as historical research.
+
+- Share direct buffered UTF-8 NDJSON writing for Python mappings and batches.
+- Share native DuckDB COPY for relations, pandas DataFrames, Arrow Tables and
+  RecordBatches; substantial approximate-size overshoot is accepted.
+- Dispatch mixed sync/async yields before generic iteration.
+- Read result tables directly; execute assets with normal cache behavior first.
+- Share the same-task database lock for nested calls without reacquisition;
+  exclude active runs from interrupted recovery. Other tasks still serialize.
+- Delete native empty output before completion and registration. Retain flat
+  partial-file evidence on failure, unique filenames and one completion marker.
+- Remove direct HTTP support; authors decode JSON themselves.
+
+Validation covers each input, mixed yields, empty replacement, native COPY,
+late/nested fields, row counts, cache/result behavior, nested success/failure,
+independent-task locking and existing retention/publication/recovery contracts.
+
+### Input-route validation
+
+The doer passed **101 focused tests** in `test_fragment_inputs.py`,
+`test_fragments.py`, `test_fragment_retention.py`, `test_run_identity.py`,
+`test_writer_lock.py`, `test_cache.py`, `test_json_reader.py`,
+`test_schema_replacement.py`, `test_schema_inference.py` and `test_exports.py`.
+This includes actual native COPY failure after output, retained partial cleanup,
+same-asset nested recovery, child-task lock exclusion, empty/metadata-only
+result propagation and fresh publication provenance.
+
+Runtime: Python 3.13.9, DuckDB 1.5.2, pandas 3.1.0, PyArrow 26.0.0,
+Pydantic 2.13.4 and pytest 9.0.3. Optional native packages came from the existing
+benchmark environment; production and tests used the Poetry environment.
+Targeted Pyright reported zero errors; Ruff lint/format, local Markdown links
+and diff whitespace checks passed. Terminology matches are existing historical
+locking observations and their validation notes. Offline sandbox file permissions
+required approved local execution for DuckDB tests and dependency-aware typing.
+No live-system checks or full-suite run were performed.
+
+Independent review passed **89 focused tests** across its three runs and found
+no remaining production defect. Earlier checkpoint statements below describe
+historical phase status; the header records completion of this phase's checklist.
+
 ## Architecture Notes
 
 Treat materialization as a pipeline with explicit phases: normalize, stage raw
@@ -92,6 +136,28 @@ of the normalization chunk size. The default is 64 decimal MB (1,000,000 bytes
 per MB). Count serialized UTF-8 bytes including newlines and finish a complete
 record before rollover at or above the target. Oversized records remain intact;
 opening the next file lazily prevents empty trailing fragments.
+
+### No empty fragments: required for every writer
+
+Requirement confirmed 28 October 2026. Apply the
+[fragment capture contract](../../materialization-lifecycle.md#fragment-capture)
+to every input path, including any future DuckDB `COPY` writer. Skip empty
+inputs and batches. Delete any empty files emitted by a native writer before
+registering fragments or completing capture; do not merely hide them from the
+reader while leaving them on disk.
+
+Acceptance checks for the writer implementation:
+
+- [x] Empty inputs and empty batches leave zero fragment files.
+- [x] File rotation leaves no empty trailing fragments.
+- [x] Native-writer empty outputs are removed and excluded from fragment
+  metadata and inference input; nonempty outputs are preserved.
+- [x] Empty extraction still publishes the intended empty replacement table.
+
+These requirements are implemented and covered by focused native COPY and
+materialization tests. Native COPY can transiently create empty output; capture
+removes it before registration.
+
 Native `read_json` scans all completed files
 with full sampling and field union before the shaped candidate is built.
 
@@ -197,7 +263,7 @@ acceptable shape is:
 ## Implementation Checklist
 
 - [x] Implement strongly typed public asset decorator contracts.
-- [ ] Normalize every documented returned and yielded input.
+- [x] Dispatch every documented returned and yielded input.
 - [x] Write bounded local NDJSON fragments with atomic completion.
 - [x] Replace row-count sizing with a configurable megabyte target and whole-record rollover.
 - [x] Infer the current schema across all completed fragments.

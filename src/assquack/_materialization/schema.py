@@ -46,6 +46,9 @@ class CurrentRunSchemaStrategy:
                 duckdb_type="VARIANT" if duckdb_type == "JSON" else duckdb_type,
             )
             for name, duckdb_type in sorted(observed_schema)
+            # Publication supplies provenance for this run, including when the
+            # source is another result table containing its own metadata.
+            if name.lower() not in {"_qa_run_id", "_qa_loaded_at"}
         ]
 
 

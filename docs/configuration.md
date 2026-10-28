@@ -137,16 +137,17 @@ requiring an entire fragment in memory. Positive finite fractional values are
 accepted; a fractional byte target is rounded up to the next byte. Zero, negative,
 NaN, and infinite values are rejected.
 
-The writer counts the actual serialized UTF-8 NDJSON bytes, including each LF
+The Python writer counts the actual serialized UTF-8 NDJSON bytes, including each LF
 newline. It finishes the current record before closing a fragment at or above
 the target. A large record can exceed the target and remains intact. Empty input
 creates no fragments, and exact-boundary completion creates no empty trailing
 file. Fragments are uncompressed.
 
-This replaces `ingestion.fragment_max_rows`; update existing configuration and
-its old environment variable. It is separate from `chunk_size`: chunk size bounds
-Python normalization memory, while fragment size controls the files DuckDB scans.
-Yield and chunk boundaries do not force fragment boundaries.
+Native relation inputs use DuckDB COPY with approximate byte targeting; files
+may substantially exceed the target. Empty native output is deleted before
+registration. Python inputs stream records directly and do not use `chunk_size`.
+Switching between Python and native batches can close an unfinished fragment;
+all completed fragments remain nonempty and contain whole records.
 
 Apply a different target to an asset through the existing per-call override:
 

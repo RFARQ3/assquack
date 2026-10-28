@@ -1,7 +1,7 @@
 # MVP Extensibility Defects
 
 Status: **In Progress**
-Last updated: 2026-10-27
+Last updated: 2026-10-29
 Epic: 01 MVP
 Phase: 06
 Related docs: [Scope journal](../../journal/2026-09-08-mvp-scope.md), [Roadmap](../../roadmap.md), [Export compatibility](04-export-compatibility.md)
@@ -365,24 +365,26 @@ proposed normalization refactor. It is not evidence that all normalization is
 missing or that the existing implementation cannot be extended. Editing a type
 dispatcher is not, by itself, an extensibility defect.
 
-**Current implementation:** [normalize.py](../../../src/assquack/_materialization/normalize.py)
-handles mappings, pandas DataFrames and sync/async iterables. Arrow tables/batches,
-DuckDB relations and HTTP responses remain TODOs. Asset/result input resolution
-also remains unimplemented.
+**Implemented direction, 29 October:** [fragments.py](../../../src/assquack/_materialization/fragments.py)
+owns input dispatch and two shared writers. Python mappings use buffered bytes;
+relations use native COPY. Pandas DataFrames and Arrow Tables/RecordBatches become
+relations. Sync/async yields dispatch each item, including mixed input types.
+Result objects read their materialized table; asset objects execute with their
+normal cache behavior before following that result route. Same-task nested
+execution shares the database lock without admitting other tasks.
 
-**Direction discussed:** reuse conversion handlers through multiple resolution
-paths; a handler converts and delegates or reaches a terminal writer. Keep Arrow
-input support in scope rather than requiring an Arrow conversion for every input.
-Do not mandate a complete ingestion strategy per type or public adapter injection.
+This approval supersedes the earlier undecided handler/terminal-writer direction
+and direct HTTP-response TODO. Native COPY's approximate rollover, including
+substantial overshoot, is accepted. Authors decode HTTP JSON themselves. No
+per-type strategy classes, public adapter registry, size-switching threshold or
+mandatory Arrow conversion is introduced. Historical benchmark evidence remains
+in the [scope journal](../../journal/2026-09-08-mvp-scope.md).
 
-**Still undecided:** exact dispatch and handler contracts, terminal writer paths,
-and whether native COPY's approximate rollover is acceptable. The benchmark and
-unapproved writing recommendation are recorded in the
-[scope journal's 26 October amendment](../../journal/2026-09-08-mvp-scope.md).
-No size-based switching threshold or normalization implementation was approved.
-Future acceptance must cover the supported inputs, bounded processing, complete
-records and JSON value semantics; preserve full mapping envelopes rather than
-implicitly extracting a `data` field.
+Focused validation passed 101 tests across input routing, real COPY output and
+failure, empty outputs, retention, nested execution/cache, schema, reader recovery
+and exports. Targeted Pyright passed. See the
+[replace-materialization phase](02-replace-materialization.md)
+for implementation status and final review results.
 
 ## EXT-08: Observation extension contract
 
