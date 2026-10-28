@@ -99,6 +99,37 @@ Shaped staging starts with reserved run metadata and adds the effective typed
 asset columns. Genuinely heterogeneous columns use `VARIANT`; a whole-row
 `_qa_payload` is not mandatory.
 
+### Oversized-record reader recovery (28 October 2026)
+
+Implemented and independently reviewed. Start fragment reads with `maximum_object_size` of
+32 MiB. Only DuckDB's specific oversized-record error triggers a bounded binary
+scan of completed fragments to measure the largest serialized record, excluding
+LF or CRLF delimiters. Retry once with that measured limit and reuse it for
+subsequent reads in this run. Do not re-extract, rewrite fragments, pre-scan normal
+reads, or persist size metadata. Other errors and retry failures propagate.
+Keep schema `resolve()` argument-free and all existing inference options intact.
+
+Validation: **59 focused tests passed** across `test_json_reader.py`,
+`test_schema_inference.py`, `test_schema_replacement.py`, `test_fragments.py` and
+`test_fragment_retention.py`. Coverage includes real oversized materialization,
+UTF-8 and buffer/line boundaries, normal reads without scanning, malformed JSON
+without retry, the actual size-error classification, one retry and its failure,
+shared inference/staging recovery, empty runs, retention and publication failure.
+
+DuckDB 1.5.2 accepted a 33,554,532-byte record at the default setting, but rejected
+a 73,400,328-byte record. The latter succeeded with exactly 73,400,328 as the
+limit; no added headroom was required. The materialization test uses a 72 MiB
+UTF-8 string to exercise real recovery rather than assuming every record above
+32 MiB triggers the error.
+
+Changed production/test Ruff lint and formatting, targeted Pyright, local
+Markdown links and `git diff --check` passed. The terminology scan found only
+existing historical mentions. Sandbox pytest temporary-directory setup and
+Pyright dependency discovery failed; approved offline execution passed both.
+No live systems, credentials or full-suite checks were used. Independent review
+found no actionable defect. This phase remains **In Progress** for unrelated
+input-support work.
+
 ## Staging Retention Contract
 
 After each run, apply retention per asset:

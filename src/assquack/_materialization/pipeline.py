@@ -20,6 +20,7 @@ from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
     fragment_run_directory,
 )
+from assquack._materialization.json_reader import JsonReadRecovery
 from assquack._materialization.models import (
     MaterializationRequest,
     StagingTables,
@@ -143,8 +144,9 @@ async def materialize(
                     row_count += fragment_writer.write_rows(chunk.rows)
 
                 fragments = fragment_writer.finish()
+                reader = JsonReadRecovery()
                 schema_strategy = replace_schema_strategy(
-                    config.schema, connection, fragment_writer.finish
+                    config.schema, connection, fragment_writer.finish, reader
                 )
                 projections = schema_strategy.resolve()
                 create_shaped_staging(
@@ -153,6 +155,7 @@ async def materialize(
                     fragments,
                     projections,
                     run_id,
+                    reader,
                 )
 
                 duration_ms = int((perf_counter() - started) * 1_000)

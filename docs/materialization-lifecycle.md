@@ -92,6 +92,13 @@ field union, and nested inference enabled. The configured current-run strategy
 resolves its columns without historical schema or detailed observations. Rules
 live in [Schema Inference](schema-inference.md).
 
+Fragment reads start with a 32 MiB DuckDB object-size setting. If DuckDB reports
+an oversized JSON record, Assquack scans the completed fragments in bounded byte
+buffers, measures the largest serialized record and retries the read once using
+that size. Later reads in the run reuse the recovered setting. Normal reads need
+no extra scan; recovery neither repeats extraction nor rewrites fragments. Other
+read errors and a failed retry follow the usual failure behavior below.
+
 The candidate table contains `_qa_run_id`, `_qa_loaded_at`, and the effective
 typed columns. Source columns absent from the current extraction disappear. A whole-row `VARIANT` payload is optional rather than a
 mandatory staging column.

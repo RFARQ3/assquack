@@ -9,6 +9,7 @@ from typing import Protocol
 import duckdb
 
 from assquack._config import SchemaConfig
+from assquack._materialization.json_reader import JsonReadRecovery
 from assquack._materialization.models import FragmentFile, ProjectionSpec
 from assquack._materialization.staging import describe_fragments
 
@@ -24,12 +25,16 @@ class CurrentRunSchemaStrategy:
         self,
         connection: duckdb.DuckDBPyConnection,
         fragments: Callable[[], list[FragmentFile]],
+        reader: JsonReadRecovery | None = None,
     ) -> None:
         self._connection = connection
         self._fragments = fragments
+        self._reader = reader or JsonReadRecovery()
 
     def resolve(self) -> list[ProjectionSpec]:
-        observed_schema = describe_fragments(self._connection, self._fragments())
+        observed_schema = describe_fragments(
+            self._connection, self._fragments(), self._reader
+        )
         return [
             ProjectionSpec(
                 source_field=(
@@ -47,7 +52,12 @@ class CurrentRunSchemaStrategy:
 _STRATEGIES: Mapping[
     str,
     Callable[
-        [duckdb.DuckDBPyConnection, Callable[[], list[FragmentFile]]], SchemaStrategy
+        [
+            duckdb.DuckDBPyConnection,
+            Callable[[], list[FragmentFile]],
+            JsonReadRecovery | None,
+        ],
+        SchemaStrategy,
     ],
 ] = MappingProxyType({"current_run": CurrentRunSchemaStrategy})
 
@@ -56,6 +66,7 @@ def replace_schema_strategy(
     config: SchemaConfig,
     connection: duckdb.DuckDBPyConnection,
     fragments: Callable[[], list[FragmentFile]],
+    reader: JsonReadRecovery | None = None,
 ) -> SchemaStrategy:
     """Construct a run-local strategy from the framework's fixed registry."""
     try:
@@ -64,4 +75,4 @@ def replace_schema_strategy(
         raise ValueError(
             f"Unsupported replacement schema strategy: {config.replace!r}"
         ) from None
-    return factory(connection, fragments)
+    return factory(connection, fragments, reader)

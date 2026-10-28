@@ -9,6 +9,7 @@ import pytest
 
 from assquack import AssquackConfig, IngestionConfig, SchemaConfig, asset
 from assquack._materialization import pipeline
+from assquack._materialization.json_reader import JsonReadRecovery
 from assquack._materialization.models import FragmentFile, ProjectionSpec
 from assquack._materialization.schema import (
     SchemaStrategy,
@@ -92,10 +93,11 @@ def test_per_asset_config_selects_the_strategy_used_for_publication(
         config: SchemaConfig,
         connection: duckdb.DuckDBPyConnection,
         fragments: Callable[[], list[FragmentFile]],
+        reader: JsonReadRecovery | None = None,
     ) -> SchemaStrategy:
         if config is selected_config.schema:
             return TextIdStrategy()
-        return replace_schema_strategy(config, connection, fragments)
+        return replace_schema_strategy(config, connection, fragments, reader)
 
     # Substitute a policy at the internal extension point without adding an
     # unsupported public setting. Its output must reach the published table.

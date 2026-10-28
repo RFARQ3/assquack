@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import duckdb
 
-from assquack._materialization.json_reader import read_json_sql
+from assquack._materialization.json_reader import JsonReadRecovery, read_json_sql
 from assquack._materialization.models import FragmentFile, ProjectionSpec
 from assquack._storage.sql import quote_identifier, quote_table
 from assquack._storage.tables import TableReference
@@ -11,12 +11,19 @@ from assquack._storage.tables import TableReference
 def describe_fragments(
     connection: duckdb.DuckDBPyConnection,
     fragments: list[FragmentFile],
+    reader: JsonReadRecovery | None = None,
 ) -> list[tuple[str, str]]:
     if not fragments:
         return []
 
-    source = read_json_sql([fragment.path for fragment in fragments])
-    rows = connection.execute(f"DESCRIBE SELECT * FROM {source}").fetchall()
+    paths = [fragment.path for fragment in fragments]
+    reader = reader or JsonReadRecovery()
+    rows = reader.read(
+        paths,
+        lambda limit: connection.execute(
+            f"DESCRIBE SELECT * FROM {read_json_sql(paths, limit)}"
+        ).fetchall(),
+    )
     return [(row[0], row[1]) for row in rows]
 
 
@@ -26,6 +33,7 @@ def create_shaped_staging(
     fragments: list[FragmentFile],
     projections: list[ProjectionSpec],
     run_id: str,
+    reader: JsonReadRecovery | None = None,
 ) -> None:
     shaped_table = quote_table(shaped.schema_name, shaped.table_name)
     if not fragments:
@@ -51,16 +59,20 @@ def create_shaped_staging(
         for item in projections
     )
     suffix = f",\n                {projected}" if projected else ""
-    source = read_json_sql([fragment.path for fragment in fragments])
-    connection.execute(
-        f"""
+    paths = [fragment.path for fragment in fragments]
+    reader = reader or JsonReadRecovery()
+    reader.read(
+        paths,
+        lambda limit: connection.execute(
+            f"""
         CREATE TABLE {shaped_table} AS
         SELECT
             ?::VARCHAR AS _qa_run_id,
             current_timestamp AS _qa_loaded_at{suffix}
-        FROM {source}
+        FROM {read_json_sql(paths, limit)}
         """,
-        [run_id],
+            [run_id],
+        ),
     )
 
 
