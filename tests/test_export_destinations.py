@@ -81,7 +81,7 @@ def test_injected_async_provider_used_by_both_paths(
     destination._credential_provider = provider
     config = AssquackConfig(home=tmp_path, exports=destination)
 
-    @asset(None if explicit else "orders.parquet", table="main.orders")
+    @asset(table="main.orders", export=None if explicit else "orders.parquet")
     def orders():
         return [{"id": 1}]
 
@@ -128,7 +128,7 @@ def test_provider_failure_is_safe_and_has_no_manifest(
     destination = FileSystemDestination(base_uri="abfss://lake", auth="sas")
     destination._credential_provider = SyntheticProvider(fail=True)
 
-    @asset("orders.parquet", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         return [{"id": 1}]
 
@@ -188,7 +188,7 @@ def test_registered_preparation_and_auth_use_shared_writer(tmp_path):
         "synthetic", "tracked", lambda _: TrackedAuth(events)
     )
 
-    @asset("orders.parquet", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         return [{"id": 1}]
 
@@ -247,7 +247,7 @@ class SyntheticDestination(ExportDestination):
 def test_generic_destination_does_not_require_file_formats(tmp_path):
     destination = SyntheticDestination()
 
-    @asset("destination-specific declaration", table="main.orders")
+    @asset(table="main.orders", export="destination-specific declaration")
     def orders():
         return [{"id": 1}]
 
@@ -267,7 +267,7 @@ def test_partial_multi_destination_failure_records_only_completed_outputs(
 ):
     from assquack._exports.writer.file import DuckDBFileWriter
 
-    @asset(None if explicit else "orders.parquet", table="main.orders")
+    @asset(table="main.orders", export=None if explicit else "orders.parquet")
     def orders():
         return [{"id": 1}]
 
@@ -315,7 +315,7 @@ def test_each_destination_uses_its_own_provider(tmp_path, intercepted_connection
         destinations.append(destination)
         providers.append(provider)
 
-    @asset("orders.parquet", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         return [{"id": 1}]
 

@@ -55,7 +55,7 @@ the topic links that match the work in front of you.
 ## Examples
 
 - [Developer Examples](developer-examples.md): concise usage examples for the
-  table-first API (agreed decorator change pending implementation).
+  required table-first API.
 
 ## Historical Pointer
 

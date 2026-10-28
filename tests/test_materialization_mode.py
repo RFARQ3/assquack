@@ -59,7 +59,7 @@ def test_unsupported_mode_is_rejected_before_source_or_storage(
 ) -> None:
     invalid_mode = cast(AssetMode, mode)
     with pytest.raises(ValueError, match="only supports mode='replace'"):
-        asset(mode=invalid_mode)
+        asset("main.orders", mode=invalid_mode)
 
     @asset(table="main.orders")
     def orders() -> list[dict[str, int]]:

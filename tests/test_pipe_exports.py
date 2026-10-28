@@ -60,7 +60,7 @@ def test_invalid_declarations_fail_before_extraction(
 ) -> None:
     called = False
 
-    @asset(declaration, table="main.orders")
+    @asset(table="main.orders", export=declaration)
     def orders():
         nonlocal called
         called = True
@@ -96,7 +96,7 @@ def test_actual_formats_contents_manifests_and_cache(
         {"id": 2, "text": "café", "optional": "present"},
     ]
 
-    @asset(alias, table="main.orders")
+    @asset(table="main.orders", export=alias)
     def orders():
         nonlocal calls
         calls += 1
@@ -156,7 +156,7 @@ def test_partial_failure_keeps_only_completed_manifests_and_retries(
 ) -> None:
     calls = 0
 
-    @asset("orders.parquet|csv|json", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet|csv|json")
     def orders():
         nonlocal calls
         calls += 1
@@ -245,7 +245,7 @@ def test_file_uri_and_explicit_parquet_validation(tmp_path: Path) -> None:
 
 
 def test_empty_extraction_writes_all_formats(tmp_path: Path) -> None:
-    @asset("empty.parquet|csv|json", table="main.empty")
+    @asset(table="main.empty", export="empty.parquet|csv|json")
     def empty():
         return []
 
@@ -265,7 +265,7 @@ def test_empty_extraction_writes_all_formats(tmp_path: Path) -> None:
 
 
 def test_nested_json_retains_objects_and_lists(tmp_path: Path) -> None:
-    @asset("nested.json", table="main.nested")
+    @asset(table="main.nested", export="nested.json")
     def nested():
         return [
             {

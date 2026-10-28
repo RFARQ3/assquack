@@ -46,9 +46,9 @@ function, not a deployment object. Assquack should support sync and async
 producers, broad batch input types, queryable results, and cache checks without
 requiring an orchestrator-specific runtime.
 
-**Table-first convention (agreed 27 October; implementation pending).** The
+**Required table-first convention.** The
 argument order is `table`, `mode`, `name`, then optional keyword-only `export`.
-The table accepts either positional or keyword syntax. Database placement remains
+The required table accepts either positional or keyword syntax. Database placement remains
 configuration-level. See the [developer contract](developer-api.md#asset).
 
 **DuckDB-native storage.** DuckDB is the storage and query engine, not just a

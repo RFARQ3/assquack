@@ -1,7 +1,7 @@
 # Replace Materialization
 
 Status: **In Progress**
-Last updated: 2026-10-26
+Last updated: 2026-10-28
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -31,6 +31,46 @@ Excluded:
 - Incremental `append`, `merge`, and `snapshot` modes.
 - Advanced promotion authoring APIs.
 - Export writes.
+
+## Required Table Contract
+
+The 28 October direction requires `asset(table: str, *, mode="replace",
+name=None, export=None)`. Accept positional or keyword tables, reject missing or
+invalid tables before materialization, and retain explicit table templates.
+Remove inferred-table fallback without changing asset naming, binding, cache,
+normalization, or export behavior. Validate both call forms, optional exports,
+keyword order, invalid tables, and template rebinding with offline tests.
+
+### Required-table implementation validation (28 October 2026)
+
+Implemented the required table-first decorator and direct asset construction,
+removed inferred targets, and migrated export declarations without changing their
+behavior. Offline coverage verifies positional/keyword equivalence, keyword order,
+optional exports, invalid/omitted tables, template rebinding and failure before
+extraction or database creation.
+
+- Full offline suite: **245 passed**.
+- Ruff lint and formatting for all touched Python files: passed.
+- Local Markdown links and `git diff --check`: passed.
+- Terminology scan: only existing historical cache/locking references and their
+  prior validation notes remain.
+- Pyright: no new diagnostics in the changed API or new tests. The API retains
+  three baseline diagnostics, verified against `e35a299`: default mapping type,
+  the existing ParamSpec/config signature, and ExportSpec-to-request typing.
+  Full-project checking also reports existing normalization/query/template issues.
+
+Windows sandbox permissions prevented pytest temporary-directory fixtures and
+Pyright dependency discovery; checks were rerun with approved local execution.
+No live systems or credentials were accessed. Independent review found that
+valid rebinding could be rejected when a previous rendered table was empty.
+Construction now validates the original template; execution still validates the
+resolved target. Regression coverage includes empty defaults, cache-first copies,
+and repeated rebinding for qualified and unqualified table templates.
+The focused contract/resolution suite passes **19 tests** after the fix.
+Independent re-review approved the fix with no remaining in-scope findings.
+The reviewer independently passed **247 tests**, Ruff lint, fix-file formatting,
+Markdown links, and `git diff --check`.
+This phase remains **In Progress** for the separate documented input-support work.
 
 ## Architecture Notes
 

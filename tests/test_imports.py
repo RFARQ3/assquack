@@ -8,7 +8,7 @@ def test_asset_import_surface() -> None:
 
 
 def test_asset_decorator_records_bootstrap_contract() -> None:
-    @asset("bronze/orders.parquet", name="orders", table="bronze_orders")
+    @asset(table="bronze_orders", name="orders", export="bronze/orders.parquet")
     def orders() -> list[dict[str, int]]:
         return [{"id": 1}]
 
@@ -20,7 +20,7 @@ def test_asset_decorator_records_bootstrap_contract() -> None:
 
 
 def test_asset_decorator_accepts_async_functions_by_default() -> None:
-    @asset("bronze/async-orders.parquet")
+    @asset("bronze.async_orders", export="bronze/async-orders.parquet")
     async def orders() -> list[dict[str, int]]:
         return [{"id": 1}]
 

@@ -26,8 +26,8 @@ changing asset definitions.
 `@asset` decorates a Python function and returns an `AssquackAsset` definition.
 Calling the asset materializes it and returns an `AssquackResult`.
 
-**Agreed 27 October 2026; implementation pending:** the table-first signature
-below supersedes the current positional-export implementation. See the
+The required table-first signature implements the 28 October 2026 clarification
+and supersedes the positional-export API. See the
 [decision record](journal/2026-09-08-mvp-scope.md#table-first-decorator-decision-27-october-2026).
 
 Minimal shape:
@@ -41,7 +41,10 @@ async def orders():
 The first positional argument is the DuckDB schema/table name. It can instead be
 written explicitly as `table="sales.orders"`. The remaining arguments are
 keyword-only, ordered `mode`, `name`, then optional `export`. Database-file
-placement remains configuration-level. Omitting table retains existing inference.
+placement remains configuration-level. Table is required: omission raises
+`TypeError`; `None`, empty, and blank table names are rejected before
+materialization. Explicit table templates remain supported. Keyword arguments
+may be supplied in any order.
 
 Typed contract shape:
 
@@ -58,7 +61,7 @@ class ExportSpec(TypedDict):
     format: ExportFormat
 
 asset(
-    table: str | None = None,
+    table: str,
     *,
     mode: AssetMode = "replace",
     name: str | None = None,
@@ -120,8 +123,8 @@ asset decorator boundary.
 
 ## Optional Overrides
 
-Assquack infers the asset name, table, and materialization mode by convention.
-Developers can override them when needed:
+A table must be supplied. Asset names default to the function name, and
+materialization mode defaults to `replace`. Developers can set:
 
 - `name=` is the stable logical asset name used in manifests, metadata, and
   derived default export paths.
@@ -230,7 +233,7 @@ according to the asset's mode.
   API contract.
 - [Materialization Lifecycle](materialization-lifecycle.md): what happens when
   an asset is called.
-- [Exports](exports.md): how positional paths and file type aliases become
+- [Exports](exports.md): how keyword export paths and file type aliases become
   compatibility artifacts.
 - [Configuration](configuration.md): where database paths and export bases are
   configured.

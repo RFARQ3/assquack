@@ -11,8 +11,11 @@ across agent sessions.
 - The agreed decorator order is `table`, `mode`, `name`, then optional `export`.
   Accept the table positionally (`@asset("sales.orders")`) or by `table=`; keep
   other arguments keyword-only. Export paths must not be positional. This
-  27 October decision supersedes path-first guidance; implementation is pending.
-- Keep `name`, `table`, and `mode` optional.
+  27 October decision supersedes path-first guidance and is implemented with the
+  28 October required-table clarification.
+- Require `table`: omission must fail; reject `None` and empty names rather than
+  inferring a target. Keep `name`, `mode`, and `export` optional. Keyword arguments
+  can appear in any order; preserve explicit table templates.
 - Do not reintroduce `database_scope` or database placement as public asset
   decorator arguments.
 - Use DuckDB 1.5+ as the likely baseline because `VARIANT` is central to the

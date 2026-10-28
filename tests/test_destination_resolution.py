@@ -131,7 +131,7 @@ def test_fingerprint_cache_matching_preserves_asset_identity(tmp_path, monkeypat
     config = AssquackConfig(home=tmp_path, exports=destination)
     extractions = []
 
-    @asset("orders.parquet", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         extractions.append(1)
         return [{"id": 1}]

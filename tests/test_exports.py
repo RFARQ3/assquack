@@ -10,7 +10,7 @@ from assquack._errors import ExportError
 
 
 def test_empty_destinations_skip_exports_and_allow_cache(tmp_path: Path) -> None:
-    @asset("bronze/groups.parquet", table="main.groups")
+    @asset(table="main.groups", export="bronze/groups.parquet")
     def groups():
         return [{"id": 1}]
 
@@ -27,7 +27,7 @@ def test_empty_destinations_skip_exports_and_allow_cache(tmp_path: Path) -> None
 def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) -> None:
     calls = 0
 
-    @asset("orders.parquet|csv|json", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet|csv|json")
     def orders():
         nonlocal calls
         calls += 1
@@ -68,7 +68,7 @@ def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) 
 def test_duplicate_outputs_fail_before_extraction(
     tmp_path: Path, file_uri: bool
 ) -> None:
-    @asset("orders.parquet", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         pytest.fail("must reject overlapping destinations before extraction")
 

@@ -117,7 +117,7 @@ def test_actual_export_connection_lifecycle_and_manifest(
         ),
     )
 
-    @asset(None if explicit else "orders.parquet", table="main.orders")
+    @asset(table="main.orders", export=None if explicit else "orders.parquet")
     def orders():
         return [{"id": 1}]
 
@@ -162,7 +162,7 @@ def test_local_exports_do_not_register_azure_and_failed_refresh_preserves_file(
     isolated_sas_environment["AZURE_STORAGE_SAS_TOKEN"] = "incomplete-and-invalid"
     fail = False
 
-    @asset("orders.parquet", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         if fail:
             raise ValueError("extraction failed")

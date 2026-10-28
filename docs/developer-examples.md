@@ -1,8 +1,7 @@
 # Assquack Developer Examples
 
 The examples below follow the [table-first decision](journal/2026-09-08-mvp-scope.md#table-first-decorator-decision-27-october-2026),
-agreed on 27 October 2026. The decorator signature change is not implemented yet;
-the existing code still treats a positional string as an export declaration.
+with the required-table clarification of 28 October 2026, now implemented.
 
 ## Table-first asset
 
@@ -50,7 +49,7 @@ def orders_with_legacy_json_export():
     return rows
 
 
-@asset(export="parquet")
+@asset("main.customer_summary", export="parquet")
 def customer_summary():
     return rows
 ```
@@ -61,7 +60,7 @@ provided.
 
 ## Optional Overrides
 
-Names, tables, and modes are escape hatches. They are optional. In the MVP,
+Table is required. Name, mode, and export are optional. In the MVP,
 `mode` defaults to `"replace"` and no other mode is part of the public contract.
 
 ```python

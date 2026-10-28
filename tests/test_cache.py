@@ -109,7 +109,7 @@ def test_missing_current_table_rematerializes(tmp_path: Path) -> None:
 def test_missing_export_manifest_reuses_materialization(tmp_path: Path) -> None:
     calls = 0
 
-    @asset("cached/orders.parquet", table="main.exported_orders")
+    @asset(table="main.exported_orders", export="cached/orders.parquet")
     async def orders() -> list[dict[str, int]]:
         nonlocal calls
         calls += 1
@@ -158,7 +158,7 @@ def test_export_retries_preserve_materialization_and_partial_successes(
 
     monkeypatch.setattr(DuckDBFileWriter, "write", write)
 
-    @asset("orders.parquet|json|csv", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet|json|csv")
     def orders():
         nonlocal calls
         calls += 1
@@ -233,7 +233,7 @@ def test_export_retries_preserve_materialization_and_partial_successes(
 def test_changed_destination_fingerprint_reexports_same_table(tmp_path: Path) -> None:
     calls = 0
 
-    @asset("orders.parquet", table="main.orders")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         nonlocal calls
         calls += 1

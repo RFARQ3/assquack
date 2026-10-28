@@ -23,7 +23,7 @@ prematurely.
 
 ```python
 @asset(
-    "bronze/{endpoint}.parquet",
+    export="bronze/{endpoint}.parquet",
     name="api_{endpoint}",
     table="bronze.{endpoint}",
 )
@@ -83,7 +83,8 @@ Templates may refer to public values on another bound asset:
 
 ```python
 @asset(
-    "bronze/{base_asset.name}_{field}.parquet",
+    table="bronze.{base_asset.name}_{field}",
+    export="bronze/{base_asset.name}_{field}.parquet",
     name="{base_asset.name}_{field}",
 )
 async def unnested_asset(base_asset: AssquackAsset, field: str):

@@ -82,7 +82,7 @@ See [credential-chain inputs](configuration.md#credential-chain-environment-inpu
 
 ## Export Aliases
 
-**Decorator decision, 27 October 2026; implementation pending:** the first
+**Required table-first decorator:** the first
 argument identifies the DuckDB table. The optional export declaration is supplied
 with `export=`, last after `mode` and `name`. See the
 [table-first decision](journal/2026-09-08-mvp-scope.md#table-first-decorator-decision-27-october-2026).
@@ -98,8 +98,7 @@ def orders():
 
 `export="bronze/orders.parquet"` retains its logical alias interpretation as
 `mad://bronze/orders.parquet`. It specifies a secondary output, not the primary
-DuckDB table or database file. Historical positional-export examples below
-describe the current implementation until the new decorator signature lands.
+DuckDB table or database file. Table is required; export remains optional.
 
 ## Target Resolution
 
@@ -145,12 +144,12 @@ The default compatibility target is Parquet. These forms are equivalent when the
 asset is named `customer_summary` and the default export base is configured:
 
 ```python
-@asset("parquet")
+@asset("main.customer_summary", export="parquet")
 def customer_summary():
     return rows
 
 
-@asset(export="parquet")
+@asset(table="main.customer_summary", export="parquet")
 def customer_summary():
     return rows
 ```
@@ -172,7 +171,7 @@ Format aliases:
 A path with a known extension also selects the export format:
 
 ```python
-@asset("bronze/orders.parquet")
+@asset("bronze.orders", export="bronze/orders.parquet")
 def orders():
     return rows
 ```
@@ -191,7 +190,7 @@ target per format before writer/destination selection, all from the same committ
 table without repeating extraction.
 
 ```python
-@asset("bronze/orders.parquet|json")
+@asset("bronze.orders", export="bronze/orders.parquet|json")
 def orders_with_legacy_json_export():
     return rows
 ```
@@ -207,7 +206,7 @@ The first target is the default compatibility target. Additional pipe entries
 are secondary legacy exports. For example:
 
 ```python
-@asset("bronze/orders.parquet|json|csv")
+@asset("bronze.orders", export="bronze/orders.parquet|json|csv")
 def orders_with_legacy_exports():
     return rows
 ```
@@ -217,7 +216,7 @@ expands to Parquet, JSON, and CSV exports using the same base path stem.
 Pipe entries may also be used with a type-only alias:
 
 ```python
-@asset("parquet|json")
+@asset("main.customer_summary", export="parquet|json")
 def customer_summary():
     return rows
 ```

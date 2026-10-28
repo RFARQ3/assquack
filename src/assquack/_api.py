@@ -44,7 +44,7 @@ AssetFunction: TypeAlias = (
 class _AssetTemplates:
     export: str | ExportSpec | None
     name: str
-    table: str | None
+    table: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,9 +52,9 @@ class AssquackAsset(Generic[P, AssetReturn]):
     """Callable asset definition whose runtime delegates to materialization."""
 
     fn: AssetFunction[P, AssetReturn]
+    table: str
     export: str | ExportSpec | None = None
     name: str | None = None
-    table: str | None = None
     mode: AssetMode = "replace"
     bound_arguments: Mapping[str, Any] = field(default_factory=dict)
     prefer_cache: bool = False
@@ -76,6 +76,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
             )
             object.__setattr__(self, "_templates", templates)
 
+        _validate_table(templates.table)
         bound = self._get_bound_arguments()
         formatter = AssetTemplateFormatter(bound.args, bound)
 
@@ -180,12 +181,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
             separators=(",", ":"),
         )
         asset_id = hashlib.sha256(canonical_identity.encode()).hexdigest()
-        table = _resolve_table(
-            table_override,
-            asset_name,
-            asset_id,
-            bool(bound.arguments),
-        )
+        table = _resolve_table(table_override, asset_name)
 
         return MaterializationRequest(
             fn=self.fn,
@@ -226,17 +222,22 @@ def _format_export(
     )
 
 
-def _resolve_table(
-    override: str | None,
-    asset_name: str,
-    asset_id: str,
-    has_arguments: bool,
-) -> TableReference:
-    if override and "." in override:
-        declared_schema, table_name = override.split(".", maxsplit=1)
-        schema_name = sanitize_identifier(declared_schema, fallback="")
-        if schema_name:
-            return TableReference(schema_name, sanitize_identifier(table_name))
+def _validate_table(table: object) -> None:
+    if not isinstance(table, str):
+        raise TypeError("Asset table must be a non-empty string.")
+    if not table.strip():
+        raise ValueError("Asset table must be a non-empty string.")
+    if any(not sanitize_identifier(part, fallback="") for part in table.split(".")):
+        raise ValueError("Asset table must contain a non-empty schema/table name.")
+
+
+def _resolve_table(table: str, asset_name: str) -> TableReference:
+    _validate_table(table)
+    if "." in table:
+        declared_schema, table_name = table.split(".", maxsplit=1)
+        return TableReference(
+            sanitize_identifier(declared_schema), sanitize_identifier(table_name)
+        )
 
     warnings.warn(
         f"Asset {asset_name!r} does not define a DuckDB schema; using 'main'. "
@@ -244,26 +245,19 @@ def _resolve_table(
         MissingAssetSchemaWarning,
         stacklevel=4,
     )
-
-    if override:
-        table_name = sanitize_identifier(override)
-    else:
-        table_name = sanitize_identifier(asset_name)
-        if has_arguments:
-            table_name = f"{table_name}_{asset_id[:10]}"
-
-    return TableReference("main", table_name)
+    return TableReference("main", sanitize_identifier(table))
 
 
 def asset(
-    export: str | ExportSpec | None = None,
+    table: str,
     *,
-    name: str | None = None,
-    table: str | None = None,
     mode: AssetMode = "replace",
+    name: str | None = None,
+    export: str | ExportSpec | None = None,
 ) -> Callable[[AssetFunction[P, AssetReturn]], AssquackAsset[P, AssetReturn]]:
     """Declare an Assquack asset without choosing storage placement."""
 
+    _validate_table(table)
     if mode != "replace":
         raise ValueError("The Assquack prototype only supports mode='replace'.")
 
