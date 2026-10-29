@@ -1,0 +1,655 @@
+{
+  "python": "3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]",
+  "executable": "C:\\Users\\RowanFarquharson\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\assquack-jOOrBb3L-py3.13\\Scripts\\python.exe",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "cpu": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+  "ram": 34163216384,
+  "duckdb": "1.5.2",
+  "jsonlines": "4.0.0",
+  "threads": 1,
+  "fsync": false,
+  "trials": 3,
+  "configurations": [
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 1000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 10000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "narrow",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 262144,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 100,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 1000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 65536,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 262144,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 1048576,
+      "method": "jsonlines",
+      "batch": 2048
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "shape": "wide",
+      "n": 10000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    }
+  ],
+  "smoke": false,
+  "script_sha256": "96f9dc54ac7feb0cd16cd16e304e56ba22fa6def09e8672b24c43345b8203af3",
+  "baseline_sha256": "c1b351ea69193dce4844d7269a879dcdce0a7f5b86dd36adce7f92dfb00eccdd",
+  "read_options": {
+    "sample_size": -1,
+    "field_appearance_threshold": 0.0,
+    "map_inference_threshold": -1,
+    "union_by_name": true,
+    "hive_partitioning": false
+  },
+  "scratch": "E:\\projects\\assquack\\.tmp-relation-fragments-20261028\\67174f6bd8"
+}

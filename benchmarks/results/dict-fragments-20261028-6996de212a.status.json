@@ -1,0 +1,1 @@
+{"status":"abandoned","eligible_for_conclusions":false,"reason":"Direct writer constructed an unused jsonlines wrapper at file rotation. Corrected and restarted the complete matrix.","replacement_run":"dict-fragments-20261028-611887bed6"}

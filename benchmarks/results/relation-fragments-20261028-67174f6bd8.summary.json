@@ -1,0 +1,3872 @@
+[
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.10290560001158156,
+      "min": 0.08485830001882277,
+      "max": 0.12795270001515746
+    },
+    "read_s": {
+      "median": 0.1285695999977179,
+      "min": 0.1231878999969922,
+      "max": 0.1589901999977883
+    },
+    "inference_s": {
+      "median": 0.06827019999036565,
+      "min": 0.05934520001756027,
+      "max": 0.08484489997499622
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 253293,
+      "median": 1048628,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.923310100013623,
+      "min": 0.8313740000012331,
+      "max": 1.1378698000044096
+    },
+    "read_s": {
+      "median": 1.086959999985993,
+      "min": 0.9783013999985997,
+      "max": 1.2912886000121944
+    },
+    "inference_s": {
+      "median": 0.3781745000160299,
+      "min": 0.37805369999841787,
+      "max": 0.4178883999993559
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 92,
+      "min": 92,
+      "max": 92
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 235159,
+      "median": 262254.0,
+      "max": 262376
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.012468499975511804,
+      "min": 0.010705299995606765,
+      "max": 0.013167700002668425
+    },
+    "read_s": {
+      "median": 0.05768600001465529,
+      "min": 0.05429739999817684,
+      "max": 0.07238510000752285
+    },
+    "inference_s": {
+      "median": 0.0466115000017453,
+      "min": 0.04501359999994747,
+      "max": 0.060134800005471334
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.10092339999391697,
+      "min": 0.08907630000612698,
+      "max": 0.10568969999440014
+    },
+    "read_s": {
+      "median": 0.15876520000165328,
+      "min": 0.1181401000067126,
+      "max": 0.17250449999119155
+    },
+    "inference_s": {
+      "median": 0.07417189999250695,
+      "min": 0.06107359999441542,
+      "max": 0.08638639998389408
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 9,
+      "min": 9,
+      "max": 9
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 252349,
+      "median": 262260,
+      "max": 262349
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.6832938999868929,
+      "min": 0.6024941999930888,
+      "max": 0.9388111000007484
+    },
+    "read_s": {
+      "median": 1.1909462000185158,
+      "min": 0.9579509000177495,
+      "max": 1.4341828000033274
+    },
+    "inference_s": {
+      "median": 0.40974180001649074,
+      "min": 0.31324920000042766,
+      "max": 0.4506161000172142
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 715,
+      "min": 715,
+      "max": 715
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19201,
+      "median": 67200,
+      "max": 67207
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.013246299989987165,
+      "min": 0.009930100000929087,
+      "max": 0.02255739999236539
+    },
+    "read_s": {
+      "median": 0.08041379999485798,
+      "min": 0.06806719998712651,
+      "max": 0.12670009999419563
+    },
+    "inference_s": {
+      "median": 0.0691557000100147,
+      "min": 0.05789809999987483,
+      "max": 0.10088189999805763
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.0914795999997295,
+      "min": 1.0156782000267413,
+      "max": 1.129552699974738
+    },
+    "read_s": {
+      "median": 1.0534840000036638,
+      "min": 1.0296334000013303,
+      "max": 1.2164080000075046
+    },
+    "inference_s": {
+      "median": 0.3366723999788519,
+      "min": 0.3262813999899663,
+      "max": 0.47813740000128746
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 368,
+      "min": 368,
+      "max": 368
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19924,
+      "median": 65569.5,
+      "max": 65782
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.004095899988897145,
+      "min": 0.003946199984056875,
+      "max": 0.004646599991247058
+    },
+    "read_s": {
+      "median": 0.05105010000988841,
+      "min": 0.05028530000708997,
+      "max": 0.0639489000022877
+    },
+    "inference_s": {
+      "median": 0.04236630001105368,
+      "min": 0.039738699997542426,
+      "max": 0.053140099975280464
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.534241799992742,
+      "min": 0.5267270000185817,
+      "max": 0.5918223000189755
+    },
+    "read_s": {
+      "median": 0.5585933999973349,
+      "min": 0.5134674999862909,
+      "max": 0.6025380000064615
+    },
+    "inference_s": {
+      "median": 0.17660959999193437,
+      "min": 0.1701669000030961,
+      "max": 0.21279319998575374
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 182,
+      "min": 182,
+      "max": 182
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 211208,
+      "median": 263999.0,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.020152200013399124,
+      "min": 0.01849480002420023,
+      "max": 0.022873499983688816
+    },
+    "read_s": {
+      "median": 0.13284269999712706,
+      "min": 0.11691330000758171,
+      "max": 0.13888569999835454
+    },
+    "inference_s": {
+      "median": 0.06534520001150668,
+      "min": 0.0576909999945201,
+      "max": 0.07583190000150353
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 4779788,
+      "median": 4779788,
+      "max": 4779788
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.5433167000010144,
+      "min": 0.48467569999047555,
+      "max": 0.6702343999932054
+    },
+    "read_s": {
+      "median": 0.6451304999936838,
+      "min": 0.4984593999979552,
+      "max": 0.9975483000162058
+    },
+    "inference_s": {
+      "median": 0.2981593000004068,
+      "min": 0.1581943000201136,
+      "max": 0.39814609999302775
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 182,
+      "min": 182,
+      "max": 182
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 211208,
+      "median": 263999.0,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.020612499996786937,
+      "min": 0.01910949999000877,
+      "max": 0.024586899991845712
+    },
+    "read_s": {
+      "median": 0.13181880000047386,
+      "min": 0.13101860001916066,
+      "max": 0.1459004000062123
+    },
+    "inference_s": {
+      "median": 0.07273619997431524,
+      "min": 0.06995230002212338,
+      "max": 0.08168360000126995
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 4779788,
+      "median": 4779788,
+      "max": 4779788
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.4424185999960173,
+      "min": 0.41902050000499,
+      "max": 0.4436883000016678
+    },
+    "read_s": {
+      "median": 0.39968330002739094,
+      "min": 0.35949870001059026,
+      "max": 0.4000147000188008
+    },
+    "inference_s": {
+      "median": 0.12604170001577586,
+      "min": 0.12299090001033619,
+      "max": 0.13763020001351833
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 46,
+      "min": 46,
+      "max": 46
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 676809,
+      "median": 1051208.0,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.10351990000344813,
+      "min": 0.10086480001336895,
+      "max": 0.13121399999363348
+    },
+    "read_s": {
+      "median": 0.8962059000041336,
+      "min": 0.8617939999967348,
+      "max": 0.9255367000005208
+    },
+    "inference_s": {
+      "median": 0.28895570000167936,
+      "min": 0.26919430002453737,
+      "max": 0.30533510001259856
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 412004,
+      "median": 495467,
+      "max": 497516
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.006872099998872727,
+      "min": 0.005198099999688566,
+      "max": 0.008417200006078929
+    },
+    "read_s": {
+      "median": 0.06532090000109747,
+      "min": 0.04703180000069551,
+      "max": 0.06784389997483231
+    },
+    "inference_s": {
+      "median": 0.053095500014023855,
+      "min": 0.03975289998925291,
+      "max": 0.058207199996104464
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 473004,
+      "median": 473004,
+      "max": 473004
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.0770333000109531,
+      "min": 0.0592274000227917,
+      "max": 0.08619820000603795
+    },
+    "read_s": {
+      "median": 0.1712851999909617,
+      "min": 0.1484436999890022,
+      "max": 0.17856090000714175
+    },
+    "inference_s": {
+      "median": 0.080331400007708,
+      "min": 0.07725729999947362,
+      "max": 0.10270550000132062
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 72,
+      "min": 72,
+      "max": 72
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 28688,
+      "median": 66941.5,
+      "max": 66955
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.006493399996543303,
+      "min": 0.004942100000334904,
+      "max": 0.007430500001646578
+    },
+    "read_s": {
+      "median": 0.055310600000666454,
+      "min": 0.045325900020543486,
+      "max": 0.0883713000221178
+    },
+    "inference_s": {
+      "median": 0.04718189997947775,
+      "min": 0.03751550000743009,
+      "max": 0.07488739999826066
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 473004,
+      "median": 473004,
+      "max": 473004
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.06801919999998063,
+      "min": 0.06183880000025965,
+      "max": 0.09579749999102205
+    },
+    "read_s": {
+      "median": 0.16403330001048744,
+      "min": 0.13822769999387674,
+      "max": 0.21642310000606813
+    },
+    "inference_s": {
+      "median": 0.08153840000159107,
+      "min": 0.06572349998168647,
+      "max": 0.10839710000436753
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 72,
+      "min": 72,
+      "max": 72
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 28688,
+      "median": 66941.5,
+      "max": 66955
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.01893639998161234,
+      "min": 0.018846499995561317,
+      "max": 0.02080470000510104
+    },
+    "read_s": {
+      "median": 0.10744059999706224,
+      "min": 0.10456989999511279,
+      "max": 0.14179630001308396
+    },
+    "inference_s": {
+      "median": 0.0586837999871932,
+      "min": 0.05709799999021925,
+      "max": 0.07271559999207966
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 4779788,
+      "median": 4779788,
+      "max": 4779788
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.6411714999994729,
+      "min": 0.5903474999940954,
+      "max": 0.6966398000076879
+    },
+    "read_s": {
+      "median": 1.1294094999902882,
+      "min": 1.116739899996901,
+      "max": 1.1867662000004202
+    },
+    "inference_s": {
+      "median": 0.3880797000019811,
+      "min": 0.3526042999874335,
+      "max": 0.4131649999762885
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 715,
+      "min": 715,
+      "max": 715
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19201,
+      "median": 67200,
+      "max": 67207
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.9884756999963429,
+      "min": 0.8584718000201974,
+      "max": 1.4938774000038393
+    },
+    "read_s": {
+      "median": 1.2119719000183977,
+      "min": 0.8175205999868922,
+      "max": 1.2620799000142142
+    },
+    "inference_s": {
+      "median": 0.3152542000170797,
+      "min": 0.26944629999343306,
+      "max": 0.5159441000141669
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 23,
+      "min": 23,
+      "max": 23
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 1031955,
+      "median": 1048756,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.4926698000053875,
+      "min": 0.4495984000095632,
+      "max": 0.5333812000171747
+    },
+    "read_s": {
+      "median": 0.5048187999927904,
+      "min": 0.4950357000052463,
+      "max": 0.5189473000064027
+    },
+    "inference_s": {
+      "median": 0.15925299999071285,
+      "min": 0.15716070000780746,
+      "max": 0.17950550001114607
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 182,
+      "min": 182,
+      "max": 182
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 211208,
+      "median": 263999.0,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.08157330000540242,
+      "min": 0.08035629999358207,
+      "max": 0.08622389999800362
+    },
+    "read_s": {
+      "median": 0.1382205999980215,
+      "min": 0.12696959997992963,
+      "max": 0.1887894000101369
+    },
+    "inference_s": {
+      "median": 0.07750149999628775,
+      "min": 0.06747619999805465,
+      "max": 0.09982000000309199
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 253293,
+      "median": 1048628,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.010742300015408546,
+      "min": 0.009153199993306771,
+      "max": 0.011558199999853969
+    },
+    "read_s": {
+      "median": 0.063524299999699,
+      "min": 0.05522340000607073,
+      "max": 0.06646870000986382
+    },
+    "inference_s": {
+      "median": 0.05167079999228008,
+      "min": 0.04447359999176115,
+      "max": 0.05319579999195412
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.010778199997730553,
+      "min": 0.007161599991377443,
+      "max": 0.011180999979842454
+    },
+    "read_s": {
+      "median": 0.08152380000683479,
+      "min": 0.05726719999802299,
+      "max": 0.08996919999481179
+    },
+    "inference_s": {
+      "median": 0.06224619998829439,
+      "min": 0.047068099986063316,
+      "max": 0.07724839998991229
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 208203,
+      "median": 236502.0,
+      "max": 264801
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.6653838000202086,
+      "min": 0.6533130999887362,
+      "max": 0.7113047000020742
+    },
+    "read_s": {
+      "median": 1.0313336999970488,
+      "min": 0.9717244999774266,
+      "max": 1.0443202999886125
+    },
+    "inference_s": {
+      "median": 0.326221399998758,
+      "min": 0.2935943999909796,
+      "max": 0.3561045999813359
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 715,
+      "min": 715,
+      "max": 715
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19201,
+      "median": 67200,
+      "max": 67207
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.08203979997779243,
+      "min": 0.08020789999864064,
+      "max": 0.0822080000070855
+    },
+    "read_s": {
+      "median": 0.8524462999776006,
+      "min": 0.7687662999960594,
+      "max": 0.8638754000130575
+    },
+    "inference_s": {
+      "median": 0.2684214000182692,
+      "min": 0.26812389999395236,
+      "max": 0.3234344999946188
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 17,
+      "min": 17,
+      "max": 17
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 412004,
+      "median": 1486402,
+      "max": 1492546
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.011224399990169331,
+      "min": 0.010829799983184785,
+      "max": 0.014154799981042743
+    },
+    "read_s": {
+      "median": 0.05929509998532012,
+      "min": 0.05303949999506585,
+      "max": 0.06494569999631494
+    },
+    "inference_s": {
+      "median": 0.048868499987293035,
+      "min": 0.04427230000146665,
+      "max": 0.05509199999505654
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 4,
+      "min": 4,
+      "max": 4
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 32126,
+      "median": 65631.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.014063700014958158,
+      "min": 0.013900999998440966,
+      "max": 0.016937200009124354
+    },
+    "read_s": {
+      "median": 0.15265430000727065,
+      "min": 0.1301363999955356,
+      "max": 0.19788510000216775
+    },
+    "inference_s": {
+      "median": 0.07529380000778474,
+      "min": 0.062191100005293265,
+      "max": 0.11345659999642521
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 426787,
+      "median": 481488,
+      "max": 483440
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.007118800014723092,
+      "min": 0.006283900002017617,
+      "max": 0.008814200002234429
+    },
+    "read_s": {
+      "median": 0.073935899999924,
+      "min": 0.07350269999005832,
+      "max": 0.07861540000885725
+    },
+    "inference_s": {
+      "median": 0.06457590000354685,
+      "min": 0.06089409999549389,
+      "max": 0.06531320000067353
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.8370373999932781,
+      "min": 0.8327013999805786,
+      "max": 0.8537382000067737
+    },
+    "read_s": {
+      "median": 0.907187700009672,
+      "min": 0.8066041999845766,
+      "max": 1.069839600007981
+    },
+    "inference_s": {
+      "median": 0.3052573000022676,
+      "min": 0.27905019998434,
+      "max": 0.37268329999642447
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 92,
+      "min": 92,
+      "max": 92
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 235159,
+      "median": 262254.0,
+      "max": 262376
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.42374430000199936,
+      "min": 0.4002000000036787,
+      "max": 0.5406474999908824
+    },
+    "read_s": {
+      "median": 0.3918510000221431,
+      "min": 0.3747152000141796,
+      "max": 0.525429700006498
+    },
+    "inference_s": {
+      "median": 0.14954280000529252,
+      "min": 0.1381260000052862,
+      "max": 0.20217250002315268
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 46,
+      "min": 46,
+      "max": 46
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 676809,
+      "median": 1051208.0,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.08134539998718537,
+      "min": 0.07944790000328794,
+      "max": 0.1168506000249181
+    },
+    "read_s": {
+      "median": 0.14439920001314022,
+      "min": 0.11508770001819357,
+      "max": 0.15088930001365952
+    },
+    "inference_s": {
+      "median": 0.07245390000753105,
+      "min": 0.05805220000911504,
+      "max": 0.08231290002004243
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 9,
+      "min": 9,
+      "max": 9
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 252349,
+      "median": 262260,
+      "max": 262349
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.08997879998059943,
+      "min": 0.08873419999144971,
+      "max": 0.09615869997651316
+    },
+    "read_s": {
+      "median": 0.18474820000119507,
+      "min": 0.13335680001182482,
+      "max": 0.1964905000058934
+    },
+    "inference_s": {
+      "median": 0.0962199000059627,
+      "min": 0.06597049999982119,
+      "max": 0.10537590002059005
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 36,
+      "min": 36,
+      "max": 36
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 54295,
+      "median": 65622.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.04469709997647442,
+      "min": 0.04228039999725297,
+      "max": 0.06119450001278892
+    },
+    "read_s": {
+      "median": 0.09165270000812598,
+      "min": 0.08190130000002682,
+      "max": 0.11267949998728
+    },
+    "inference_s": {
+      "median": 0.05957820001640357,
+      "min": 0.050296599976718426,
+      "max": 0.07628750000731088
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 573763,
+      "median": 1051901,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.08464449999155477,
+      "min": 0.07223930000327528,
+      "max": 0.11669580001034774
+    },
+    "read_s": {
+      "median": 0.1715705000096932,
+      "min": 0.16773720001219772,
+      "max": 0.2941360000113491
+    },
+    "inference_s": {
+      "median": 0.08604630001354963,
+      "min": 0.0775887000199873,
+      "max": 0.14890650002053007
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 72,
+      "min": 72,
+      "max": 72
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 28688,
+      "median": 66941.5,
+      "max": 66955
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.10851829999592155,
+      "min": 0.1052168000023812,
+      "max": 0.10873619999620132
+    },
+    "read_s": {
+      "median": 0.1599657000042498,
+      "min": 0.15180160000454634,
+      "max": 0.16055699999560602
+    },
+    "inference_s": {
+      "median": 0.08194000000366941,
+      "min": 0.06850990001112223,
+      "max": 0.08337720000417903
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 36,
+      "min": 36,
+      "max": 36
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 54295,
+      "median": 65622.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.08428449998609722,
+      "min": 0.08347800001502037,
+      "max": 0.09633190001477487
+    },
+    "read_s": {
+      "median": 0.1283986000053119,
+      "min": 0.11617079999996349,
+      "max": 0.13942319998750463
+    },
+    "inference_s": {
+      "median": 0.07131550001213327,
+      "min": 0.059964199987007305,
+      "max": 0.07949179998831823
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 253293,
+      "median": 1048628,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.015216600004350767,
+      "min": 0.013089000014588237,
+      "max": 0.017609800008358434
+    },
+    "read_s": {
+      "median": 0.05649240000639111,
+      "min": 0.0518885999917984,
+      "max": 0.06420200000866316
+    },
+    "inference_s": {
+      "median": 0.046745300001930445,
+      "min": 0.04320099999313243,
+      "max": 0.05535450001480058
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 4,
+      "min": 4,
+      "max": 4
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 32126,
+      "median": 65631.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.011899200006155297,
+      "min": 0.011571499984711409,
+      "max": 0.01344860001699999
+    },
+    "read_s": {
+      "median": 0.06433739999192767,
+      "min": 0.05979259999003261,
+      "max": 0.07135700000799261
+    },
+    "inference_s": {
+      "median": 0.052959399996325374,
+      "min": 0.0503096999891568,
+      "max": 0.060232199990423396
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.008012699981918558,
+      "min": 0.005480899999383837,
+      "max": 0.008742700010770932
+    },
+    "read_s": {
+      "median": 0.06696860000374727,
+      "min": 0.04470550001133233,
+      "max": 0.07762550000916235
+    },
+    "inference_s": {
+      "median": 0.05578409999725409,
+      "min": 0.037751900003058836,
+      "max": 0.06819220000761561
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 473004,
+      "median": 473004,
+      "max": 473004
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.012888900004327297,
+      "min": 0.010736299998825416,
+      "max": 0.017293800017796457
+    },
+    "read_s": {
+      "median": 0.11978859998635016,
+      "min": 0.11883160000434145,
+      "max": 0.14703570000710897
+    },
+    "inference_s": {
+      "median": 0.06420279998565093,
+      "min": 0.06374230000074022,
+      "max": 0.08106100000441074
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 910227,
+      "median": 1175353.0,
+      "max": 1440479
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 1.0005719999899156,
+      "min": 0.9740060000040103,
+      "max": 1.1578424999897834
+    },
+    "read_s": {
+      "median": 1.1492322999984026,
+      "min": 1.0755381000053603,
+      "max": 1.5357408999989275
+    },
+    "inference_s": {
+      "median": 0.38898359998711385,
+      "min": 0.3369830999872647,
+      "max": 0.5451360000006389
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 368,
+      "min": 368,
+      "max": 368
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19924,
+      "median": 65569.5,
+      "max": 65782
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.02038459997857,
+      "min": 0.882008999993559,
+      "max": 1.1477680999960285
+    },
+    "read_s": {
+      "median": 1.1951074999815319,
+      "min": 1.08870449999813,
+      "max": 1.342988399992464
+    },
+    "inference_s": {
+      "median": 0.40569639997556806,
+      "min": 0.38193909998517483,
+      "max": 0.43609629999264143
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 92,
+      "min": 92,
+      "max": 92
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 235159,
+      "median": 262254.0,
+      "max": 262376
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.010792200017021969,
+      "min": 0.00990150001598522,
+      "max": 0.011318299977574497
+    },
+    "read_s": {
+      "median": 0.08051500000874512,
+      "min": 0.06416109998826869,
+      "max": 0.11487109999870881
+    },
+    "inference_s": {
+      "median": 0.06769890000578016,
+      "min": 0.05256159999407828,
+      "max": 0.0938142999948468
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9463,
+      "median": 66239.0,
+      "max": 66252
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.9554185000015423,
+      "min": 0.9514471000002231,
+      "max": 1.1375789999729022
+    },
+    "read_s": {
+      "median": 0.9702558999997564,
+      "min": 0.9011996000190265,
+      "max": 1.1035237000032794
+    },
+    "inference_s": {
+      "median": 0.33179839997319505,
+      "min": 0.30973490001633763,
+      "max": 0.3979193999839481
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 92,
+      "min": 92,
+      "max": 92
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 235159,
+      "median": 262254.0,
+      "max": 262376
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.9225414000102319,
+      "min": 0.876859100011643,
+      "max": 1.3002945000189357
+    },
+    "read_s": {
+      "median": 0.8444576999754645,
+      "min": 0.8270122999965679,
+      "max": 1.0157713999797124
+    },
+    "inference_s": {
+      "median": 0.29456529999151826,
+      "min": 0.26310449998709373,
+      "max": 0.32126709999283776
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 23,
+      "min": 23,
+      "max": 23
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 1031955,
+      "median": 1048756,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.01159370000823401,
+      "min": 0.010364300018409267,
+      "max": 0.011748799995984882
+    },
+    "read_s": {
+      "median": 0.060809999995399266,
+      "min": 0.05426549998810515,
+      "max": 0.08298939999076538
+    },
+    "inference_s": {
+      "median": 0.05185879999771714,
+      "min": 0.04541520000202581,
+      "max": 0.06750389997614548
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 4,
+      "min": 4,
+      "max": 4
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 32126,
+      "median": 65631.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.0555129999993369,
+      "min": 0.04479759998503141,
+      "max": 0.0766699000087101
+    },
+    "read_s": {
+      "median": 0.096890099986922,
+      "min": 0.08647720000590198,
+      "max": 0.10840700002154335
+    },
+    "inference_s": {
+      "median": 0.06162919997586869,
+      "min": 0.05361820000689477,
+      "max": 0.07178030000068247
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 573763,
+      "median": 1051901,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.008502100012265146,
+      "min": 0.007910700020147488,
+      "max": 0.011374499998055398
+    },
+    "read_s": {
+      "median": 0.05306969999219291,
+      "min": 0.048130599985597655,
+      "max": 0.06402789999265224
+    },
+    "inference_s": {
+      "median": 0.04405090000363998,
+      "min": 0.039679400011664256,
+      "max": 0.05049490000237711
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9463,
+      "median": 66239.0,
+      "max": 66252
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.007690700003877282,
+      "min": 0.006160899996757507,
+      "max": 0.010801700002048165
+    },
+    "read_s": {
+      "median": 0.06835710001178086,
+      "min": 0.06657639998593368,
+      "max": 0.11133960000006482
+    },
+    "inference_s": {
+      "median": 0.056005499995080754,
+      "min": 0.05571529999724589,
+      "max": 0.0915800999791827
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 473004,
+      "median": 473004,
+      "max": 473004
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.006982599996263161,
+      "min": 0.006170200009364635,
+      "max": 0.01367810001829639
+    },
+    "read_s": {
+      "median": 0.0627643000043463,
+      "min": 0.05775720000383444,
+      "max": 0.11645539998426102
+    },
+    "inference_s": {
+      "median": 0.05218990001594648,
+      "min": 0.048652099998435006,
+      "max": 0.10141829997883178
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 473004,
+      "median": 473004,
+      "max": 473004
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.01956330001121387,
+      "min": 0.01362929999595508,
+      "max": 0.020095499989110976
+    },
+    "read_s": {
+      "median": 0.14938489999622107,
+      "min": 0.1184382000064943,
+      "max": 0.19730420000269078
+    },
+    "inference_s": {
+      "median": 0.08371750000515021,
+      "min": 0.061733200011076406,
+      "max": 0.09096339999814518
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 426787,
+      "median": 481488,
+      "max": 483440
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.04887459997553378,
+      "min": 0.04432030001771636,
+      "max": 0.05594969997764565
+    },
+    "read_s": {
+      "median": 0.09628929998143576,
+      "min": 0.08687230001669377,
+      "max": 0.12031369999749586
+    },
+    "inference_s": {
+      "median": 0.05455519998213276,
+      "min": 0.05155950001790188,
+      "max": 0.0677443000022322
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 19,
+      "min": 19,
+      "max": 19
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 43032,
+      "median": 263002,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.11848710000049323,
+      "min": 0.09519900000304915,
+      "max": 0.13717539998469874
+    },
+    "read_s": {
+      "median": 0.15448329999344423,
+      "min": 0.14836490000016056,
+      "max": 0.16552199999568984
+    },
+    "inference_s": {
+      "median": 0.08014570001978427,
+      "min": 0.07320499999332242,
+      "max": 0.08426829997915775
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 36,
+      "min": 36,
+      "max": 36
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 54295,
+      "median": 65622.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.09244360000593588,
+      "min": 0.0868962999957148,
+      "max": 0.15457430001697503
+    },
+    "read_s": {
+      "median": 0.15674949999083765,
+      "min": 0.1290766000165604,
+      "max": 0.22247610002523288
+    },
+    "inference_s": {
+      "median": 0.09100630000466481,
+      "min": 0.06536120001692325,
+      "max": 0.11109790002228692
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 253293,
+      "median": 1048628,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.07052609999664128,
+      "min": 0.06599559998721816,
+      "max": 0.08877299999585375
+    },
+    "read_s": {
+      "median": 0.11254770000232384,
+      "min": 0.09532550000585616,
+      "max": 0.15771919998223893
+    },
+    "inference_s": {
+      "median": 0.061844499985454604,
+      "min": 0.05700450000585988,
+      "max": 0.08136469998862594
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 19,
+      "min": 19,
+      "max": 19
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 43032,
+      "median": 263002,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.051847900002030656,
+      "min": 0.051265899994177744,
+      "max": 0.05298320000292733
+    },
+    "read_s": {
+      "median": 0.10448439998435788,
+      "min": 0.10269980001612566,
+      "max": 0.12792679999256507
+    },
+    "inference_s": {
+      "median": 0.065237500006333,
+      "min": 0.054323899996234104,
+      "max": 0.0845227999961935
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 573763,
+      "median": 1051901,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.4850587999972049,
+      "min": 0.43979330000001937,
+      "max": 0.5236010999942664
+    },
+    "read_s": {
+      "median": 0.516310600010911,
+      "min": 0.5013635000213981,
+      "max": 0.5383915000129491
+    },
+    "inference_s": {
+      "median": 0.159806200012099,
+      "min": 0.15273930001421832,
+      "max": 0.19839219999266788
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 182,
+      "min": 182,
+      "max": 182
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 211208,
+      "median": 263999.0,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.9946747999929357,
+      "min": 0.9635838999820407,
+      "max": 1.0555371000082232
+    },
+    "read_s": {
+      "median": 1.120542899996508,
+      "min": 1.0576638999918941,
+      "max": 1.1225307999993674
+    },
+    "inference_s": {
+      "median": 0.331618600001093,
+      "min": 0.3300244999991264,
+      "max": 0.3558705000032205
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 368,
+      "min": 368,
+      "max": 368
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19924,
+      "median": 65569.5,
+      "max": 65782
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.1111304999794811,
+      "min": 0.10091880001709796,
+      "max": 0.14266489999135956
+    },
+    "read_s": {
+      "median": 1.098039099975722,
+      "min": 0.966689499997301,
+      "max": 1.122163799998816
+    },
+    "inference_s": {
+      "median": 0.3584868999896571,
+      "min": 0.3550080999848433,
+      "max": 0.43373910000082105
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 412004,
+      "median": 495467,
+      "max": 497516
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.01258929999312386,
+      "min": 0.009705100004794076,
+      "max": 0.014696699974592775
+    },
+    "read_s": {
+      "median": 0.06210690000443719,
+      "min": 0.049287800007732585,
+      "max": 0.06903370001236908
+    },
+    "inference_s": {
+      "median": 0.05109759999322705,
+      "min": 0.040846899995813146,
+      "max": 0.05580750000081025
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.09586509998189285,
+      "min": 0.08681269999942742,
+      "max": 0.09603820001939312
+    },
+    "read_s": {
+      "median": 0.23962270002812147,
+      "min": 0.16392250001081266,
+      "max": 0.27414919997681864
+    },
+    "inference_s": {
+      "median": 0.1253668999997899,
+      "min": 0.08701460002339445,
+      "max": 0.13448559999233112
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 72,
+      "min": 72,
+      "max": 72
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 28688,
+      "median": 66941.5,
+      "max": 66955
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.04691800000728108,
+      "min": 0.0454230000032112,
+      "max": 0.054517700016731396
+    },
+    "read_s": {
+      "median": 0.10822389999520965,
+      "min": 0.0917388999951072,
+      "max": 0.1214670000190381
+    },
+    "inference_s": {
+      "median": 0.0572600000014063,
+      "min": 0.05694129999028519,
+      "max": 0.08273160000680946
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 573763,
+      "median": 1051901,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.004414600000018254,
+      "min": 0.004011199984233826,
+      "max": 0.004843800008529797
+    },
+    "read_s": {
+      "median": 0.06463199999416247,
+      "min": 0.06235900000319816,
+      "max": 0.06714430000283755
+    },
+    "inference_s": {
+      "median": 0.05170640000142157,
+      "min": 0.04826760001014918,
+      "max": 0.05466190000879578
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.009746299998369068,
+      "min": 0.009515499987173826,
+      "max": 0.025749299995368347
+    },
+    "read_s": {
+      "median": 0.07004619998042472,
+      "min": 0.06785929997568019,
+      "max": 0.1324867999937851
+    },
+    "inference_s": {
+      "median": 0.057870799995725974,
+      "min": 0.05373499999404885,
+      "max": 0.10928330000024289
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9463,
+      "median": 66239.0,
+      "max": 66252
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.056589000014355406,
+      "min": 0.046647999988636,
+      "max": 0.059552500024437904
+    },
+    "read_s": {
+      "median": 0.09411780000664294,
+      "min": 0.0880899999756366,
+      "max": 0.10283699998399243
+    },
+    "inference_s": {
+      "median": 0.055777100002160296,
+      "min": 0.04954469998483546,
+      "max": 0.058338799979537725
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 19,
+      "min": 19,
+      "max": 19
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 43032,
+      "median": 263002,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.9033182999992277,
+      "min": 0.8324196000176016,
+      "max": 1.0076724000100512
+    },
+    "read_s": {
+      "median": 0.8918997000146192,
+      "min": 0.8809413999842945,
+      "max": 0.9115882000187412
+    },
+    "inference_s": {
+      "median": 0.2998939999961294,
+      "min": 0.29449770000064746,
+      "max": 0.3080985000124201
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 23,
+      "min": 23,
+      "max": 23
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 1031955,
+      "median": 1048756,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.1457341999921482,
+      "min": 0.13287380000110716,
+      "max": 0.1519486000179313
+    },
+    "read_s": {
+      "median": 0.5076716000039596,
+      "min": 0.4427811999921687,
+      "max": 0.5591626999957953
+    },
+    "inference_s": {
+      "median": 0.18451329998788424,
+      "min": 0.15688299998873845,
+      "max": 0.19062089998624288
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 8678499,
+      "median": 9828560,
+      "max": 9830512
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.01027039997279644,
+      "min": 0.009411899984115735,
+      "max": 0.013094599999021739
+    },
+    "read_s": {
+      "median": 0.05601020000176504,
+      "min": 0.0554812999907881,
+      "max": 0.06489469998632558
+    },
+    "inference_s": {
+      "median": 0.045475699997041374,
+      "min": 0.044548000005306676,
+      "max": 0.05528160001267679
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.10768180000013672,
+      "min": 0.08324480001465417,
+      "max": 0.11206399998627603
+    },
+    "read_s": {
+      "median": 0.13239930002600886,
+      "min": 0.1253048999933526,
+      "max": 0.2525935999874491
+    },
+    "inference_s": {
+      "median": 0.06954000002588145,
+      "min": 0.06558219998260029,
+      "max": 0.11619179998524487
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 9,
+      "min": 9,
+      "max": 9
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 252349,
+      "median": 262260,
+      "max": 262349
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.13090440002270043,
+      "min": 0.11130740001681261,
+      "max": 0.1321604999830015
+    },
+    "read_s": {
+      "median": 0.19032520000473596,
+      "min": 0.16531069998745807,
+      "max": 0.20167270000092685
+    },
+    "inference_s": {
+      "median": 0.09165570000186563,
+      "min": 0.08710450000944547,
+      "max": 0.09313789999578148
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 36,
+      "min": 36,
+      "max": 36
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 54295,
+      "median": 65622.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.00979779998306185,
+      "min": 0.009231400006683543,
+      "max": 0.017655500007094815
+    },
+    "read_s": {
+      "median": 0.05828609998570755,
+      "min": 0.05166659998940304,
+      "max": 0.10200849999091588
+    },
+    "inference_s": {
+      "median": 0.047302599996328354,
+      "min": 0.04319599998416379,
+      "max": 0.08527139999205247
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.47044790000654757,
+      "min": 0.39919630001531914,
+      "max": 0.901276400021743
+    },
+    "read_s": {
+      "median": 0.4095128999906592,
+      "min": 0.36649069999111816,
+      "max": 0.6351722999825142
+    },
+    "inference_s": {
+      "median": 0.14155850000679493,
+      "min": 0.1261209000076633,
+      "max": 0.196096600004239
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 46,
+      "min": 46,
+      "max": 46
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 676809,
+      "median": 1051208.0,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.0067709000140894204,
+      "min": 0.005638000002363697,
+      "max": 0.007345299993176013
+    },
+    "read_s": {
+      "median": 0.05762080001295544,
+      "min": 0.05288600001949817,
+      "max": 0.06482930001220666
+    },
+    "inference_s": {
+      "median": 0.04872280001291074,
+      "min": 0.04561530001228675,
+      "max": 0.057141900004353374
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 473004,
+      "median": 473004,
+      "max": 473004
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.013286900008097291,
+      "min": 0.012678600003710017,
+      "max": 0.019776200002525002
+    },
+    "read_s": {
+      "median": 0.07105430000228807,
+      "min": 0.061297600012039766,
+      "max": 0.08270709999487735
+    },
+    "inference_s": {
+      "median": 0.05958969998755492,
+      "min": 0.051009599992539734,
+      "max": 0.06882489999406971
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 4,
+      "min": 4,
+      "max": 4
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 32126,
+      "median": 65631.0,
+      "max": 65720
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.15485729998908937,
+      "min": 0.1539002000063192,
+      "max": 0.1571414000063669
+    },
+    "read_s": {
+      "median": 0.5298057000036351,
+      "min": 0.4755148999975063,
+      "max": 0.5338849000108894
+    },
+    "inference_s": {
+      "median": 0.17701040001702495,
+      "min": 0.16496439999900758,
+      "max": 0.21217630000319332
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 8678499,
+      "median": 9828560,
+      "max": 9830512
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.15557819997775368,
+      "min": 0.1505394000269007,
+      "max": 0.160266099992441
+    },
+    "read_s": {
+      "median": 0.5327868000022136,
+      "min": 0.4975735000043642,
+      "max": 0.574324000015622
+    },
+    "inference_s": {
+      "median": 0.17966840000008233,
+      "min": 0.1727238000021316,
+      "max": 0.1920932999928482
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 8678499,
+      "median": 9828560,
+      "max": 9830512
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.42300369997974485,
+      "min": 0.4063021999900229,
+      "max": 0.4388551999873016
+    },
+    "read_s": {
+      "median": 0.40815639999345876,
+      "min": 0.37347930000396445,
+      "max": 0.4097092000010889
+    },
+    "inference_s": {
+      "median": 0.13443829998141155,
+      "min": 0.13353779999306425,
+      "max": 0.1438270999933593
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 46,
+      "min": 46,
+      "max": 46
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 676809,
+      "median": 1051208.0,
+      "max": 1052082
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "narrow",
+    "n": 10000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.08542190000298433,
+      "min": 0.07858780000242405,
+      "max": 0.10249049999401905
+    },
+    "read_s": {
+      "median": 0.1391715999925509,
+      "min": 0.11841150000691414,
+      "max": 0.14624299999559298
+    },
+    "inference_s": {
+      "median": 0.07201759997406043,
+      "min": 0.06408040001406334,
+      "max": 0.08450240001548082
+    },
+    "bytes": {
+      "median": 2350706,
+      "min": 2350706,
+      "max": 2350706
+    },
+    "files": {
+      "median": 9,
+      "min": 9,
+      "max": 9
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 252349,
+      "median": 262260,
+      "max": 262349
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.007438200002070516,
+      "min": 0.0067952999961562455,
+      "max": 0.010211500019067898
+    },
+    "read_s": {
+      "median": 0.0541232000105083,
+      "min": 0.05184909998206422,
+      "max": 0.06182429997716099
+    },
+    "inference_s": {
+      "median": 0.04654030001256615,
+      "min": 0.04449969998677261,
+      "max": 0.05322649999288842
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 208203,
+      "median": 236502.0,
+      "max": 264801
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.00979049998568371,
+      "min": 0.009654900000896305,
+      "max": 0.01110319999861531
+    },
+    "read_s": {
+      "median": 0.06347950000781566,
+      "min": 0.05020160001004115,
+      "max": 0.10033890002523549
+    },
+    "inference_s": {
+      "median": 0.05279570000129752,
+      "min": 0.04159859998617321,
+      "max": 0.08192360002431087
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9463,
+      "median": 66239.0,
+      "max": 66252
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 10000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.7172115000139456,
+      "min": 0.673249899991788,
+      "max": 0.9647034999798052
+    },
+    "read_s": {
+      "median": 0.940741899976274,
+      "min": 0.9086757999903057,
+      "max": 1.484029199986253
+    },
+    "inference_s": {
+      "median": 0.2991854999854695,
+      "min": 0.26242670000647195,
+      "max": 0.47129849999328144
+    },
+    "bytes": {
+      "median": 47977386,
+      "min": 47977386,
+      "max": 47977386
+    },
+    "files": {
+      "median": 715,
+      "min": 715,
+      "max": 715
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19201,
+      "median": 67200,
+      "max": 67207
+    },
+    "preparation_added_null_keys": 28844
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.008504900004481897,
+      "min": 0.006435299990698695,
+      "max": 0.008877599990228191
+    },
+    "read_s": {
+      "median": 0.05863849999150261,
+      "min": 0.04985150002175942,
+      "max": 0.06520879999152385
+    },
+    "inference_s": {
+      "median": 0.050784399994881824,
+      "min": 0.04183130001183599,
+      "max": 0.05539819999830797
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 208203,
+      "median": 236502.0,
+      "max": 264801
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 1000,
+    "target": 262144,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.0583858999889344,
+      "min": 0.04945890000090003,
+      "max": 0.10223590000532568
+    },
+    "read_s": {
+      "median": 0.1133368999871891,
+      "min": 0.10440390001167543,
+      "max": 0.21656630001962185
+    },
+    "inference_s": {
+      "median": 0.07104320000507869,
+      "min": 0.05694700000458397,
+      "max": 0.10899070001323707
+    },
+    "bytes": {
+      "median": 4779788,
+      "min": 4779788,
+      "max": 4779788
+    },
+    "files": {
+      "median": 19,
+      "min": 19,
+      "max": 19
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 43032,
+      "median": 263002,
+      "max": 266593
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.1357332000043243,
+      "min": 0.9532223999849521,
+      "max": 1.2327389000274707
+    },
+    "read_s": {
+      "median": 1.022180500003742,
+      "min": 1.0217683000082616,
+      "max": 1.0326953000039794
+    },
+    "inference_s": {
+      "median": 0.3510995000251569,
+      "min": 0.32237710000481457,
+      "max": 0.3797084000252653
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 23,
+      "min": 23,
+      "max": 23
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 1031955,
+      "median": 1048756,
+      "max": 1048785
+    },
+    "preparation_added_null_keys": 288438
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 1048576,
+    "method": "jsonlines",
+    "batch": 128,
+    "write_s": {
+      "median": 0.009502300003077835,
+      "min": 0.0072604999877512455,
+      "max": 0.010370700008934364
+    },
+    "read_s": {
+      "median": 0.06557160001830198,
+      "min": 0.06262340000830591,
+      "max": 0.07179119999636896
+    },
+    "inference_s": {
+      "median": 0.05551750000449829,
+      "min": 0.05423890001839027,
+      "max": 0.06339339999249205
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 473004,
+      "median": 473004,
+      "max": 473004
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "wide",
+    "n": 100,
+    "target": 262144,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.007705399999395013,
+      "min": 0.006262399983825162,
+      "max": 0.007913600013125688
+    },
+    "read_s": {
+      "median": 0.05984630002058111,
+      "min": 0.05869629999506287,
+      "max": 0.060174399986863136
+    },
+    "inference_s": {
+      "median": 0.051276200014399365,
+      "min": 0.05085429997416213,
+      "max": 0.051535499980673194
+    },
+    "bytes": {
+      "median": 473004,
+      "min": 473004,
+      "max": 473004
+    },
+    "files": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 208203,
+      "median": 236502.0,
+      "max": 264801
+    },
+    "preparation_added_null_keys": 90
+  },
+  {
+    "shape": "narrow",
+    "n": 1000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.011161900009028614,
+      "min": 0.010332899983040988,
+      "max": 0.01580130000365898
+    },
+    "read_s": {
+      "median": 0.0629971000016667,
+      "min": 0.06182110001100227,
+      "max": 0.08136019998346455
+    },
+    "inference_s": {
+      "median": 0.051424300007056445,
+      "min": 0.04816209999262355,
+      "max": 0.06463649999932386
+    },
+    "bytes": {
+      "median": 229108,
+      "min": 229108,
+      "max": 229108
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 229108,
+      "median": 229108,
+      "max": 229108
+    },
+    "preparation_added_null_keys": 2886
+  },
+  {
+    "shape": "narrow",
+    "n": 100000,
+    "target": 65536,
+    "method": "jsonlines",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.0887598999834154,
+      "min": 1.009010199981276,
+      "max": 1.428317399986554
+    },
+    "read_s": {
+      "median": 1.1393009000166785,
+      "min": 1.0981664000137243,
+      "max": 1.2188327000185382
+    },
+    "inference_s": {
+      "median": 0.3467876000213437,
+      "min": 0.3288501999923028,
+      "max": 0.4591072000039276
+    },
+    "bytes": {
+      "median": 24104177,
+      "min": 24104177,
+      "max": 24104177
+    },
+    "files": {
+      "median": 368,
+      "min": 368,
+      "max": 368
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 19924,
+      "median": 65569.5,
+      "max": 65782
+    },
+    "preparation_added_null_keys": 288438
+  }
+]

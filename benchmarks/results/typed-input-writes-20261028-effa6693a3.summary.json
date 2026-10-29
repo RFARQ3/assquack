@@ -1,0 +1,728 @@
+[
+  {
+    "source": "pandas",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.0072259000153280795,
+      "min": 0.006089200003771111,
+      "max": 0.007314299989957362
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "pandas_json",
+    "batch": 128,
+    "write_s": {
+      "median": 0.008082999993348494,
+      "min": 0.0064962999895215034,
+      "max": 0.008289299992611632
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "table",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.008548999991035089,
+      "min": 0.007038500014459714,
+      "max": 0.008938000013586134
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.02860520000103861,
+      "min": 0.021235000021988526,
+      "max": 0.02882169999065809
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 472081,
+      "median": 472081,
+      "max": 472081
+    }
+  },
+  {
+    "source": "table",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.014255199988838285,
+      "min": 0.01327649998711422,
+      "max": 0.014256499998737127
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "pandas_json",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.007638999988557771,
+      "min": 0.006380300008459017,
+      "max": 0.009601099998690188
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.011045499995816499,
+      "min": 0.00828810001257807,
+      "max": 0.016883300006156787
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.015927900007227436,
+      "min": 0.015575700002955273,
+      "max": 0.017140200012363493
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 472081,
+      "median": 472081,
+      "max": 472081
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.03581919998396188,
+      "min": 0.0356966000108514,
+      "max": 0.045432700018864125
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 188225,
+      "median": 188225,
+      "max": 188225
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.009059200005140156,
+      "min": 0.008571600017603487,
+      "max": 0.009180900000501424
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  },
+  {
+    "source": "table",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.01791860000230372,
+      "min": 0.015506700001424178,
+      "max": 0.03266659998917021
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 188225,
+      "median": 188225,
+      "max": 188225
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "pandas_json",
+    "batch": 128,
+    "write_s": {
+      "median": 0.006073199998354539,
+      "min": 0.005454199999803677,
+      "max": 0.006308600015472621
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.014553299988619983,
+      "min": 0.012656400009291247,
+      "max": 0.014704400004120544
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.017432900000130758,
+      "min": 0.014796399977058172,
+      "max": 0.018316700006835163
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 188225,
+      "median": 188225,
+      "max": 188225
+    }
+  },
+  {
+    "source": "table",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.008687699999427423,
+      "min": 0.007323300000280142,
+      "max": 0.010621399997035041
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.0094006999861449,
+      "min": 0.008130000001983717,
+      "max": 0.00947779999114573
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "pandas_json",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.004486200021347031,
+      "min": 0.00400469999294728,
+      "max": 0.005095700005767867
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.011943599994992837,
+      "min": 0.01138169999467209,
+      "max": 0.01601150000351481
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.006593700003577396,
+      "min": 0.00576500000897795,
+      "max": 0.007823499996447936
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 8,
+      "min": 8,
+      "max": 8
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 9453,
+      "median": 66109.0,
+      "max": 66132
+    }
+  },
+  {
+    "source": "table",
+    "shape": "wide",
+    "n": 100,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.015899399993941188,
+      "min": 0.01566190001904033,
+      "max": 0.023742100020172074
+    },
+    "bytes": {
+      "median": 472081,
+      "min": 472081,
+      "max": 472081
+    },
+    "files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 472081,
+      "median": 472081,
+      "max": 472081
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 128,
+    "write_s": {
+      "median": 0.014525299979140982,
+      "min": 0.013914300012402236,
+      "max": 0.017895700002554804
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  },
+  {
+    "source": "table",
+    "shape": "narrow",
+    "n": 1000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.013554299977840856,
+      "min": 0.013462400005664676,
+      "max": 0.016092600009869784
+    },
+    "bytes": {
+      "median": 188225,
+      "min": 188225,
+      "max": 188225
+    },
+    "files": {
+      "median": 3,
+      "min": 3,
+      "max": 3
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 56974,
+      "median": 65618,
+      "max": 65633
+    }
+  }
+]

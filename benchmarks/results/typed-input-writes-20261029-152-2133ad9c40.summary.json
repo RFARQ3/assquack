@@ -1,0 +1,1190 @@
+[
+  {
+    "source": "table",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.2087928999972064,
+      "min": 0.1906992000003811,
+      "max": 0.2979075000039302
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 843179,
+      "max": 843236
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.0921750999987125,
+      "min": 0.9702682000061031,
+      "max": 1.1890940000012051
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 157,
+      "min": 157,
+      "max": 157
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 145330,
+      "median": 262285,
+      "max": 262522
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "larger",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 2.258337400009623,
+      "min": 2.1673231000022497,
+      "max": 2.326242100010859
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 191,
+      "min": 191,
+      "max": 191
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 359920,
+      "median": 1049833,
+      "max": 1050325
+    }
+  },
+  {
+    "source": "table",
+    "shape": "larger",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 2.285300899995491,
+      "min": 2.253510499984259,
+      "max": 2.301494299987098
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 191,
+      "min": 191,
+      "max": 191
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 359920,
+      "median": 1049833,
+      "max": 1050325
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.3122691999888048,
+      "min": 1.0155075999791734,
+      "max": 2.2642461999785155
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 625,
+      "min": 625,
+      "max": 625
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 1221,
+      "median": 65860,
+      "max": 65939
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "larger",
+    "n": 100000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 4.494428200006951,
+      "min": 3.9886628999956883,
+      "max": 4.701836599997478
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "table",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.229914600000484,
+      "min": 1.0221282000129577,
+      "max": 1.4917035999824293
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 625,
+      "min": 625,
+      "max": 625
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 1221,
+      "median": 65860,
+      "max": 65939
+    }
+  },
+  {
+    "source": "table",
+    "shape": "larger",
+    "n": 100000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.6587754999927711,
+      "min": 0.6424572999821976,
+      "max": 0.6931947999983095
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "larger",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 3.704929900006391,
+      "min": 3.5463716000085697,
+      "max": 4.337424900004407
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 3028,
+      "min": 3028,
+      "max": 3028
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 11975,
+      "median": 65980.0,
+      "max": 67520
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.14467550002154894,
+      "min": 0.14143049999256618,
+      "max": 0.2134481999964919
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 25,
+      "min": 25,
+      "max": 25
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 1686374,
+      "max": 1686431
+    }
+  },
+  {
+    "source": "table",
+    "shape": "larger",
+    "n": 100000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.868708299996797,
+      "min": 0.7873651000263635,
+      "max": 1.009602799982531
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "larger",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 2.567326399992453,
+      "min": 2.467663100018399,
+      "max": 2.7758050999836996
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 758,
+      "min": 758,
+      "max": 758
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 89966,
+      "median": 263949.0,
+      "max": 264086
+    }
+  },
+  {
+    "source": "table",
+    "shape": "larger",
+    "n": 100000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.733335500000976,
+      "min": 0.6924434999818914,
+      "max": 0.772124300012365
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.125677000003634,
+      "min": 1.094047100021271,
+      "max": 1.406772499991348
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 40,
+      "min": 40,
+      "max": 40
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 168793,
+      "median": 1048646.0,
+      "max": 1048976
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "larger",
+    "n": 100000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.9368139999860432,
+      "min": 0.7539528000052087,
+      "max": 1.4476521000033244
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.3854717000212986,
+      "min": 1.116207899991423,
+      "max": 1.4153498000232503
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 157,
+      "min": 157,
+      "max": 157
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 145330,
+      "median": 262285,
+      "max": 262522
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "larger",
+    "n": 100000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.6491268999816384,
+      "min": 0.646979699988151,
+      "max": 0.8826004000147805
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "table",
+    "shape": "larger",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 3.289058299997123,
+      "min": 3.033114099991508,
+      "max": 3.593564500013599
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 3028,
+      "min": 3028,
+      "max": 3028
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 11975,
+      "median": 65980.0,
+      "max": 67520
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.1651730999874417,
+      "min": 0.9000056999793742,
+      "max": 1.6324697000090964
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 40,
+      "min": 40,
+      "max": 40
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 168793,
+      "median": 1048646.0,
+      "max": 1048976
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "larger",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 2.281046399992192,
+      "min": 2.242592800001148,
+      "max": 2.3765148000093177
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 191,
+      "min": 191,
+      "max": 191
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 359920,
+      "median": 1049833,
+      "max": 1050325
+    }
+  },
+  {
+    "source": "table",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.20038059999933466,
+      "min": 0.16385700000682846,
+      "max": 0.27636920000077225
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 25,
+      "min": 25,
+      "max": 25
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 1686374,
+      "max": 1686431
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "larger",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 3.4104672000103164,
+      "min": 3.2064847000001464,
+      "max": 3.6626041999843437
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 3028,
+      "min": 3028,
+      "max": 3028
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 11975,
+      "median": 65980.0,
+      "max": 67520
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.735845800023526,
+      "min": 0.6170289000147022,
+      "max": 1.1357666999974754
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 843179,
+      "max": 843236
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.6194982000160962,
+      "min": 0.5841108000022359,
+      "max": 0.6424082000157796
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 25,
+      "min": 25,
+      "max": 25
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 1686374,
+      "max": 1686431
+    }
+  },
+  {
+    "source": "table",
+    "shape": "larger",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 2.470281599991722,
+      "min": 2.4186530000006314,
+      "max": 3.037380199995823
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 758,
+      "min": 758,
+      "max": 758
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 89966,
+      "median": 263949.0,
+      "max": 264086
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "larger",
+    "n": 100000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 4.423643100017216,
+      "min": 3.8385224000085145,
+      "max": 5.895183499989798
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "table",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.9892598000005819,
+      "min": 0.8391637000022456,
+      "max": 1.0155551000207197
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 157,
+      "min": 157,
+      "max": 157
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 145330,
+      "median": 262285,
+      "max": 262522
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "larger",
+    "n": 100000,
+    "target": 262144,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 2.8117114000197034,
+      "min": 2.52748600000632,
+      "max": 2.9025172000110615
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 758,
+      "min": 758,
+      "max": 758
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 89966,
+      "median": 263949.0,
+      "max": 264086
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 65536,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 1.7997212000191212,
+      "min": 1.727913400012767,
+      "max": 2.089032000018051
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 625,
+      "min": 625,
+      "max": 625
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 1221,
+      "median": 65860,
+      "max": 65939
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "larger",
+    "n": 100000,
+    "target": 1048576,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.6772947999997996,
+      "min": 0.6414125000010245,
+      "max": 1.0179848999832757
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "table",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 1048576,
+    "method": "direct",
+    "batch": 2048,
+    "write_s": {
+      "median": 0.9561888000171166,
+      "min": 0.8391732000163756,
+      "max": 0.9690173999988474
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 40,
+      "min": 40,
+      "max": 40
+    },
+    "removed_empty_files": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "file_bytes": {
+      "min": 168793,
+      "median": 1048646.0,
+      "max": 1048976
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "larger",
+    "n": 100000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 4.121527500014054,
+      "min": 3.8570605000131764,
+      "max": 4.239994500007015
+    },
+    "bytes": {
+      "median": 199791256,
+      "min": 199791256,
+      "max": 199791256
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 3391503,
+      "median": 4095403,
+      "max": 4095460
+    }
+  },
+  {
+    "source": "pandas",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.6531268999970052,
+      "min": 0.615342100005364,
+      "max": 0.8145320000185166
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 843179,
+      "max": 843236
+    }
+  },
+  {
+    "source": "table",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.18312060000607744,
+      "min": 0.15394089999608696,
+      "max": 0.21266029999242164
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 843179,
+      "max": 843236
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 262144,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.24399950000224635,
+      "min": 0.1759874999988824,
+      "max": 0.2637349999858998
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 843179,
+      "max": 843236
+    }
+  },
+  {
+    "source": "recordbatch",
+    "shape": "smaller",
+    "n": 100000,
+    "target": 65536,
+    "method": "copy",
+    "batch": null,
+    "write_s": {
+      "median": 0.16844330000458285,
+      "min": 0.15785759998834692,
+      "max": 0.3176279000181239
+    },
+    "bytes": {
+      "median": 41069026,
+      "min": 41069026,
+      "max": 41069026
+    },
+    "files": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "removed_empty_files": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "file_bytes": {
+      "min": 698255,
+      "median": 843179,
+      "max": 843236
+    }
+  }
+]

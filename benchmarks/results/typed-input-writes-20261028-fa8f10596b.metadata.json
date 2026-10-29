@@ -1,0 +1,193 @@
+{
+  "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+  "executable": "E:\\projects\\assquack\\.tmp-mad-parquet-repro\\venv\\Scripts\\python.exe",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "duckdb": "1.4.3",
+  "pandas": "2.3.3",
+  "pyarrow": "16.1.0",
+  "threads": 1,
+  "fsync": false,
+  "trials": 3,
+  "smoke": true,
+  "configurations": [
+    {
+      "source": "pandas",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "source": "pandas",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "pandas_json",
+      "batch": 128
+    },
+    {
+      "source": "pandas",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "pandas_json",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "source": "pandas",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "pandas_json",
+      "batch": 128
+    },
+    {
+      "source": "pandas",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "pandas_json",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "source": "table",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "source": "table",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "source": "recordbatch",
+      "shape": "narrow",
+      "n": 1000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 128
+    },
+    {
+      "source": "recordbatch",
+      "shape": "wide",
+      "n": 100,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    }
+  ],
+  "script_sha256": "2b8bf0b4a240ec980b2f4240529c74e11f96e9d90f3de9286929130dd5110ce6",
+  "process_model": "One process, new fixture and connection per trial",
+  "memory": "Not sampled; psutil unavailable in this existing environment"
+}

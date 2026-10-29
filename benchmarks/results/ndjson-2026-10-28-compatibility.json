@@ -1,0 +1,112 @@
+{
+  "json": {
+    "decoded": [
+      {
+        "id": 0,
+        "optional": null,
+        "details": {
+          "first": 1
+        }
+      },
+      {
+        "id": 1,
+        "optional": 2,
+        "details": {
+          "first": 2,
+          "later": "nested"
+        },
+        "late": "present"
+      }
+    ],
+    "late_field_preserved": true,
+    "types": {
+      "details": "STRUCT(\"first\" BIGINT, later VARCHAR)",
+      "id": "BIGINT",
+      "late": "VARCHAR",
+      "optional": "BIGINT"
+    }
+  },
+  "orjson": {
+    "decoded": [
+      {
+        "id": 0,
+        "optional": null,
+        "details": {
+          "first": 1
+        }
+      },
+      {
+        "id": 1,
+        "optional": 2,
+        "details": {
+          "first": 2,
+          "later": "nested"
+        },
+        "late": "present"
+      }
+    ],
+    "late_field_preserved": true,
+    "types": {
+      "details": "STRUCT(\"first\" BIGINT, later VARCHAR)",
+      "id": "BIGINT",
+      "late": "VARCHAR",
+      "optional": "BIGINT"
+    }
+  },
+  "duckdb": {
+    "decoded": [
+      {
+        "id": 0,
+        "optional": null,
+        "details": {
+          "first": 1,
+          "later": null
+        }
+      },
+      {
+        "id": 1,
+        "optional": 2,
+        "details": {
+          "first": 2,
+          "later": "nested"
+        }
+      }
+    ],
+    "late_field_preserved": false,
+    "types": {
+      "details": "STRUCT(\"first\" BIGINT, later VARCHAR)",
+      "id": "BIGINT",
+      "optional": "BIGINT"
+    }
+  },
+  "copy": {
+    "decoded": [
+      {
+        "id": 0,
+        "optional": null,
+        "details": {
+          "first": 1,
+          "later": null
+        }
+      },
+      {
+        "id": 1,
+        "optional": 2,
+        "details": {
+          "first": 2,
+          "later": "nested"
+        }
+      }
+    ],
+    "late_field_preserved": false,
+    "types": {
+      "details": "STRUCT(\"first\" BIGINT, later VARCHAR)",
+      "id": "BIGINT",
+      "optional": "BIGINT"
+    }
+  },
+  "non_finite_encoding": {
+    "json": "{\"value\": NaN}",
+    "orjson": "{\"value\":null}"
+  }
+}

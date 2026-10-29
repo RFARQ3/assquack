@@ -1,0 +1,167 @@
+{
+  "executable": "E:\\projects\\assquack\\benchmarks\\.venv-typed-writes-152\\Scripts\\python.exe",
+  "python": "3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]",
+  "duckdb": "1.5.2",
+  "pandas": "3.1.0",
+  "pyarrow": "26.0.0"
+}
+{
+  "smaller": {
+    "rows": 100000,
+    "root_fields": 11,
+    "maximum_container_depth_below_root": 1,
+    "average_serialized_bytes": 410.69026,
+    "total_bytes": 41069026,
+    "examples": [
+      {
+        "id": 0,
+        "text": "caf\u00e9 \u6771\u4eac \"\\\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "number": 0.0,
+        "optional": null,
+        "active": true,
+        "nested": null,
+        "items": null,
+        "category": "synthetic caf\u00e9 / \u6771\u4eac",
+        "description": "Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 ",
+        "flags": [
+          true,
+          false,
+          null
+        ],
+        "region": "Sydney"
+      },
+      {
+        "id": 1,
+        "text": "caf\u00e9 \u6771\u4eac \"\\\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "number": 0.25,
+        "optional": 1,
+        "active": false,
+        "nested": {
+          "first": 1,
+          "later": 2
+        },
+        "items": [
+          1,
+          null,
+          2
+        ],
+        "category": "synthetic caf\u00e9 / \u6771\u4eac",
+        "description": "Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 ",
+        "flags": [
+          true,
+          false,
+          null
+        ],
+        "region": "Sydney"
+      }
+    ]
+  },
+  "larger": {
+    "rows": 100000,
+    "root_fields": 18,
+    "maximum_container_depth_below_root": 3,
+    "average_serialized_bytes": 1997.91256,
+    "total_bytes": 199791256,
+    "examples": [
+      {
+        "id": 0,
+        "text": "caf\u00e9 \u6771\u4eac \"\\\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "number": 0.0,
+        "optional": null,
+        "active": true,
+        "nested": null,
+        "items": null,
+        "category": "synthetic caf\u00e9 / \u6771\u4eac",
+        "description": "Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 ",
+        "flags": [
+          true,
+          false,
+          null
+        ],
+        "region": "Sydney",
+        "details": {
+          "owner": {
+            "name": "Zo\u00eb \u6771\u4eac",
+            "address": {
+              "city": "Montr\u00e9al",
+              "postcode": null
+            }
+          },
+          "events": [
+            {
+              "code": 0,
+              "note": "arrived \u2713"
+            },
+            {
+              "code": null,
+              "note": "caf\u00e9"
+            }
+          ]
+        },
+        "field_0": "0:0:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_1": "0:1:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_2": "0:2:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_3": "0:3:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_4": "0:4:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_5": "0:5:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx"
+      },
+      {
+        "id": 1,
+        "text": "caf\u00e9 \u6771\u4eac \"\\\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "number": 0.25,
+        "optional": 1,
+        "active": false,
+        "nested": {
+          "first": 1,
+          "later": 2
+        },
+        "items": [
+          1,
+          null,
+          2
+        ],
+        "category": "synthetic caf\u00e9 / \u6771\u4eac",
+        "description": "Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 Readable payload \u2014 na\u00efve r\u00e9sum\u00e9 ",
+        "flags": [
+          true,
+          false,
+          null
+        ],
+        "region": "Sydney",
+        "details": {
+          "owner": {
+            "name": "Zo\u00eb \u6771\u4eac",
+            "address": {
+              "city": "Montr\u00e9al",
+              "postcode": 2000
+            }
+          },
+          "events": [
+            {
+              "code": 1,
+              "note": "arrived \u2713"
+            },
+            {
+              "code": null,
+              "note": "caf\u00e9"
+            }
+          ]
+        },
+        "field_0": "1:0:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_1": "1:1:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_2": "1:2:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_3": "1:3:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_4": "1:4:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx",
+        "field_5": "1:5:\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx\u00e9\u6771\u4eacx"
+      }
+    ]
+  }
+}
+OUTPUT E:\projects\assquack\benchmarks\results\typed-input-writes-20261029-152-c08bad27aa
+1/48 completed
+11/48 completed
+21/48 completed
+31/48 completed
+41/48 completed
+48/48 completed
+DONE

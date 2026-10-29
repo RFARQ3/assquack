@@ -1,0 +1,20 @@
+{
+  "complete": true,
+  "trials": 420,
+  "configurations": 140,
+  "source_records_checked": 7923300,
+  "all_correct": true,
+  "measured_source_sha256": "68d37d0af583fdab34ade9b023ef869f50a84bbf2f90ae2792a3e04c0c6dcfaf",
+  "final_source_sha256": "c1b351ea69193dce4844d7269a879dcdce0a7f5b86dd36adce7f92dfb00eccdd",
+  "changes_after_measurement": "Typing annotations, typing import, comments and formatting only; all function/class bytecode recursively verified unchanged.",
+  "partial_run_excluded": "6996de212a",
+  "checks": {
+    "ruff_lint": "passed",
+    "ruff_format": "passed",
+    "scoped_pyright": "passed",
+    "git_diff_check": "passed",
+    "repository_markdown_links": "passed",
+    "production_tests": "not run; no production code changed",
+    "benchmark_markdown_links_and_whitespace": "passed"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "configurations": 140,
+  "measured_trials": 420,
+  "source_records": 7923300,
+  "all_fragment_and_duckdb_records_valid": true,
+  "retained_empty_files": 0,
+  "transient_empty_files_removed": 999,
+  "measured_source_hash_verified": true,
+  "baseline_bytes_schemas_nonempty_size_distributions_match": true,
+  "added_null_bytes_explain_all_output_byte_increases": true,
+  "semantic_probes": [
+    {
+      "method": "jsonlines",
+      "correct": true,
+      "normalized_records": 0,
+      "schema": {
+        "id": "BIGINT",
+        "varying": "JSON",
+        "nested": "STRUCT(a BIGINT)",
+        "number": "DOUBLE",
+        "within": "VARCHAR",
+        "late": "STRUCT(nested JSON[])"
+      }
+    },
+    {
+      "method": "direct",
+      "correct": true,
+      "normalized_records": 0,
+      "schema": {
+        "id": "BIGINT",
+        "varying": "JSON",
+        "nested": "STRUCT(a BIGINT)",
+        "number": "DOUBLE",
+        "within": "VARCHAR",
+        "late": "STRUCT(nested JSON[])"
+      }
+    },
+    {
+      "method": "duck_batch",
+      "correct": true,
+      "normalized_records": 130,
+      "schema": {
+        "id": "BIGINT",
+        "varying": "JSON",
+        "nested": "STRUCT(a BIGINT)",
+        "number": "DOUBLE",
+        "within": "VARCHAR",
+        "late": "STRUCT(nested JSON[])"
+      }
+    },
+    {
+      "method": "duck_all",
+      "correct": true,
+      "normalized_records": 260,
+      "schema": {
+        "id": "BIGINT",
+        "varying": "JSON",
+        "nested": "STRUCT(a BIGINT)",
+        "number": "DOUBLE",
+        "within": "VARCHAR",
+        "late": "STRUCT(nested JSON[])"
+      }
+    }
+  ]
+}

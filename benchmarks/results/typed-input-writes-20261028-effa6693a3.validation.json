@@ -1,0 +1,21 @@
+{
+  "trials": 66,
+  "configurations": 22,
+  "records_validated": 36300,
+  "retained_empty_files": 0,
+  "removed_empty_files": 18,
+  "lowest_write_median_counts": {
+    "pandas": {
+      "pandas_json": 1,
+      "direct": 1
+    },
+    "recordbatch": {
+      "direct": 2
+    },
+    "table": {
+      "direct": 2
+    }
+  },
+  "source_hash_matches": true,
+  "full_matrix": true
+}

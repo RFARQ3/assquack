@@ -1,0 +1,25 @@
+{
+  "python": "3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "duckdb": "1.5.2",
+  "pyarrow": "26.0.0",
+  "orjson": "3.13.0",
+  "psutil": "7.2.2",
+  "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+  "logical_cpus": 8,
+  "physical_memory_bytes": 34163216384,
+  "threads": 1,
+  "batch_rows": 1024,
+  "reader_options": "format='newline_delimited', hive_partitioning=false, union_by_name=true, sample_size=-1, field_appearance_threshold=0, map_inference_threshold=-1, maximum_object_size=33554432",
+  "capabilities": {
+    "FILE_SIZE_BYTES 1000000": "supported",
+    "ROW_GROUP_SIZE 1024": "Binder Error: Unknown option for COPY ... TO ... (FORMAT JSON): \"row_group_size\".",
+    "ROW_GROUPS_PER_FILE 1": "Binder Error: Unknown option for COPY ... TO ... (FORMAT JSON): \"row_groups_per_file\"."
+  },
+  "source_sha256": {
+    "fragments.py": "5b9c00f8600e2e7b1534eae5c271f6d1d34ad5b5fc17858eae408ddd740f16b1",
+    "json_reader.py": "18992be233e4affc6d662945c70b1b11c96d156e69adca179f708732d37e8637",
+    "schema.py": "b37249769cf1a2674b1fb10fce3456c668f26b44739df26521fe3a45a1edf427",
+    "staging.py": "42c54b8e73fc3afd8a36f02626b1380a2c8c77f091f8a74a2f605b3647633d62"
+  }
+}

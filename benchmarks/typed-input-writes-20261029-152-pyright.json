@@ -1,0 +1,7 @@
+{
+  "include": ["typed_input_writes_20261029_152.py", "summarize_typed_input_writes_20261029_152.py"],
+  "extraPaths": [".venv-typed-writes-152/Lib/site-packages"],
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "standard",
+  "reportMissingTypeStubs": false
+}

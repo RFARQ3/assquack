@@ -1,0 +1,7 @@
+{
+  "include": ["typed_input_writes_20261028.py", "summarize_typed_input_writes_20261028.py"],
+  "extraPaths": ["../.tmp-mad-parquet-repro/venv/Lib/site-packages"],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard",
+  "reportMissingTypeStubs": false
+}

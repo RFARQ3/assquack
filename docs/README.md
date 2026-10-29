@@ -62,6 +62,12 @@ the topic links that match the work in front of you.
 - [Original MVP Plan Archive](assquack-mvp-plan.md): retained as the original
   monolithic planning note for history.
 
+## Research
+
+- [NDJSON writing and fragment sizing diagnostics](research/2026-10-28-ndjson-diagnostics.md):
+  synthetic writer/sizing comparisons, full inference timing, reproducible trials,
+  and limitations; no production normalization decision.
+
 ## Implementation Tracking
 
 - [MVP extensibility defects](epics/01-mvp/06-extensibility-defects.md): numbered

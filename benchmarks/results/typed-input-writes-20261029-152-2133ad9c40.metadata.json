@@ -1,0 +1,305 @@
+{
+  "python": "3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]",
+  "executable": "E:\\projects\\assquack\\benchmarks\\.venv-typed-writes-152\\Scripts\\python.exe",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "duckdb": "1.5.2",
+  "pandas": "3.1.0",
+  "pyarrow": "26.0.0",
+  "threads": 1,
+  "fsync": false,
+  "trials": 3,
+  "smoke": false,
+  "configurations": [
+    {
+      "source": "pandas",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "larger",
+      "n": 100000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "larger",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "larger",
+      "n": 100000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "larger",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "pandas",
+      "shape": "larger",
+      "n": 100000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "pandas",
+      "shape": "larger",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "larger",
+      "n": 100000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "larger",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "larger",
+      "n": 100000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "larger",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "table",
+      "shape": "larger",
+      "n": 100000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "table",
+      "shape": "larger",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "smaller",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "larger",
+      "n": 100000,
+      "target": 65536,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "larger",
+      "n": 100000,
+      "target": 65536,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "larger",
+      "n": 100000,
+      "target": 262144,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "larger",
+      "n": 100000,
+      "target": 262144,
+      "method": "direct",
+      "batch": 2048
+    },
+    {
+      "source": "recordbatch",
+      "shape": "larger",
+      "n": 100000,
+      "target": 1048576,
+      "method": "copy",
+      "batch": null
+    },
+    {
+      "source": "recordbatch",
+      "shape": "larger",
+      "n": 100000,
+      "target": 1048576,
+      "method": "direct",
+      "batch": 2048
+    }
+  ],
+  "script_sha256": "ece6ada43e4cc4182ceaf9d53f07972eebc3de6ed7c5d590c68cf02d9e4cbad4",
+  "process_model": "One process, new fixture and connection per trial",
+  "memory": "Not sampled; psutil unavailable in this existing environment"
+}

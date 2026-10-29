@@ -1,0 +1,10 @@
+{
+  "trials": 36,
+  "configurations": 12,
+  "records_checked": 36000,
+  "retained_empty_files": 0,
+  "removed_empty_files": 18,
+  "version_gate": true,
+  "source_hash": true,
+  "full_matrix": true
+}
