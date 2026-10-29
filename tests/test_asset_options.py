@@ -7,6 +7,43 @@ import pytest
 from assquack import AssquackConfig, asset
 
 
+def test_default_names_follow_option_and_argument_copies():
+    @asset("bronze.{endpoint}")
+    def source(endpoint: str):
+        raise AssertionError("Configuration must not execute the function")
+
+    assert source.name == "bronze.{endpoint}"
+    bound = source.with_arguments(endpoint="orders")
+    changed = bound.cache_first().with_options(table="silver.{endpoint}")
+    assert (changed.table, changed.name) == ("silver.orders", "silver.orders")
+    opposite = (
+        source.with_options(table="silver.{endpoint}")
+        .with_arguments(endpoint="orders")
+        .cache_first()
+    )
+    assert changed == opposite
+    rebound = changed.with_options().with_arguments(endpoint="items")
+    assert rebound.name == "silver.items"
+    assert rebound._request((), {}).asset_name == "silver.items"
+    assert source.name == "bronze.{endpoint}" and bound.name == "bronze.orders"
+
+
+def test_explicit_name_survives_table_changes_until_reset():
+    @asset("bronze.{endpoint}", name="bronze.{endpoint}")
+    def source(endpoint: str):
+        raise AssertionError("Configuration must not execute the function")
+
+    changed = source.with_arguments(endpoint="orders").with_options(
+        table="silver.{endpoint}"
+    )
+    assert changed.name == "bronze.orders"
+    reset = changed.with_options(name=None, table="gold.{endpoint}")
+    assert reset.name == "gold.orders"
+    assert reset.with_arguments(endpoint="items").name == "gold.items"
+    assert reset.with_options(table="final.{endpoint}").name == "final.orders"
+    assert changed.name == "bronze.orders"
+
+
 def test_option_copies_preserve_templates_arguments_and_resets(tmp_path: Path):
     config = AssquackConfig(home=tmp_path)
 
@@ -36,7 +73,7 @@ def test_option_copies_preserve_templates_arguments_and_resets(tmp_path: Path):
         export=None, name=None, config=None, cache_expiration=None
     )
     assert reset.export is None and reset.config is None
-    assert reset.name == "source" and not reset.prefer_cache
+    assert reset.name == "silver.items" and not reset.prefer_cache
     assert reset.fn is source.fn and reset.bound_arguments == {"endpoint": "items"}
 
 

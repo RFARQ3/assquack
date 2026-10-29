@@ -96,7 +96,7 @@ def test_actual_formats_contents_manifests_and_cache(
         {"id": 2, "text": "café", "optional": "present"},
     ]
 
-    @asset(table="main.orders", export=alias)
+    @asset(table="main.orders", name="orders", export=alias)
     def orders():
         nonlocal calls
         calls += 1

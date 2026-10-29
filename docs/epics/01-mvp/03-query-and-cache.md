@@ -116,6 +116,28 @@ query work above.
 
 ## Asset options and attached config
 
+### Table-derived default names (29 October 2026)
+
+Implemented: retain an omitted name in the private template state and resolve
+it from the table template during binding and execution.
+Table option copies update default-derived names, retain explicit names, and
+`name=None` restores the table-derived default. Validate immutable chaining,
+execution overrides, metadata and cache identity with offline synthetic rows.
+No compatibility shim or metadata migration is required for this pre-release API.
+
+- Full offline suite: 295 passed, 8 optional pandas/pyarrow skips; Windows
+  temporary-directory permissions required approved escalation.
+- Ruff source/test lint, changed-file formatting, Markdown links and diff checks
+  pass. Terminology matches remain confined to the existing historical note
+  and epic explanations.
+- Pyright with the Poetry interpreter reports the same seven pre-existing
+  diagnostics on unchanged logic in `_api.py`, `_query.py` and `_templates.py`.
+- Updated export and fragment path expectations; shared-name retention fixtures
+  now declare their names explicitly. Namely was not edited or executed.
+
+This naming change is complete; the phase remains In Progress for the unchecked
+query work above.
+
 Implemented 29 October 2026. The agreed
 [public API goal](../../developer-api.md#asset-config-and-option-copies)
 adds decorator `config=` and immutable `with_options()` customisation. The phase

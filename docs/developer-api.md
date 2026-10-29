@@ -106,8 +106,8 @@ An export target can be either a path or a file type alias.
 Export aliases affect compatibility artifacts only. The canonical materialized
 state is the DuckDB table managed by Assquack.
 
-Export aliases can seed the default asset name when `name=` is omitted, but the
-resolved export destination is not part of the canonical identity. Changing an
+Export aliases do not determine the asset name, and the resolved export
+destination is not part of the canonical identity. Changing an
 export base URI or moving from local exports to ADLS should not invalidate the
 DuckDB asset table.
 
@@ -126,7 +126,8 @@ asset decorator boundary.
 
 ## Optional Overrides
 
-A table must be supplied. Asset names default to the function name, and
+A table must be supplied. Asset names default to the resolved table template
+(for example, `sales.orders`), and
 materialization mode defaults to `replace`. Developers can set:
 
 - `name=` is the stable logical asset name used in manifests, metadata, and
@@ -316,7 +317,11 @@ for acceptance criteria.
 
 Execution, asset `query()` and `exists()` all use this config selection.
 Passing `assquack_config=None` means no call override. `with_options(name=None)`
-restores the function-name default. An explicit cache expiration reset disables
+restores the table-derived default. Changing `table` updates a default-derived
+name and preserves an explicit `name`. Names retain their original templates:
+`@asset("bronze.{endpoint}")` bound with `endpoint="profiles"` has the name
+`bronze.profiles`; rebinding or passing execution arguments resolves the name
+from the same table template. An explicit cache expiration reset disables
 cache reuse, including on a `cache_first()` copy; omitting it retains the fluent
 cache policy.
 

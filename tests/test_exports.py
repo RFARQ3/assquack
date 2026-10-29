@@ -21,7 +21,7 @@ def test_empty_destinations_skip_exports_and_allow_cache(tmp_path: Path) -> None
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             0,
         )
-    assert result.export_parquet() == str(tmp_path / "exports/groups.parquet")
+    assert result.export_parquet() == str(tmp_path / "exports/main.groups.parquet")
 
 
 def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) -> None:

@@ -124,8 +124,9 @@ DDL belongs to the implementor-facing
 
 ## Asset Tables
 
-Each asset gets a stable `asset_id` derived from explicit `name=` when supplied,
-otherwise from the declared asset path or function name plus bound arguments.
+Each asset gets a stable `asset_id` derived from the function identity, resolved
+asset name, and bound arguments. The public asset name uses explicit `name=`
+when supplied; otherwise it resolves the declared table template.
 Resolved export destinations, credentials, export base URIs, and database paths
 must not change the canonical identity. Assquack uses that identity to
 derive or validate:

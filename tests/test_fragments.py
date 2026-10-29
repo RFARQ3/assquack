@@ -38,7 +38,9 @@ def test_materialization_uses_bounded_local_ndjson_fragments(
     result = asyncio.run(orders(assquack_config=config))
 
     run_directory = (
-        config.resolved_fragment_directory / "asset=orders" / f"run_id={result.run_id}"
+        config.resolved_fragment_directory
+        / "asset=main.fragmented_orders"
+        / f"run_id={result.run_id}"
     )
     fragments = sorted(run_directory.glob("*.ndjson"))
     assert [path.name for path in fragments] == [
@@ -214,7 +216,7 @@ def test_failed_extraction_after_rollover_preserves_publication(
             ).fetchone() == (0,)
 
     failed_directory = fragment_run_directory(
-        config.resolved_fragment_directory, "source", failed[0]
+        config.resolved_fragment_directory, "main.safe_fragments", failed[0]
     )
     assert len(list(failed_directory.glob("*.ndjson"))) == 1
     assert not (failed_directory / "_COMPLETE").exists()
@@ -245,7 +247,7 @@ def test_per_call_megabyte_target_controls_actual_fragment_boundaries(
     )
     result = asyncio.run(source(assquack_config=config))
     directory = fragment_run_directory(
-        config.resolved_fragment_directory, "source", result.run_id
+        config.resolved_fragment_directory, "main.byte_boundaries", result.run_id
     )
     assert [path.stat().st_size for path in sorted(directory.glob("*.ndjson"))] == [
         31 * count for count in expected_counts

@@ -50,7 +50,7 @@ AssetFunction: TypeAlias = (
 @dataclass(frozen=True, slots=True)
 class _AssetTemplates:
     export: str | ExportSpec | None
-    name: str
+    name: str | None
     table: str
 
 
@@ -76,10 +76,9 @@ class AssquackAsset(Generic[P, AssetReturn]):
     def __post_init__(self) -> None:
         templates = self._templates
         if templates is None:
-            asset_name = self.name or self.fn.__name__
             templates = _AssetTemplates(
                 export=_copy_export(self.export),
-                name=asset_name,
+                name=self.name,
                 table=self.table,
             )
             object.__setattr__(self, "_templates", templates)
@@ -96,7 +95,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
         object.__setattr__(
             self,
             "name",
-            formatter.format(templates.name, allow_partial=True),
+            formatter.format(templates.name or templates.table, allow_partial=True),
         )
         object.__setattr__(
             self,
@@ -169,9 +168,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
 
         updated_templates = _AssetTemplates(
             table=templates.table if isinstance(table, _Unset) else table,
-            name=templates.name
-            if isinstance(name, _Unset)
-            else name or self.fn.__name__,
+            name=templates.name if isinstance(name, _Unset) else name,
             export=_copy_export(
                 templates.export if isinstance(export, _Unset) else export
             ),
@@ -218,7 +215,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
         assert templates is not None
 
         formatter = AssetTemplateFormatter(bound.args, bound)
-        asset_name = formatter.format(templates.name)
+        asset_name = formatter.format(templates.name or templates.table)
         table_override = formatter.format(templates.table)
         export = _format_export(templates.export, formatter)
 

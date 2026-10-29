@@ -25,7 +25,7 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
     fail = False
     calls = 0
 
-    @asset(table="main.retained")
+    @asset(table="main.retained", name="source")
     async def source() -> AsyncIterator[list[dict[str, int]]]:
         nonlocal calls
         calls += 1
@@ -84,7 +84,7 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
 def test_parameterized_assets_share_directory_without_sharing_retention(
     tmp_path: Path,
 ) -> None:
-    @asset(table="main.orders_{region}")
+    @asset(table="main.orders_{region}", name="orders")
     async def orders(region: str) -> list[dict[str, str]]:
         return [{"region": region}]
 
@@ -175,7 +175,7 @@ def test_colliding_orphan_is_not_claimed_by_failed_run_and_later_deleted(
     monkeypatch.setattr(pipeline, "datetime", clock)
     fail = False
 
-    @asset(table="main.orders")
+    @asset(table="main.orders", name="orders")
     async def orders() -> list[dict[str, int]]:
         if fail:
             raise RuntimeError("fresh failure")
@@ -282,7 +282,7 @@ def test_cleanup_error_does_not_change_publication_or_hide_source_failure(
 ) -> None:
     should_fail = False
 
-    @asset(table="main.orders")
+    @asset(table="main.orders", name="orders")
     async def orders() -> list[dict[str, int]]:
         if should_fail:
             raise RuntimeError("original extraction error")
@@ -333,7 +333,7 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
 ) -> None:
     calls = 0
 
-    @asset(table="main.orders")
+    @asset(table="main.orders", name="orders")
     async def orders() -> list[dict[str, int]]:
         nonlocal calls
         calls += 1
@@ -374,7 +374,7 @@ def test_catalog_cleanup_failure_preserves_successful_result(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    @asset(table="main.orders")
+    @asset(table="main.orders", name="orders")
     async def orders() -> list[dict[str, int]]:
         return [{"id": 1}]
 
@@ -421,7 +421,7 @@ def test_cancelled_capture_keeps_evidence_and_retry_starts_fresh(
     interrupted = True
     entered = asyncio.Event()
 
-    @asset(table="main.cancelled")
+    @asset(table="main.cancelled", name="source")
     async def source() -> AsyncIterator[list[dict[str, int]]]:
         yield [{"id": 1 if interrupted else 2}]
         if interrupted:
@@ -467,7 +467,7 @@ def test_staging_cleanup_failure_does_not_report_committed_run_as_failed(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    @asset(table="main.orders")
+    @asset(table="main.orders", name="orders")
     async def orders() -> list[dict[str, int]]:
         return [{"id": 1}]
 
@@ -492,7 +492,7 @@ def test_abort_cleanup_failure_does_not_mask_extraction_error(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    @asset(table="main.orders")
+    @asset(table="main.orders", name="orders")
     async def orders() -> list[dict[str, int]]:
         raise RuntimeError("original extraction error")
 

@@ -2,6 +2,7 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+import duckdb
 import pytest
 
 from assquack import AssquackAsset, AssquackConfig, MissingAssetSchemaWarning, asset
@@ -84,6 +85,35 @@ def test_positional_table_materializes_without_export(tmp_path: Path) -> None:
     result = asyncio.run(orders(assquack_config=AssquackConfig(home=tmp_path)))
     assert orders.export is None
     assert asyncio.run(result.query("SELECT region FROM data")).fetchall() == [("au",)]
+
+
+def test_default_name_tracks_table_templates_and_execution(tmp_path: Path) -> None:
+    definition = asset("sales.orders_{region}")(source)
+    assert definition.name == "sales.orders_au"
+    bound = definition.with_arguments(region="nz")
+    assert bound.name == "sales.orders_nz"
+    assert bound._request((), {}).asset_id == definition._request(("nz",), {}).asset_id
+
+    config = AssquackConfig(home=tmp_path)
+    result = asyncio.run(bound(region="uk", assquack_config=config))
+    assert result.asset_name == "sales.orders_uk"
+    assert bound.name == "sales.orders_nz"
+    cached = asyncio.run(definition.cache_first()("uk", assquack_config=config))
+    assert cached.cached and cached.asset_name == result.asset_name
+    assert cached.asset_id == result.asset_id
+    with duckdb.connect(str(config.resolved_database_path)) as connection:
+        assert connection.execute(
+            "SELECT asset_name FROM assquack_meta.assets"
+        ).fetchall() == [("sales.orders_uk",)]
+
+
+def test_default_name_is_independent_of_export() -> None:
+    definition = asset("sales.orders", export="elsewhere/custom.parquet")(source)
+    assert definition.name == "sales.orders"
+    assert (
+        definition._request((), {}).asset_id
+        == asset("sales.orders")(source)._request((), {}).asset_id
+    )
 
 
 @pytest.mark.parametrize("template", ["main.{target}", "{target}"])

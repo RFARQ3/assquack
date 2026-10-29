@@ -290,17 +290,18 @@ def test_partial_multi_destination_failure_records_only_completed_outputs(
         result = asyncio.run(orders(assquack_config=config))
         if explicit:
             result.export_parquet()
+    filename = "main.orders.parquet" if explicit else "orders.parquet"
     with duckdb.connect(str(config.resolved_database_path)) as db:
         assert db.execute(
             "SELECT resolved_uri FROM assquack_meta.exports"
-        ).fetchall() == [(str(tmp_path / "a/orders.parquet"),)]
+        ).fetchall() == [(str(tmp_path / "a" / filename),)]
         assert db.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
-    assert not (tmp_path / "c/orders.parquet").exists()
+    assert not (tmp_path / "c" / filename).exists()
     monkeypatch.setattr(DuckDBFileWriter, "write", original)
     result = asyncio.run(orders(assquack_config=config))
     if explicit:
         result.export_parquet()
-    assert (tmp_path / "c/orders.parquet").exists()
+    assert (tmp_path / "c" / filename).exists()
 
 
 def test_each_destination_uses_its_own_provider(tmp_path, intercepted_connections):
