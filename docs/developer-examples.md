@@ -31,7 +31,7 @@ result = await orders()
 ```
 
 Assquack uses the current working directory as its default home and creates the
-DuckDB database at `./dev/assquack.duckdb`. `ASSQUACK_HOME` or
+DuckDB database at `./assquack.duckdb`. `ASSQUACK_HOME` or
 `AssquackConfig` can override that location for deployments.
 
 ## File Type Aliases

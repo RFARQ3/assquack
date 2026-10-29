@@ -72,7 +72,7 @@ def test_invalid_declarations_fail_before_extraction(
     with pytest.raises(ExportError):
         asyncio.run(orders(assquack_config=config))
     assert not called
-    assert not (tmp_path / "dev" / "assquack.duckdb").exists()
+    assert not (tmp_path / "assquack.duckdb").exists()
 
 
 @pytest.mark.parametrize("format_name", ["csv", "json", "parquet"])

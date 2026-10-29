@@ -54,9 +54,7 @@ class AssquackResult:
     def export_parquet(self, path: str | None = None) -> str | list[str]:
         """Export to configured destinations, or the default local base if disabled."""
         destinations = self.config.export_destinations or [
-            FileSystemDestination(
-                base_uri=str(self.config.home / self.config.environment / "exports")
-            )
+            FileSystemDestination(base_uri=str(self.config.home / "exports"))
         ]
         with resolve_exports(
             {"uri": path or "parquet", "format": "parquet"},

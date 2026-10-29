@@ -81,10 +81,6 @@ class AssquackConfig(_ProcessSettings):
         default_factory=Path.cwd,
         validation_alias="ASSQUACK_HOME",
     )
-    environment: str = Field(
-        default="dev",
-        validation_alias=AliasChoices("ASSQUACK_ENVIRONMENT", "ENVIRONMENT"),
-    )
     database_path: Path | None = Field(
         default=None,
         validation_alias="ASSQUACK_DATABASE_PATH",
@@ -125,7 +121,7 @@ class AssquackConfig(_ProcessSettings):
     @model_validator(mode="after")
     def resolve_local_paths(self) -> Self:
         if self.database_path is None:
-            self.database_path = self.home / self.environment / "assquack.duckdb"
+            self.database_path = self.home / "assquack.duckdb"
         if self.duckdb.temp_directory is None:
             self.duckdb.temp_directory = self.home / "tmp"
         if self.ingestion.fragment_directory is None:

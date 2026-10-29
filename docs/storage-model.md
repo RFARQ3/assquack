@@ -21,7 +21,7 @@ The zero-configuration database path is relative to the process's current
 working directory:
 
 ```text
-<current-working-directory>/{environment}/assquack.duckdb
+<current-working-directory>/assquack.duckdb
 ```
 
 `ASSQUACK_HOME` or direct `AssquackConfig` values override that default for
@@ -36,8 +36,7 @@ Example configuration:
 ```yaml
 assquack:
   home: ${oc.env:ASSQUACK_HOME,.}
-  environment: ${oc.env:ENVIRONMENT,dev}
-  database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
+  database_path: ${assquack.home}/assquack.duckdb
   duckdb:
     temp_directory: ${oc.env:DUCKDB_TEMP_DIRECTORY,${assquack.home}/tmp}
     extensions:

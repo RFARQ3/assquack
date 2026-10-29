@@ -20,7 +20,6 @@ Recommended top-level shape:
 ```text
 AssquackConfig
   home
-  environment
   database_path
   ingestion
     fragment_directory
@@ -68,23 +67,16 @@ is not set, Assquack uses the process's current working directory:
 .
 ```
 
-`ENVIRONMENT` names the runtime environment and is part of the default storage
-layout. Its default is:
+The default database path is derived from home:
 
 ```text
-dev
-```
-
-The default database path is derived from those values:
-
-```text
-${ASSQUACK_HOME:-.}/${ENVIRONMENT:-dev}/assquack.duckdb
+${ASSQUACK_HOME:-.}/assquack.duckdb
 ```
 
 For example, with no environment overrides:
 
 ```text
-<current-working-directory>/dev/assquack.duckdb
+<current-working-directory>/assquack.duckdb
 ```
 
 `database_path` is configuration-level state. It is not an asset decorator
@@ -103,10 +95,9 @@ services. Recommended defaults:
 ```yaml
 assquack:
   home: ${oc.env:ASSQUACK_HOME,.}
-  environment: ${oc.env:ENVIRONMENT,dev}
-  database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
+  database_path: ${assquack.home}/assquack.duckdb
   ingestion:
-    fragment_directory: ${assquack.home}/${assquack.environment}/fragments
+    fragment_directory: ${assquack.home}/fragments
     fragment_target_mb: 64
   duckdb:
     threads: 4
@@ -116,7 +107,7 @@ assquack:
       - json
       - parquet
   exports:
-    base_uri: ${assquack.home}/${assquack.environment}/exports
+    base_uri: ${assquack.home}/exports
 ```
 
 The parent directories for `database_path`, `ingestion.fragment_directory`,
@@ -269,7 +260,7 @@ fields fail validation. Snapshots and custom COPY options remain unsupported.
 
 `result.export_parquet(path=None)` explicitly exports even with `exports=[]`.
 It uses every configured destination, or a filesystem destination based at
-`<home>/<environment>/exports` with automatic authentication when none is
+`<home>/exports` with automatic authentication when none is
 configured. It returns one URI string for one output and an ordered list of URI
 strings for multiple outputs. A concrete path with multiple destinations can
 collide and is rejected; use relative paths to address each base. The convenience
@@ -394,10 +385,9 @@ Example ADLS export profile:
 ```yaml
 assquack:
   home: ${oc.env:ASSQUACK_HOME,.}
-  environment: ${oc.env:ENVIRONMENT,dev}
-  database_path: ${assquack.home}/${assquack.environment}/assquack.duckdb
+  database_path: ${assquack.home}/assquack.duckdb
   ingestion:
-    fragment_directory: ${assquack.home}/${assquack.environment}/fragments
+    fragment_directory: ${assquack.home}/fragments
     fragment_target_mb: 64
   duckdb:
     threads: 4
@@ -414,7 +404,7 @@ assquack:
 The adapter's responsibility is narrow:
 
 1. Compose Hydra config.
-2. Resolve interpolations such as `ASSQUACK_HOME` and `ENVIRONMENT`.
+2. Resolve interpolations such as `ASSQUACK_HOME`.
 3. Convert the `assquack` node to plain Python data.
 4. Construct and return `AssquackConfig`.
 
@@ -430,7 +420,8 @@ The embedding runtime is responsible for the operating environment:
 - provide enough disk capacity for the DuckDB database and temp spill files;
 - provide enough local disk capacity for bounded NDJSON working fragments;
 - set `ASSQUACK_HOME` when the current working directory is not suitable;
-- set `ENVIRONMENT` so dev, test, and prod do not share the same database path;
+- supply distinct homes or explicit database paths when deployments need
+  separate storage;
 - optionally set `DUCKDB_TEMP_DIRECTORY` for larger or faster temporary storage;
 - provide ADLS credentials through environment variables or DuckDB secrets;
 - add external concurrency controls if the runtime needs them.

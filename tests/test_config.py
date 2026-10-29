@@ -15,7 +15,6 @@ def test_process_environment_populates_the_full_config_tree(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setenv("ASSQUACK_HOME", str(tmp_path / "home"))
-    monkeypatch.setenv("ASSQUACK_ENVIRONMENT", "test")
     monkeypatch.setenv("ASSQUACK_DATABASE_PATH", str(tmp_path / "database.duckdb"))
     monkeypatch.setenv("ASSQUACK_CHUNK_SIZE", "250")
     monkeypatch.setenv("ASSQUACK_INGESTION__FRAGMENT_TARGET_MB", "0.125")
@@ -35,7 +34,6 @@ def test_process_environment_populates_the_full_config_tree(
     config = AssquackConfig()
 
     assert config.home == tmp_path / "home"
-    assert config.environment == "test"
     assert config.database_path == tmp_path / "database.duckdb"
     assert config.chunk_size == 250
     assert config.ingestion.fragment_target_mb == 0.125
@@ -68,15 +66,15 @@ def test_direct_ingestion_config_controls_fragment_size() -> None:
 
 
 def test_direct_values_override_environment(monkeypatch) -> None:
-    monkeypatch.setenv("ASSQUACK_ENVIRONMENT", "environment-value")
+    monkeypatch.setenv("ASSQUACK_HOME", "environment-value")
     monkeypatch.setenv("ASSQUACK_EXPORTS", '{"base_uri": "./exports"}')
 
     config = AssquackConfig(
-        environment="direct-value",
+        home=Path("direct-value"),
         exports=[],
     )
 
-    assert config.environment == "direct-value"
+    assert config.home == Path("direct-value")
     assert config.export_destinations == []
 
 
@@ -84,12 +82,10 @@ def test_documented_environment_names_remain_supported(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("ENVIRONMENT", "legacy-environment")
     monkeypatch.setenv("DUCKDB_TEMP_DIRECTORY", str(tmp_path / "legacy-spill"))
 
     config = AssquackConfig()
 
-    assert config.environment == "legacy-environment"
     assert config.duckdb.temp_directory == tmp_path / "legacy-spill"
 
 
@@ -125,3 +121,26 @@ def test_fragment_target_default_and_direct_environment_precedence(monkeypatch) 
     assert AssquackConfig().ingestion.fragment_target_mb == 2.5
     config = AssquackConfig(ingestion=IngestionConfig(fragment_target_mb=0.00002))
     assert config.ingestion.fragment_target_mb == 0.00002
+
+
+@pytest.mark.parametrize("variable", ["ASSQUACK_ENVIRONMENT", "ENVIRONMENT"])
+def test_environment_names_do_not_select_paths(monkeypatch, tmp_path: Path, variable):
+    monkeypatch.setenv(variable, "production")
+    monkeypatch.setenv("ASSQUACK_HOME", str(tmp_path))
+    config = AssquackConfig()
+    assert config.resolved_database_path == tmp_path / "assquack.duckdb"
+    assert config.resolved_fragment_directory == tmp_path / "fragments"
+    assert "environment" not in config.model_dump()
+
+
+def test_default_home_is_current_directory(monkeypatch, tmp_path: Path):
+    monkeypatch.delenv("ASSQUACK_HOME", raising=False)
+    monkeypatch.chdir(tmp_path)
+    config = AssquackConfig()
+    assert config.home == tmp_path
+    assert config.resolved_database_path == tmp_path / "assquack.duckdb"
+
+
+def test_environment_is_not_a_config_field():
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        AssquackConfig.model_validate({"environment": "dev"})

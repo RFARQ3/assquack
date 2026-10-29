@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-10-27
+Last updated: 2026-10-29
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -128,3 +128,15 @@ Successful output records and cache requirements use both; asset identity is
 unchanged. This is a pre-release schema change without a migration shim. The
 [export phase](04-export-compatibility.md) tracks validation and the unresolved
 native credential-chain decision. The broader core phase remains In Progress.
+
+## Home-based Paths — 29 October 2026
+
+Implemented: removed the environment setting and its aliases.
+Default the database to `<home>/assquack.duckdb`, fragments beside the resolved
+database, and fallback local exports to `<home>/exports`. Preserve explicit
+path overrides and `ASSQUACK_HOME`; no compatibility shim or migration.
+Validation: 279 tests passed; 8 optional pandas/PyArrow tests skipped. Ruff lint,
+changed-file formatting, Poetry metadata, documentation links, and diff checks
+passed. Pyright reports 7 errors in unchanged API/query/template code. The full
+format check flags existing line endings in 8 untouched files. The broader core
+phase remains In Progress; this path simplification is complete.
