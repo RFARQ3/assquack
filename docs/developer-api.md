@@ -40,7 +40,7 @@ async def orders():
 
 The first positional argument is the DuckDB schema/table name. It can instead be
 written explicitly as `table="sales.orders"`. The remaining arguments are
-keyword-only, ordered `mode`, `name`, `export`, then `cache_expiration`. Database-file
+keyword-only, ordered `mode`, `name`, `export`, then `cache_expiration` and `config`. Database-file
 placement remains configuration-level. Table is required: omission raises
 `TypeError`; `None`, empty, and blank table names are rejected before
 materialization. Explicit table templates remain supported. Keyword arguments
@@ -68,6 +68,7 @@ asset(
     name: str | None = None,
     export: str | ExportSpec | None = None,
     cache_expiration: timedelta | None = None,
+    config: AssquackConfig | None = None,
 )
 ```
 
@@ -258,13 +259,13 @@ according to the asset's mode.
   configured.
 - [Storage Model](storage-model.md): the tables and locks behind asset results.
 
-## Planned asset config and option copies
+## Asset config and option copies
 
-Agreed on 29 October 2026; not implemented yet. Assets should accept a default
+Assets accept a default
 `AssquackConfig` through `@asset(..., config=...)`, avoiding repeated config
 arguments at every execution call.
 
-`with_options()` should accept the same settings as the decorator: `table`,
+`with_options()` accepts the same settings as the decorator: `table`,
 `mode`, `name`, `export`, `cache_expiration`, and `config`. It returns a new asset,
 preserving its function, bound arguments, and unspecified settings. The original
 asset remains unchanged. Neither configuration nor binding executes the asset.
@@ -282,7 +283,7 @@ Config supplies export destination bases; the asset's export option supplies its
 output path/format. Environment variables are a configuration source, not the
 boundary between config and asset options.
 
-Illustrative target API (not runnable against the current implementation):
+Attach a config once, then copy settings independently:
 
 ```python
 @asset(
@@ -310,5 +311,16 @@ attached config. Required options remain validated as in the decorator.
 
 This follows MAD.Prefect's copy-and-customise behaviour without adding a Prefect
 dependency. See [configuration](configuration.md) for the config model and
-[implementation tracking](epics/01-mvp/03-query-and-cache.md#planned-asset-options-and-attached-config)
+[implementation tracking](epics/01-mvp/03-query-and-cache.md#asset-options-and-attached-config)
 for acceptance criteria.
+
+Execution, asset `query()` and `exists()` all use this config selection.
+Passing `assquack_config=None` means no call override. `with_options(name=None)`
+restores the function-name default. An explicit cache expiration reset disables
+cache reuse, including on a `cache_first()` copy; omitting it retains the fluent
+cache policy.
+
+Returned or yielded asset definitions execute with the parent materialization
+config as an explicit override. Direct Python calls to another asset select their
+own explicit or attached config; there is no ambient config propagation. Attach
+the shared config to each directly called dependency.

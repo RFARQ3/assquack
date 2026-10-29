@@ -58,6 +58,16 @@ flowchart TD
 Hydra composition can decide which YAML files to load, but the result must still
 be validated by Pydantic before Assquack uses it.
 
+## Attaching configuration to assets
+
+Use `@asset("sales.orders", config=config)` to attach a project config, or
+`orders.with_options(config=other_config)` for an independent asset copy.
+Execution, asset queries and existence checks select the explicit
+`assquack_config` call override, then the attached config, then ordinary
+`AssquackConfig()` defaults. Objects are selected whole, not merged.
+See [asset option copies](developer-api.md#asset-config-and-option-copies)
+for resets, chaining and dependency behavior.
+
 ## Core Paths
 
 `ASSQUACK_HOME` is the base local directory for Assquack runtime state. When it
