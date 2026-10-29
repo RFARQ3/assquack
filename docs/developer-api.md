@@ -257,3 +257,58 @@ according to the asset's mode.
 - [Configuration](configuration.md): where database paths and export bases are
   configured.
 - [Storage Model](storage-model.md): the tables and locks behind asset results.
+
+## Planned asset config and option copies
+
+Agreed on 29 October 2026; not implemented yet. Assets should accept a default
+`AssquackConfig` through `@asset(..., config=...)`, avoiding repeated config
+arguments at every execution call.
+
+`with_options()` should accept the same settings as the decorator: `table`,
+`mode`, `name`, `export`, `cache_expiration`, and `config`. It returns a new asset,
+preserving its function, bound arguments, and unspecified settings. The original
+asset remains unchanged. Neither configuration nor binding executes the asset.
+A separate `with_config()` convenience method is not part of this goal.
+
+The distinction is what each setting controls:
+
+| Category | Settings |
+| --- | --- |
+| Execution config | Home, database path, DuckDB resources, fragment settings, export destinations |
+| Asset options | Table, mode, name, cache expiration, export path/format, attached config |
+| Function arguments | Inputs to the wrapped function, bound through `with_arguments()` |
+
+Config supplies export destination bases; the asset's export option supplies its
+output path/format. Environment variables are a configuration source, not the
+boundary between config and asset options.
+
+Illustrative target API (not runnable against the current implementation):
+
+```python
+@asset(
+    table="bronze.{endpoint}",
+    export="bronze/{endpoint}.parquet",
+    cache_expiration=timedelta(hours=2),
+    config=local_config,
+)
+async def api_asset(endpoint: str):
+    return paginate_api(endpoint)
+
+profiles = api_asset.with_arguments(endpoint="profiles")
+prod_profiles = profiles.with_options(config=prod_config)
+uncached_profiles = profiles.with_options(cache_expiration=None)
+
+await profiles()
+await prod_profiles()
+```
+
+An explicit execution-time config takes precedence over the asset's attached
+config. Without either, ordinary `AssquackConfig` defaults apply. This is config
+selection, not a merge of two config objects. Omitted options retain their values;
+explicit `None` clears nullable options such as export, cache expiration or
+attached config. Required options remain validated as in the decorator.
+
+This follows MAD.Prefect's copy-and-customise behaviour without adding a Prefect
+dependency. See [configuration](configuration.md) for the config model and
+[implementation tracking](epics/01-mvp/03-query-and-cache.md#planned-asset-options-and-attached-config)
+for acceptance criteria.

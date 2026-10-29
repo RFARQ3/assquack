@@ -113,3 +113,30 @@ Zero TTL always refreshes, including future stored timestamps.
 
 This addition is complete; the phase remains In Progress for the unchecked
 query work above.
+
+## Planned: asset options and attached config
+
+Scope added 29 October 2026; implementation has not started. The agreed
+[public API goal](../../developer-api.md#planned-asset-config-and-option-copies)
+adds decorator `config=` and immutable `with_options()` customisation. The phase
+remains In Progress; this subsection is planned work, not completed behaviour.
+
+- [ ] Accept an optional default `AssquackConfig` in the asset decorator.
+- [ ] Add typed `with_options()` parameters matching decorator settings, including
+  config; retain omitted options and distinguish explicit nullable resets.
+- [ ] Preserve the wrapped function, bound arguments and original templates when
+  copying; apply changed templates correctly to already-bound arguments.
+- [ ] Preserve attached config through `with_arguments()`, `cache_first()` and
+  other option copies without modifying the original asset or shared config.
+- [ ] Resolve config consistently for execution, asset queries and existence
+  checks: explicit call config, then attached config, then normal defaults.
+- [ ] Verify independent config objects direct assets to independent database
+  paths; no environment-label field or new config-provider abstraction.
+- [ ] Test option resets, cache policy consistency, chaining in either order,
+  template resolution and absence of execution during configuration.
+- [ ] Update Namely to attach its shared config at asset definition rather than
+  repeat it at every call, retaining explicit overrides only where intended.
+- [ ] Update runnable examples after implementation; do not add `with_config()`.
+
+Use offline synthetic data for validation. The present documentation task does
+not authorise implementation or change current runtime behaviour.
