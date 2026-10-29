@@ -27,11 +27,13 @@ flowchart LR
    only missing exports for that run/path/fingerprint, then return the cached
    table without renewing its TTL.
 3. Create a `running` metadata record.
-4. Dispatch returned or yielded values to the Python or native relation writer.
+4. Release the writer connection while retaining its lock, and dispatch returned
+   or yielded values to the Python or native relation writer.
 5. Write rows into size-controlled local NDJSON fragments.
 6. Complete each fragment through an atomic rename, then mark the run directory
    complete after capture succeeds.
-7. Use DuckDB to infer the current run schema from completed fragments.
+7. Reopen the writer connection and use DuckDB to infer the current run schema
+   from completed fragments.
 8. Build the typed candidate table directly from the completed fragments.
 9. Transactionally replace the current table and mark the run successful.
 10. Write configured exports from the committed table.
@@ -87,6 +89,13 @@ RecordBatches first become relations and use that same writer. COPY size targets
 are approximate and may be substantially exceeded. Optional pandas and Arrow
 libraries are needed only when supplying their corresponding objects.
 
+`AssquackQueryResult` uses the same native relation COPY route and is closed after
+consumption, including COPY failure. General queries never use pandas internally.
+Their eager native result tables have already detached all source databases, so
+publication can reopen its writer without retaining query source handles. See
+[general database queries](developer-api.md#general-database-queries) for ownership
+and resource settings.
+
 Sync and async iterables dispatch each yielded item through its matching route,
 including mixed batches. An `AssquackResult` reads its materialized table without
 cache lookup or reexecution. An `AssquackAsset` executes normally (including its
@@ -99,6 +108,14 @@ Direct nested asset execution in the same async task shares the existing databas
 writer lock. Other tasks and processes still wait. Nested runs retain independent
 run records; recovery excludes active runs, and only the outer call releases the
 lock. A dependency awaited through a separate task cannot share that lock.
+
+During capture the asset's effective config is available to general queries,
+including deferred generator consumption. Nested execution restores the parent
+query context; failure and cancellation reset it. Closing the writer connection
+during capture lets queries attach the same database read-only. The connection
+is reopened for publication or failure metadata. If reopening itself fails,
+the original capture error is preserved with a note, and the running record is
+left for normal interrupted-run recovery.
 
 A fragment is first written with a `.partial` suffix. Assquack flushes and
 renames it to `.ndjson` only when that fragment is complete. DuckDB receives an

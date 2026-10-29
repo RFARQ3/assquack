@@ -192,6 +192,74 @@ await orders.query("SELECT count(*) FROM data")
 `params` should be passed through to DuckDB parameter binding rather than
 string-interpolated by Assquack.
 
+## General database queries
+
+Implemented MVP API, 29 October 2026; implementation is tracked in
+[Query And Cache](epics/01-mvp/03-query-and-cache.md#general-database-query-implementation).
+
+`await assquack.query(sql, params=None, *, sources=None)` queries stored tables
+without requiring an asset definition or result. Its typed `sources` mapping
+maps SQL catalog aliases to `AssquackConfig` objects. Parameters use DuckDB
+binding. The returned `AssquackQueryResult` can be returned or yielded by an asset
+for ordinary materialization. Query execution, result storage and materialization
+use DuckDB directly; there is no internal pandas conversion.
+
+Read sources resolve in this order:
+
+1. Explicit `sources={...}` replaces the implicit read context. SQL addresses
+   each source as `alias.schema.table`. To include the executing asset's own
+   database, explicitly include its config in the mapping.
+2. Inside an executing asset, use that asset's effective config, including an
+   execution-time override. SQL can use `schema.table`.
+3. Outside asset execution, load process environment configuration. Require a
+   nonblank `ASSQUACK_DATABASE_PATH` or `ASSQUACK_HOME` to identify the database;
+   otherwise raise a clear configuration error. Resource settings alone do not
+   identify a source. Do not load `.env` files or silently fall back to a database
+   in the working directory for this standalone query API.
+
+An explicit empty sources mapping is an error, not a request to fall back.
+Sources refer to existing local DuckDB databases; query reads must not create
+missing databases or bootstrap Assquack metadata. Queries read existing state
+and do not execute or refresh source assets. The interface accepts read queries;
+publishing writes remain owned by the asset lifecycle. It is a trusted developer
+SQL interface, not a sandbox for untrusted SQL.
+
+Queries accept one DuckDB SELECT statement, including CTEs and VALUES queries;
+multiple statements, DDL, DML, COPY and session changes are rejected. Source aliases
+are quoted identifiers, must be distinct ignoring case, and cannot be `memory`,
+`temp` or `system`. Each source must resolve to a distinct existing database file;
+two aliases for the same file are rejected. Independently held DuckDB connections
+can prevent attachment; close them before querying. The API does not provide a
+globally consistent snapshot across databases.
+
+Results are evaluated eagerly into a private DuckDB temporary table. Only the
+query output is materialized; the source databases are detached before the call
+returns. Native types remain available through `result.relation`, and
+`result.fetchall()` explicitly collects Python rows. Use `with await query(...)`
+or `result.close()` to release the result and its private spill directory.
+Returning or yielding the wrapper from an asset transfers cleanup to the
+materializer, which closes it after native COPY, including on failure. A borrowed
+`result.relation` remains valid only while its wrapper is open.
+
+The first explicit source's DuckDB threads, memory limit, extensions and temporary
+directory configure the query engine. Without explicit sources, the selected
+implicit config supplies these settings. Each query uses a private subdirectory
+for spilling; memory and disk requirements depend on the query and output size.
+The async entry point currently executes DuckDB work synchronously, so a running
+query blocks its event-loop thread until DuckDB finishes.
+
+The output asset's config continues to determine its publishing destination,
+independently of explicit query sources. Query context inheritance does not
+change config selection for direct calls to other assets. Each executing child
+asset establishes its own effective query context and restores its parent's
+context afterward. Context must remain isolated across concurrent executions and
+cover deferred sync/async generator consumption, including errors and cancellation.
+
+See [general query examples](developer-examples.md#general-database-queries).
+Table globbing is deferred: the future requirement is DuckDB file-glob-style
+wildcard matching, not prefix-only matching. This addition does not implement
+table discovery, snapshot retention, or external lake source adapters.
+
 ## Cache First
 
 Set `@asset("sales.orders", cache_expiration=timedelta(hours=2))` to reuse a

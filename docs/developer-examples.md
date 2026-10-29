@@ -114,3 +114,46 @@ and sizing are runtime configuration, not decorator arguments.
   yielded rows become DuckDB tables.
 - [Schema Inference](schema-inference.md): how local JSON evidence becomes typed
   columns and selective `VARIANT` values.
+
+## General database queries
+
+Implemented MVP API examples; validation is tracked in
+[Query And Cache](epics/01-mvp/03-query-and-cache.md#general-database-query-implementation).
+`namely`, `space_calculator`, `openasset_config`, and `salesforce_config` below
+are ordinary `AssquackConfig` objects pointing to existing local databases.
+
+```python
+import assquack
+from assquack import asset
+
+
+@asset("silver.weekly_history", config=namely)
+async def weekly_history():
+    return await assquack.query("SELECT * FROM history.report_snapshots")
+
+
+# Outside an asset, ASSQUACK_DATABASE_PATH or ASSQUACK_HOME must identify
+# the existing source database in the process environment.
+with await assquack.query("SELECT * FROM history.report_snapshots") as history:
+    rows = history.fetchall()  # Explicit Python collection, when needed.
+
+
+@asset("gold.projects", config=space_calculator)
+async def projects():
+    return await assquack.query(
+        """
+        SELECT p.code, o.client_name
+        FROM openasset.bronze.projects p
+        JOIN salesforce.silver.opportunities o
+            ON p.code = o.project_code
+        """,
+        sources={
+            "openasset": openasset_config,
+            "salesforce": salesforce_config,
+        },
+    )
+```
+
+Explicit sources replace the implicit read context; the output still publishes
+using `space_calculator`. Source assets are not executed or refreshed. See the
+[source selection contract](developer-api.md#general-database-queries).

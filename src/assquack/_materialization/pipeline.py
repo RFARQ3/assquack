@@ -16,6 +16,7 @@ from assquack._config import AssquackConfig
 from assquack._exports import resolve_exports
 from assquack._exports.destinations import ExportDestination
 from assquack._exports.models import ExportTarget
+from assquack._general_query import query_context
 from assquack._materialization.commit import commit_strategy
 from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
@@ -141,11 +142,36 @@ async def materialize(
                     ),
                 )
                 metadata.claim_run_fragments(run_id)
-                value = request.fn(*request.arguments, **request.keyword_arguments)
-                if inspect.isawaitable(value):
-                    value = await value
-
-                row_count = await write_fragments(value, fragment_writer, config)
+                # Keep the writer lock, but release the file handle while user code
+                # reads sources. DuckDB cannot attach an independently opened file.
+                connection.close()
+                connection = None
+                capture_error = None
+                try:
+                    with query_context(config):
+                        value = request.fn(
+                            *request.arguments, **request.keyword_arguments
+                        )
+                        if inspect.isawaitable(value):
+                            value = await value
+                        row_count = await write_fragments(
+                            value, fragment_writer, config
+                        )
+                except BaseException as error:
+                    capture_error = error
+                    raise
+                finally:
+                    try:
+                        connection = open_database(config)
+                        metadata = MetadataRepository(connection)
+                    except Exception as reopen_error:
+                        if capture_error is not None:
+                            capture_error.add_note(
+                                "Could not reopen the database to record "
+                                "the failed run."
+                            )
+                            raise capture_error from reopen_error
+                        raise
 
                 fragments = fragment_writer.finish()
                 reader = JsonReadRecovery()
@@ -183,19 +209,20 @@ async def materialize(
                             run_id,
                             exc_info=True,
                         )
-                if not committed:
+                if not committed and connection is not None:
                     metadata.mark_run_failed(
                         run_id,
                         str(error),
                         int((perf_counter() - started) * 1_000),
                     )
-                prune_fragments(
-                    metadata,
-                    config.resolved_fragment_directory,
-                    request.asset_id,
-                    request.asset_name,
-                )
-                connection.close()
+                if connection is not None:
+                    prune_fragments(
+                        metadata,
+                        config.resolved_fragment_directory,
+                        request.asset_id,
+                        request.asset_name,
+                    )
+                    connection.close()
                 raise
             finally:
                 _ACTIVE_RUNS.reset(active_runs)

@@ -182,3 +182,81 @@ remain unchanged pending review. No Namely pipeline or live system was executed.
   temporary databases; no Namely API modules or pipeline were executed.
 - Existing local config, ignore, editor settings and dependency edits were
   preserved. No implementation commit, push or dependency-pin change was made.
+
+## General database query implementation
+
+Approved 29 October 2026 from Rowan's screenshot and explicit implementation
+request. The public contract lives in
+[General database queries](../../developer-api.md#general-database-queries).
+This MVP addition is implemented and independently reviewed. The overall phase
+remains In Progress for the other unchecked work.
+
+- [x] Export typed async `assquack.query(sql, params=None, *, sources=None)`.
+- [x] Explicit alias-to-config sources replace implicit sources; reject an empty
+  mapping and invalid aliases/configs clearly, with safe identifier quoting.
+- [x] Use the executing asset's effective config when sources are omitted,
+  including execution overrides and sync/async generator iteration.
+- [x] Restore nested contexts and isolate concurrent assets; reset context after
+  success, failure and cancellation. Direct child asset config selection stays
+  unchanged; its query context reflects its own effective config.
+- [x] Outside assets require nonblank ASSQUACK_DATABASE_PATH or ASSQUACK_HOME;
+  resource-only environment settings and the implicit cwd default are insufficient.
+- [x] Read existing databases without metadata bootstrap or missing-file creation;
+  preserve asset publication as the write path and reject mutating query statements.
+- [x] Support joins across explicitly named local database sources and normal
+  positional/named DuckDB parameter binding without loading source assets.
+- [x] Make returned results usable after the query call and as asset inputs;
+  establish deterministic connection ownership and cleanup, including errors.
+- [x] Test same-database reads during materialization, lock/connection compatibility,
+  nested/concurrent contexts, duplicate database paths, aliases, missing inputs,
+  source immutability, result lifetime and cross-database output publication.
+- [x] Run relevant offline tests, lint, types, formatting, doc links and diff checks;
+  have an independent reviewer inspect and reproduce findings until resolved.
+
+Table globbing is explicitly deferred. Its future requirement is full wildcard
+patterns comparable to DuckDB file globbing, not starts-with matching. Snapshot
+retention and Azure/lake source adapters are outside this implementation.
+Do not claim a cross-database globally consistent snapshot or untrusted-SQL sandbox.
+
+### Implementation details
+
+`_general_query.py` owns source selection, statement validation, read-only
+attachments and `AssquackQueryResult`. It eagerly creates a native DuckDB temporary
+result table, then detaches sources. The result owns its memory connection and
+private spill directory, with explicit close/context management and fallback
+finalization. Asset consumption closes the wrapper after native JSON COPY.
+There is no internal pandas conversion or mandatory Arrow dependency.
+
+Capture retains the existing writer lock but closes its connection before calling
+user code and consuming generators. It restores a writer connection for staging,
+publication and failed-run metadata. A ContextVar covers that complete capture
+interval without changing ordinary asset config selection. If reopening fails
+after a capture failure, preserve the original error and leave the running record
+for existing interrupted-run recovery.
+
+Duplicate resolved source paths and case-insensitive duplicate aliases fail
+clearly. Query settings come from the first explicit source, otherwise the
+implicit selected config. Queries execute synchronously within the async entry
+point; eager output can spill but is not a streaming query API. Unrelated open
+DuckDB connections can still prevent read-only attachment.
+
+
+### General query validation (29 October 2026)
+
+- Full offline suite: 325 passed, 8 skipped for unavailable optional pandas/Arrow
+  input dependencies. Temporary-directory access required sandbox escalation.
+- Independent review approved the final code/docs with no known actionable
+  in-scope bugs: 74 scoped tests passed, 8 optional skips, plus synthetic probes
+  for real task cancellation, nested context restoration, empty/native results,
+  source byte preservation and garbage-collected spill cleanup.
+- Ruff source/test lint, formatting of all changed Python files, documentation
+  links and `git diff --check` pass. The terminology scan retains only the
+  historical cache/locking note and existing epic explanations.
+- Pyright using the Poetry interpreter reports the same seven existing errors
+  in unchanged `_api.py`, `_query.py` and `_templates.py` logic; none in new or
+  changed logic. Broad source/test formatting retains six unchanged failures.
+- An initial full run found a transient Windows file-in-use error in an existing
+  cache test; independent scoped and final full runs passed without a retry
+  mechanism or production change for that environmental failure.
+- No live systems, customer credentials or `.env` files were accessed. No branch,
+  commit or push was created. Table globbing remains deferred.

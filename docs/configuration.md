@@ -70,6 +70,19 @@ for resets, chaining and dependency behavior.
 
 ## Core Paths
 
+The standalone `assquack.query()` API has a stricter source selection rule:
+explicit named sources, then the executing asset's effective config, then
+process environment configuration. Outside an asset, it requires nonblank
+`ASSQUACK_DATABASE_PATH` or `ASSQUACK_HOME`; it does not use the implicit
+working-directory fallback. Ordinary asset defaults remain unchanged.
+Multiple explicit query sources can refer to independent local databases;
+each config still owns one database and each output asset one publishing target.
+The first explicit source config supplies query-engine resource settings; implicit
+queries use their selected config. Query spill files live in a private directory
+under that config's DuckDB temporary directory until the result is closed or
+consumed by an asset. Source database files must already exist.
+See [general database queries](developer-api.md#general-database-queries).
+
 `ASSQUACK_HOME` is the base local directory for Assquack runtime state. When it
 is not set, Assquack uses the process's current working directory:
 

@@ -12,6 +12,7 @@ import duckdb
 
 from assquack._config import AssquackConfig
 from assquack._errors import MaterializationError
+from assquack._general_query import AssquackQueryResult
 from assquack._materialization.models import FragmentFile
 from assquack._result import AssquackResult
 from assquack._storage.database import open_database
@@ -194,6 +195,9 @@ async def write_fragments(
             connection.close()
     if isinstance(value, duckdb.DuckDBPyRelation):
         return writer.write_relation(value)
+    if isinstance(value, AssquackQueryResult):
+        with value:
+            return writer.write_relation(value.relation)
 
     # Optional native libraries are imported only for their own objects, keeping
     # ordinary Python capture independent of pandas and Arrow installations.

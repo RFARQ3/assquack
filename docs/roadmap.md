@@ -61,6 +61,11 @@ The implementation sequence and acceptance checks are recorded there.
 
 ### Phase 3: Query And Cache
 
+- Add general `assquack.query()` with explicit named sources, executing-asset
+  config inheritance, and a required environment source outside asset execution.
+  Cross-database read queries are in MVP; table globbing is deferred. See the
+  [public contract](developer-api.md#general-database-queries).
+
 - Implement `.query(sql=None, params=None)` against the current table.
 - Implement `cache_first()` and TTL behavior from Assquack metadata.
 - Implement `.exists()` based on table presence and the latest successful run.

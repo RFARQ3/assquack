@@ -325,7 +325,7 @@ def test_each_destination_uses_its_own_provider(tmp_path, intercepted_connection
     )
     registrations = [
         call.args[1]["connection_string"]
-        for call in intercepted_connections[0].execute.call_args_list
+        for call in intercepted_connections[-1].execute.call_args_list
         if call.args[0].startswith("CREATE TEMPORARY")
     ]
     assert registrations[0].startswith("AccountName=firstaccount;")
