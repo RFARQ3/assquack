@@ -12,8 +12,8 @@ import duckdb
 
 from assquack._config import AssquackConfig
 from assquack._errors import MaterializationError
-from assquack._general_query import AssquackQueryResult
 from assquack._materialization.models import FragmentFile
+from assquack._query import AssquackQueryResult
 from assquack._result import AssquackResult
 from assquack._storage.database import open_database
 from assquack._storage.sql import quote_literal, quote_table

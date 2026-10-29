@@ -16,7 +16,6 @@ from assquack._config import AssquackConfig
 from assquack._exports import resolve_exports
 from assquack._exports.destinations import ExportDestination
 from assquack._exports.models import ExportTarget
-from assquack._general_query import query_context
 from assquack._materialization.commit import commit_strategy
 from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
@@ -34,6 +33,7 @@ from assquack._materialization.staging import (
     create_shaped_staging,
     drop_shaped_staging,
 )
+from assquack._query import query_context
 from assquack._result import AssquackResult
 from assquack._storage.database import open_database
 from assquack._storage.locking import writer_lock

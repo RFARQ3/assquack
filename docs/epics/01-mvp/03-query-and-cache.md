@@ -220,10 +220,15 @@ Do not claim a cross-database globally consistent snapshot or untrusted-SQL sand
 
 ### Implementation details
 
-`_general_query.py` owns source selection, statement validation, read-only
-attachments and `AssquackQueryResult`. It eagerly creates a native DuckDB temporary
-result table, then detaches sources. The result owns its memory connection and
-private spill directory, with explicit close/context management and fallback
+The internal `_query/` package groups the query implementation by responsibility.
+`asset.py` holds the existing asset/result query helpers; `general.py` owns source
+selection, statement validation and read-only attachments. `context.py` manages
+the executing asset's query config, and `result.py` owns `AssquackQueryResult`
+and cleanup. `__init__.py` exposes the internal interfaces used elsewhere in the
+package. The public `assquack.query` and result contracts remain unchanged.
+
+General queries eagerly create a native DuckDB temporary result table, then detach
+sources. The result owns its memory connection and private spill directory, with explicit close/context management and fallback
 finalization. Asset consumption closes the wrapper after native JSON COPY.
 There is no internal pandas conversion or mandatory Arrow dependency.
 
@@ -260,3 +265,26 @@ DuckDB connections can still prevent read-only attachment.
   mechanism or production change for that environmental failure.
 - No live systems, customer credentials or `.env` files were accessed. No branch,
   commit or push was created. Table globbing remains deferred.
+
+
+### Query package refactor validation (29 October 2026)
+
+The query package split above is implemented without changing public behavior.
+The old private `_query.py` and `_general_query.py` modules are removed, with no
+compatibility shims. Existing tests do not patch those private modules, so no
+patch targets needed updating. The phase remains In Progress for its other
+unchecked work.
+
+- Full offline suite: 325 passed, 8 optional pandas/Arrow dependency skips.
+  Windows temporary-directory access required sandbox escalation.
+- Ruff source/test lint, all changed Python file formatting, Markdown links and
+  `git diff --check` pass. Broad formatting retains six unrelated failures.
+- Pyright using the Poetry interpreter retains seven pre-existing diagnostics;
+  the two former `_query.py` diagnostics now appear in unchanged `asset.py` logic.
+- Terminology matches remain confined to the historical cache/locking note and
+  its existing epic explanations. No live systems or customer data were used.
+- Independent review approved with no known actionable in-scope defects:
+  63 scoped tests passed, 8 optional dependency skips. Synthetic probes verified
+  shared public/internal query and result identities, nested context restoration,
+  native results and garbage-collected spill cleanup. AST comparison confirmed
+  moved definitions are unchanged except the context accessor call.

@@ -15,7 +15,7 @@ from assquack._config import (
 )
 from assquack._errors import MissingAssetSchemaWarning
 from assquack._exports.destinations import ExportDestination, FileSystemDestination
-from assquack._general_query import AssquackQueryResult, query
+from assquack._query import AssquackQueryResult, query
 from assquack._result import AssquackResult
 
 __all__ = [
