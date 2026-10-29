@@ -23,8 +23,9 @@ flowchart LR
 
 1. Resolve the asset identity, table, export target, and runtime configuration;
    select the commit strategy using the declared mode.
-2. When `cache_first()` finds a valid run, write only missing exports for that
-   run/path/fingerprint, then return the cached table without renewing its TTL.
+2. When decorator `cache_expiration` or `cache_first()` finds a valid run, write
+   only missing exports for that run/path/fingerprint, then return the cached
+   table without renewing its TTL.
 3. Create a `running` metadata record.
 4. Dispatch returned or yielded values to the Python or native relation writer.
 5. Write rows into size-controlled local NDJSON fragments.

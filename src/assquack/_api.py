@@ -254,10 +254,13 @@ def asset(
     mode: AssetMode = "replace",
     name: str | None = None,
     export: str | ExportSpec | None = None,
+    cache_expiration: timedelta | None = None,
 ) -> Callable[[AssetFunction[P, AssetReturn]], AssquackAsset[P, AssetReturn]]:
     """Declare an Assquack asset without choosing storage placement."""
 
     _validate_table(table)
+    if cache_expiration is not None and cache_expiration < timedelta(0):
+        raise ValueError("Cache expiration cannot be negative.")
     if mode != "replace":
         raise ValueError("The Assquack prototype only supports mode='replace'.")
 
@@ -268,6 +271,9 @@ def asset(
             name=name,
             table=table,
             mode=mode,
+            prefer_cache=cache_expiration is not None
+            and cache_expiration > timedelta(0),
+            cache_expiration=cache_expiration,
         )
 
     return decorate

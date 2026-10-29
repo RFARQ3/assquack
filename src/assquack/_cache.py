@@ -28,11 +28,13 @@ def find_cached_run(
 def _is_expired(run: SuccessfulRun, expiration: timedelta) -> bool:
     if expiration < timedelta(0):
         raise ValueError("Cache expiration cannot be negative.")
+    if expiration == timedelta(0):
+        return True
 
     materialized_at = run.materialized_at
     if materialized_at.tzinfo is None:
         materialized_at = materialized_at.replace(tzinfo=UTC)
-    return datetime.now(UTC) - materialized_at > expiration
+    return datetime.now(UTC) - materialized_at >= expiration
 
 
 def asset_exists(

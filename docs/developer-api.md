@@ -40,7 +40,7 @@ async def orders():
 
 The first positional argument is the DuckDB schema/table name. It can instead be
 written explicitly as `table="sales.orders"`. The remaining arguments are
-keyword-only, ordered `mode`, `name`, then optional `export`. Database-file
+keyword-only, ordered `mode`, `name`, `export`, then `cache_expiration`. Database-file
 placement remains configuration-level. Table is required: omission raises
 `TypeError`; `None`, empty, and blank table names are rejected before
 materialization. Explicit table templates remain supported. Keyword arguments
@@ -50,6 +50,7 @@ Typed contract shape:
 
 ```python
 from typing import Literal, TypedDict
+from datetime import timedelta
 
 
 AssetMode = Literal["replace"]
@@ -66,6 +67,7 @@ asset(
     mode: AssetMode = "replace",
     name: str | None = None,
     export: str | ExportSpec | None = None,
+    cache_expiration: timedelta | None = None,
 )
 ```
 
@@ -190,10 +192,23 @@ string-interpolated by Assquack.
 
 ## Cache First
 
+Set `@asset("sales.orders", cache_expiration=timedelta(hours=2))` to reuse a
+valid materialization on ordinary calls until two hours after publication (the
+exact TTL boundary is expired). Omitted
+or `None` expiration leaves normal calls uncached; zero also disables reuse.
+Negative durations raise `ValueError` at declaration. Bound assets retain this
+default.
+
 `.cache_first()` returns an asset callable that prefers the latest valid cached
 materialization. If metadata says the cache is valid and the current table still
 exists, the callable returns an `AssquackResult` without rematerializing the
 wrapped function.
+
+Fluent overrides return a new definition without changing the decorated asset:
+`.cache_first(timedelta(minutes=10))` overrides its TTL, `.cache_first()` (or
+explicit `None`) allows unlimited reuse, and `.cache_first(timedelta(0))` forces
+a refresh. Cache policy is not part of asset identity, so these views share the
+same materialization.
 
 Cache state is based on Assquack metadata tables and the DuckDB current table,
 not only on whether an exported file exists.

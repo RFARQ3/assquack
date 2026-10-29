@@ -1,7 +1,7 @@
 # Query And Cache
 
 Status: **In Progress**
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 Epic: 01 MVP
 Phase: 03
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Storage Model](../../storage-model.md)
@@ -19,6 +19,7 @@ Included:
 - Stable `data` relation alias for result queries.
 - `.exists()` based on current table and latest successful run.
 - `cache_first()` and TTL behavior from Assquack metadata.
+- Decorator `cache_expiration` defaults, preserving fluent cache overrides.
 - Parameter binding for query values.
 
 Excluded:
@@ -38,12 +39,20 @@ TTL. On a cache hit, retry exports without a matching run/path/fingerprint
 manifest under the existing writer lock. Preserve partial successes and the
 original run identity and publication timestamp; export retries do not renew TTL.
 
+Decorator TTLs use the existing request/cache path: `None` and zero leave normal
+calls uncached, positive durations enable reuse, and negative durations fail at
+declaration, consistent with Assquack's fluent validation. `cache_first()` keeps
+its existing unlimited default and explicit TTL override on an immutable copy.
+Validate cache misses, hits, expiry, argument binding and override isolation with
+synthetic rows and temporary DuckDB databases.
+
 ## Implementation Checklist
 
 - [ ] Implement `AssquackResult` table reference behavior.
 - [ ] Implement result and asset `.query(...)`.
 - [ ] Implement `.exists()`.
 - [x] Implement `cache_first()` against metadata and current table presence.
+- [x] Add decorator TTL defaults with binding and immutable override coverage.
 - [ ] Add query parameter binding tests.
 - [x] Add cache-hit, cache-miss, stale-cache, and missing-table tests.
 - [x] Separate cached materialization reuse from export completion, with offline
@@ -80,3 +89,27 @@ This cache/export change is implemented; the phase remains In Progress for the
 unchecked query work above. Independent review approved the change with no
 actionable in-scope defects: 57 scoped tests and a synthetic multi-destination
 retry scenario passed, including run identity and TTL preservation.
+
+### Decorator cache defaults validation (29 October 2026)
+
+MAD.Prefect's decorator forwards `cache_expiration` into asset options. Its
+callable reuses only positive TTLs and expires at the exact TTL boundary.
+Assquack now accepts the same decorator option using its metadata/current-table
+cache path. It retains its existing negative-TTL rejection and unlimited
+`cache_first(None)` semantics (MAD.Prefect uses 9999 days for that helper).
+Zero TTL always refreshes, including future stored timestamps.
+
+- Full offline suite: 275 passed, 8 skipped because optional pandas/pyarrow are
+  unavailable. Temporary-directory permissions required approved escalation.
+- Independent review: 76 passed, 8 optional-dependency skips; no blocking findings.
+- Ruff lint, changed Python file formatting, Markdown links and diff checks pass.
+- Pyright with the Poetry interpreter reports 7 pre-existing diagnostics on
+  unchanged lines in `_api.py`, `_query.py` and `_templates.py`.
+- Repository-wide formatting reports 8 unchanged files; the sandbox also cannot
+  traverse the reviewer's temporary test directory. Existing terminology matches
+  remain in the historical cache/locking note and explanatory epic notes.
+- Namely's two global two-hour cache assignments were moved into decorators;
+  source syntax and whitespace checked only, with no imports or live execution.
+
+This addition is complete; the phase remains In Progress for the unchecked
+query work above.
