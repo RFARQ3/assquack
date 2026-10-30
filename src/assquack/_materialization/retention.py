@@ -11,7 +11,8 @@ from assquack._storage.metadata import MetadataRepository
 _LOGGER = logging.getLogger(__name__)
 _RUN_ID = re.compile(r"(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})")
 _FRAGMENT_FILE = re.compile(
-    r"(?:_COMPLETE|fragment=\d{6,}\.(?:ndjson|partial)|copy_\d{6,}_\d+\.partial)"
+    r"(?:_COMPLETE|fragment=\d{6,}\.(?:ndjson|partial)|"
+    r"copy_\d{6,}_(?:\d+\.partial|input\.parquet))"
 )
 
 

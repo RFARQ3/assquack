@@ -194,71 +194,91 @@ string-interpolated by Assquack.
 
 ## General database queries
 
-Implemented MVP API, 29 October 2026; implementation is tracked in
-[Query And Cache](epics/01-mvp/03-query-and-cache.md#general-database-query-implementation).
+Revised MVP direction, 30 October 2026: `await assquack.query(sql, params=None)`
+queries tables within one configured database. Multiple assets may use different
+`AssquackConfig` objects and publish to different databases in the same project;
+each general query selects only one database.
 
-`await assquack.query(sql, params=None, *, sources=None)` queries stored tables
-without requiring an asset definition or result. Its typed `sources` mapping
-maps SQL catalog aliases to `AssquackConfig` objects. Parameters use DuckDB
-binding. The returned `AssquackQueryResult` can be returned or yielded by an asset
-for ordinary materialization. Query execution, result storage and materialization
-use DuckDB directly; there is no internal pandas conversion.
+`assquack.query` returns a native `duckdb.DuckDBPyRelation`. It accepts one
+SELECT statement and optional positional or named parameters, bound by DuckDB.
+It reads an existing database without executing assets, creating a missing
+source file, or bootstrapping Assquack metadata.
 
-Read sources resolve in this order:
+Config selection uses this order:
 
-1. Explicit `sources={...}` replaces the implicit read context. SQL addresses
-   each source as `alias.schema.table`. To include the executing asset's own
-   database, explicitly include its config in the mapping.
-2. Inside an executing asset, use that asset's effective config, including an
-   execution-time override. SQL can use `schema.table`.
-3. Outside asset execution, load process environment configuration. Require a
-   nonblank `ASSQUACK_DATABASE_PATH` or `ASSQUACK_HOME` to identify the database;
-   otherwise raise a clear configuration error. Resource settings alone do not
-   identify a source. Do not load `.env` files or silently fall back to a database
-   in the working directory for this standalone query API.
+1. The innermost explicit `assquack.use_config(config)` scope.
+2. The currently executing asset's effective config, including execution overrides.
+3. Process environment configuration. Outside these scopes, require nonblank
+   `ASSQUACK_DATABASE_PATH` or `ASSQUACK_HOME`; otherwise raise a clear error.
+   Resource settings alone do not select a database. No `.env` files are loaded.
 
-An explicit empty sources mapping is an error, not a request to fall back.
-Sources refer to existing local DuckDB databases; query reads must not create
-missing databases or bootstrap Assquack metadata. Queries read existing state
-and do not execute or refresh source assets. The interface accepts read queries;
-publishing writes remain owned by the asset lifecycle. It is a trusted developer
-SQL interface, not a sandbox for untrusted SQL.
+### Explicit config context
 
-Queries accept one DuckDB SELECT statement, including CTEs and VALUES queries;
-multiple statements, DDL, DML, COPY and session changes are rejected. Source aliases
-are quoted identifiers, must be distinct ignoring case, and cannot be `memory`,
-`temp` or `system`. Each source must resolve to a distinct existing database file;
-two aliases for the same file are rejected. Independently held DuckDB connections
-can prevent attachment; close them before querying. The API does not provide a
-globally consistent snapshot across databases.
+Use the synchronous context manager to select a query database:
 
-Results are evaluated eagerly into a private DuckDB temporary table. Only the
-query output is materialized; the source databases are detached before the call
-returns. Native types remain available through `result.relation`, and
-`result.fetchall()` explicitly collects Python rows. Use `with await query(...)`
-or `result.close()` to release the result and its private spill directory.
-Returning or yielding the wrapper from an asset transfers cleanup to the
-materializer, which closes it after native COPY, including on failure. A borrowed
-`result.relation` remains valid only while its wrapper is open.
+```python
+with assquack.use_config(reporting_config):
+    rows = await assquack.query("SELECT * FROM bronze.orders")
+```
 
-The first explicit source's DuckDB threads, memory limit, extensions and temporary
-directory configure the query engine. Without explicit sources, the selected
-implicit config supplies these settings. Each query uses a private subdirectory
-for spilling; memory and disk requirements depend on the query and output size.
-The async entry point currently executes DuckDB work synchronously, so a running
-query blocks its event-loop thread until DuckDB finishes.
+The explicit scope controls general query reads only. It does not change asset
+publishing configs or ordinary child asset config selection. It remains higher
+priority while nested assets execute. Nested scopes restore the previous config,
+including after exceptions or cancellation; concurrent tasks have independent
+contexts. Child tasks inherit the context active when they are created.
+Asset context covers deferred sync and async generator consumption too.
 
-The output asset's config continues to determine its publishing destination,
-independently of explicit query sources. Query context inheritance does not
-change config selection for direct calls to other assets. Each executing child
-asset establishes its own effective query context and restores its parent's
-context afterward. Context must remain isolated across concurrent executions and
-cover deferred sync/async generator consumption, including errors and cancellation.
+### Results and lifetime
+
+Use `rows.fetchall()` or native relational operations such as `.filter()`,
+`.project()` and `.aggregate()`, or return/yield the relation from an asset.
+Ordinary use requires no result `with` block or `.close()` call. DuckDB retains
+the connection and read-only transaction for the relation and its derived
+relations, releasing them when the final references are reclaimed.
+
+The relation is lazy, not an eagerly copied result table. Its transaction reads
+a database snapshot; retained results can coexist with subsequent same-process
+asset publication, including replacement of the source table. Query execution
+errors may occur when consuming the relation. The async entry point and native
+relation evaluation perform synchronous DuckDB work on the calling thread; they
+do not offload work or provide a background streaming API. The selected config
+applies DuckDB threads, memory limit, temp directory and configured extensions.
+Database-wide settings may also affect other compatible connections to that file.
+Retained relations also retain
+snapshot resources and the database file handle. External connections must use
+compatible DuckDB settings; read-only connection mode and writers in other
+processes remain subject to DuckDB's file locking rules.
+
+Operations that write to the source are rejected by the read-only transaction.
+DuckDB's relation `.query()`/`.create_view()` methods can create persistent views
+and are therefore unsuitable on this read-only result. Use native relational
+transformations or express the SELECT in `assquack.query` instead. This API is
+for trusted developer SQL, not an untrusted-SQL sandbox.
+
+No pandas intermediate or mandatory Arrow dependency is used. Materializing a
+native relation uses a temporary native transport file during fragment capture;
+see [the lifecycle](materialization-lifecycle.md#fragment-capture). General queries
+alone do not create that transport file.
 
 See [general query examples](developer-examples.md#general-database-queries).
-Table globbing is deferred: the future requirement is DuckDB file-glob-style
-wildcard matching, not prefix-only matching. This addition does not implement
-table discovery, snapshot retention, or external lake source adapters.
+Table globbing remains deferred, with full DuckDB file-glob-style wildcard
+matching required when considered, not prefix-only matching.
+
+### Parked cross-database query
+
+`assquack.cross_database_query()` is a potential future feature, excluded from
+MVP. Its motivating use case is joining data in multiple accessible local
+Assquack databases, possibly belonging to different configs in one repository.
+Its signature, source settings and result lifetime are not yet specified; the
+function is not currently exported.
+
+An alternative is for developers to own a DuckDB connection and explicitly
+`ATTACH` the required databases, then issue their joins on that connection.
+File accessibility, DuckDB locking and connection lifetime remain relevant.
+The future Assquack API should be justified against that existing alternative;
+multiple supported asset configs alone do not require automatic cross-database
+query management. Reading independently published lake exports is a separate
+integration use case.
 
 ## Cache First
 

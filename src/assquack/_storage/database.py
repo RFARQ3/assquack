@@ -15,10 +15,20 @@ ASSQUACK_STORAGE_VERSION = "v1.5.0"
 def open_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
     database_path = config.resolved_database_path
     database_path.parent.mkdir(parents=True, exist_ok=True)
-    config.resolved_temp_directory.mkdir(parents=True, exist_ok=True)
+    connection = connect_database(config)
+    try:
+        bootstrap_database(connection)
+    except BaseException:
+        connection.close()
+        raise
+    return connection
 
+
+def connect_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
+    """Open a configured connection without creating Assquack metadata."""
+    config.resolved_temp_directory.mkdir(parents=True, exist_ok=True)
     connection = duckdb.connect(
-        str(database_path),
+        str(config.resolved_database_path),
         config={"storage_compatibility_version": ASSQUACK_STORAGE_VERSION},
     )
     try:
@@ -35,7 +45,6 @@ def open_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
             # Prototype assumes configured extensions are already installed or bundled.
             connection.execute(f"LOAD {quote_identifier(extension)}")
 
-        bootstrap_database(connection)
     except BaseException:
         connection.close()
         raise

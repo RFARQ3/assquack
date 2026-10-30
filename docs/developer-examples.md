@@ -117,10 +117,7 @@ and sizing are runtime configuration, not decorator arguments.
 
 ## General database queries
 
-Implemented MVP API examples; validation is tracked in
-[Query And Cache](epics/01-mvp/03-query-and-cache.md#general-database-query-implementation).
-`namely`, `space_calculator`, `openasset_config`, and `salesforce_config` below
-are ordinary `AssquackConfig` objects pointing to existing local databases.
+Read one configured database and consume the native relation:
 
 ```python
 import assquack
@@ -132,28 +129,23 @@ async def weekly_history():
     return await assquack.query("SELECT * FROM history.report_snapshots")
 
 
-# Outside an asset, ASSQUACK_DATABASE_PATH or ASSQUACK_HOME must identify
-# the existing source database in the process environment.
-with await assquack.query("SELECT * FROM history.report_snapshots") as history:
-    rows = history.fetchall()  # Explicit Python collection, when needed.
-
-
-@asset("gold.projects", config=space_calculator)
-async def projects():
-    return await assquack.query(
-        """
-        SELECT p.code, o.client_name
-        FROM openasset.bronze.projects p
-        JOIN salesforce.silver.opportunities o
-            ON p.code = o.project_code
-        """,
-        sources={
-            "openasset": openasset_config,
-            "salesforce": salesforce_config,
-        },
-    )
+# Outside an asset, process environment configuration selects the database.
+history = await assquack.query("SELECT * FROM history.report_snapshots")
 ```
 
-Explicit sources replace the implicit read context; the output still publishes
-using `space_calculator`. Source assets are not executed or refreshed. See the
-[source selection contract](developer-api.md#general-database-queries).
+Here `namely` is an `AssquackConfig`. Select it explicitly outside an asset
+without changing process environment variables:
+
+```python
+with assquack.use_config(namely):
+    history = await assquack.query(
+        "SELECT * FROM history.report_snapshots WHERE report_id = ?", [42]
+    )
+
+rows = history.fetchall()
+```
+
+The result needs no caller-managed connection cleanup. The explicit scope selects
+query reads only, including reads inside nested assets; publishing still uses each
+asset's effective config. See the [query contract](developer-api.md#general-database-queries)
+for lifetime and the parked `assquack.cross_database_query()` feature.

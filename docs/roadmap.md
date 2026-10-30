@@ -61,11 +61,12 @@ The implementation sequence and acceptance checks are recorded there.
 
 ### Phase 3: Query And Cache
 
-- Add general `assquack.query()` with explicit named sources, executing-asset
-  config inheritance, and a required environment source outside asset execution.
-  Cross-database read queries are in MVP; table globbing is deferred. See the
-  [public contract](developer-api.md#general-database-queries).
-
+- General `assquack.query()` reads one database selected from explicit
+  `assquack.use_config`, executing-asset config, or environment configuration.
+  It returns a native relation with no mandatory caller cleanup.
+  `assquack.cross_database_query()` is parked as a potential future feature;
+  developers can alternatively manage DuckDB attachments themselves. Table globbing
+  remains deferred. See the [public contract](developer-api.md#general-database-queries).
 - Implement `.query(sql=None, params=None)` against the current table.
 - Implement `cache_first()` and TTL behavior from Assquack metadata.
 - Implement `.exists()` based on table presence and the latest successful run.

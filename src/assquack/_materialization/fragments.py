@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 import os
 import re
@@ -13,7 +14,6 @@ import duckdb
 from assquack._config import AssquackConfig
 from assquack._errors import MaterializationError
 from assquack._materialization.models import FragmentFile
-from assquack._query import AssquackQueryResult
 from assquack._result import AssquackResult
 from assquack._storage.database import open_database
 from assquack._storage.sql import quote_literal, quote_table
@@ -97,13 +97,25 @@ class NDJSONFragmentWriter:
         # Each invocation has its own names, including empty or failed COPY output.
         prefix = f"copy_{self._copy_index:06d}_"
         self._copy_index += 1
-        relation.query(
-            "fragment_source",
-            f"COPY fragment_source TO {quote_literal(str(self._directory))} "
-            f"(FORMAT JSON, ARRAY false, FILE_SIZE_BYTES {self._target_bytes}, "
-            "FILE_EXTENSION partial, OVERWRITE_OR_IGNORE true, "
-            f"FILENAME_PATTERN {quote_literal(prefix + '{i}')})",
-        )
+        # DuckDB's relation.query(COPY ...) creates a persistent source view.
+        # Stage only during capture so read-only relations can use native JSON
+        # COPY without mutating their source or requiring pandas/Arrow.
+        intermediate = self._directory / f"{prefix}input.parquet"
+        intermediate_sql = quote_literal(str(intermediate))
+        try:
+            # Serialize with the source session before transport: Parquet alone
+            # can round huge integers and lose timezone/interval/union details.
+            relation.project("to_json(COLUMNS(*))").write_parquet(str(intermediate))
+            with duckdb.connect() as connection:
+                connection.execute(
+                    f"COPY (SELECT * FROM read_parquet({intermediate_sql})) "
+                    f"TO {quote_literal(str(self._directory))} "
+                    f"(FORMAT JSON, ARRAY false, FILE_SIZE_BYTES {self._target_bytes}, "
+                    "FILE_EXTENSION partial, OVERWRITE_OR_IGNORE true, "
+                    f"FILENAME_PATTERN {quote_literal(prefix + '{i}')})"
+                )
+        finally:
+            intermediate.unlink(missing_ok=True)
 
         written = 0
         for partial_path in sorted(self._directory.glob(f"{prefix}*.partial")):
@@ -195,9 +207,6 @@ async def write_fragments(
             connection.close()
     if isinstance(value, duckdb.DuckDBPyRelation):
         return writer.write_relation(value)
-    if isinstance(value, AssquackQueryResult):
-        with value:
-            return writer.write_relation(value.relation)
 
     # Optional native libraries are imported only for their own objects, keeping
     # ordinary Python capture independent of pandas and Arrow installations.
@@ -221,15 +230,37 @@ async def write_fragments(
 
     written = 0
     if isinstance(value, AsyncIterable):
-        async for item in cast(AsyncIterable[object], value):
-            written += await write_fragments(item, writer, config)
+        iterator = aiter(cast(AsyncIterable[object], value))
+        try:
+            async for item in iterator:
+                written += await write_fragments(item, writer, config)
+        except BaseException as error:
+            await _close_failed_generator(iterator, error)
+            raise
         return written
     if isinstance(value, Iterable) and not isinstance(value, (str, bytes, bytearray)):
-        for item in cast(Iterable[object], value):
-            written += await write_fragments(item, writer, config)
+        iterator = iter(cast(Iterable[object], value))
+        try:
+            for item in iterator:
+                written += await write_fragments(item, writer, config)
+        except BaseException as error:
+            await _close_failed_generator(iterator, error)
+            raise
         return written
     raise MaterializationError(
         "Assets must return or yield mappings, pandas DataFrames, Arrow tables or "
         "record batches, DuckDB relations, Assquack results/assets, or iterables "
         "of these values. Decode HTTP responses before returning their JSON data."
     )
+
+
+async def _close_failed_generator(iterator: object, error: BaseException) -> None:
+    # Generator scopes must unwind in the consuming task, before its asset context
+    # exits. Later garbage collection may run in a different ContextVar context.
+    try:
+        if inspect.isasyncgen(iterator):
+            await iterator.aclose()
+        elif inspect.isgenerator(iterator):
+            iterator.close()
+    except BaseException as cleanup_error:
+        error.add_note(f"Generator cleanup also failed: {cleanup_error}")

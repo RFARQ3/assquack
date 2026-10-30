@@ -84,17 +84,25 @@ records stay intact; capture never creates an empty trailing fragment. See
 [Configuration](configuration.md#local-ingestion-fragments) for units and defaults.
 
 The shared Python byte writer accepts mappings and iterables of mappings directly.
-DuckDB relations use native `COPY`; pandas DataFrames, Arrow Tables and Arrow
-RecordBatches first become relations and use that same writer. COPY size targets
-are approximate and may be substantially exceeded. Optional pandas and Arrow
-libraries are needed only when supplying their corresponding objects.
+DuckDB relations use native serialization; pandas DataFrames, Arrow Tables and
+RecordBatches first become relations and use that same writer. Optional pandas
+and Arrow libraries are needed only for their corresponding objects.
 
-`AssquackQueryResult` uses the same native relation COPY route and is closed after
-consumption, including COPY failure. General queries never use pandas internally.
-Their eager native result tables have already detached all source databases, so
-publication can reopen its writer without retaining query source handles. See
-[general database queries](developer-api.md#general-database-queries) for ownership
-and resource settings.
+During capture, DuckDB converts each relation column to JSON using its source
+session, writes a temporary Parquet transport file in the run directory, then
+uses native JSON COPY to produce NDJSON fragments. Converting before transport
+preserves huge integers, timezone offsets, intervals, unions and nested values
+that a raw Parquet round trip can change. The transport file is removed on
+success or failure; an interrupted process may leave one for normal failed-run
+retention. It is not a compatibility export or canonical storage.
+This adds one local write/read per native batch, only during materialization.
+COPY size targets are approximate and may be substantially exceeded.
+
+This route lets general-query relations remain in read-only transactions:
+DuckDB's relation-based COPY helper otherwise creates a persistent source view.
+No pandas intermediate, mandatory Arrow dependency, eager general-query copy,
+or result cleanup wrapper is involved. Retained native results stay usable after
+consumption. See [general database queries](developer-api.md#general-database-queries).
 
 Sync and async iterables dispatch each yielded item through its matching route,
 including mixed batches. An `AssquackResult` reads its materialized table without
@@ -111,9 +119,13 @@ lock. A dependency awaited through a separate task cannot share that lock.
 
 During capture the asset's effective config is available to general queries,
 including deferred generator consumption. Nested execution restores the parent
-query context; failure and cancellation reset it. Closing the writer connection
-during capture lets queries attach the same database read-only. The connection
-is reopened for publication or failure metadata. If reopening itself fails,
+query context; failure and cancellation reset it. Explicit `assquack.use_config`
+scopes take precedence across nested assets without changing publication config.
+If consumption fails, sync/async generators close in the consuming task so their
+scopes unwind before the asset context exits. Cleanup errors do not mask the
+original capture error. The writer connection is reopened after capture for
+publication or failure metadata; general queries use compatible connections with
+separate read-only transactions. If reopening itself fails,
 the original capture error is preserved with a note, and the running record is
 left for normal interrupted-run recovery.
 

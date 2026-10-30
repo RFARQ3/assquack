@@ -1,7 +1,7 @@
 # Query And Cache
 
 Status: **In Progress**
-Last updated: 2026-10-29
+Last updated: 2026-10-30
 Epic: 01 MVP
 Phase: 03
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Storage Model](../../storage-model.md)
@@ -188,8 +188,10 @@ remain unchanged pending review. No Namely pipeline or live system was executed.
 Approved 29 October 2026 from Rowan's screenshot and explicit implementation
 request. The public contract lives in
 [General database queries](../../developer-api.md#general-database-queries).
-This MVP addition is implemented and independently reviewed. The overall phase
-remains In Progress for the other unchecked work.
+The 29 October implementation below was reviewed against its original scope.
+The 30 October [single-database revision](#single-database-query-revision)
+supersedes its cross-database and caller-cleanup direction.
+The overall phase remains In Progress.
 
 - [x] Export typed async `assquack.query(sql, params=None, *, sources=None)`.
 - [x] Explicit alias-to-config sources replace implicit sources; reject an empty
@@ -288,3 +290,69 @@ unchecked work.
   shared public/internal query and result identities, nested context restoration,
   native results and garbage-collected spill cleanup. AST comparison confirmed
   moved definitions are unchanged except the context accessor call.
+
+
+## Single-database query revision
+
+Approved and implemented scope change, 30 October 2026.
+The [public contract](../../developer-api.md#general-database-queries) owns the
+revised behavior. Historical checklists above describe the prior implementation.
+The overall phase stays In Progress for its unrelated unchecked items.
+
+- [x] Remove `sources` and cross-database attachment support from general query.
+- [x] Add synchronous `assquack.use_config(config)`: explicit scope, asset, environment.
+- [x] Preserve effective config overrides, nested execution and deferred consumption.
+- [x] Return a native relation without explicit caller cleanup or eager result copies.
+- [x] Keep multiple asset configs and separate publishing databases supported.
+- [x] Close failed generators in their consuming context, preserving original errors.
+- [x] Reconcile code, tests and lifecycle docs with the narrowed contract.
+- [x] Complete final offline validation and independent review.
+
+`_query/general.py` selects one existing file, opens a compatible connection
+without metadata bootstrap, validates one SELECT and begins a read-only
+transaction. DuckDB's native relation owns that connection lifetime, including
+when only derived relations remain. No `result.py`, wrapper, connection registry,
+attachment management or private per-query spill directory remains.
+`context.py` keeps explicit and asset configs in separate ContextVars so nested
+asset execution never overrides an explicit query scope.
+
+Native relation capture now serializes columns to JSON before temporary Parquet
+transport and native JSON COPY. This adds capture-only disk IO but avoids
+persistent source views and preserves types that raw Parquet transport changes.
+The writer removes the intermediate on success/failure; JSON partial files remain
+subject to normal failed-run retention. Ordinary queries do not copy their results.
+
+Downstream migration: Namely callers using `AssquackQueryResult`, `.relation`, or
+result `with` blocks must consume the native relation directly and use
+`assquack.use_config(config)` when selecting an explicit query database. Namely
+was not changed in this task. No pre-release compatibility shim is retained.
+
+`assquack.cross_database_query()` stays documentation-only outside MVP; manual
+DuckDB connection/ATTACH management is the alternative. Table globbing is deferred.
+
+
+### Single-database revision validation (30 October 2026)
+
+- Full offline suite: 329 passed, 8 skipped for unavailable optional pandas/Arrow
+  dependencies. After the final narrow retention allowlist addition, independent
+  focused coverage passed 81 tests with the same 8 optional skips.
+- Independent review approved with no known actionable in-scope defects. Its
+  integration probe verified nested config precedence and publishing isolation,
+  deferred yields, retained derived snapshots through same-table publication,
+  actual task cancellation, failed-generator scope restoration and connection
+  release after final relation reclamation.
+- Native capture matches direct JSON COPY for nested/nullable values, decimal,
+  date/timestamp, VARIANT, MAP, UNION, huge integers, timezone offsets and precise
+  intervals. Capture-only transport is removed on success and failure; interrupted
+  transport filenames are included narrowly in normal run retention.
+- Ruff source/test lint, all changed Python formatting, Markdown links and
+  `git diff --check` pass. Broad formatting retains six untouched failures.
+- Pyright with the Poetry interpreter reports the same seven pre-existing
+  diagnostics in `_api.py`, `_query/asset.py` and `_templates.py`; no new errors.
+  Windows sandbox restrictions required escalation for synthetic pytest directories
+  and for Pyright to inspect the installed interpreter.
+- No live systems, customer data, credentials or `.env` files were accessed.
+  No Namely edits, branch changes, commits or pushes were made.
+
+The revision is complete. The phase remains In Progress for unrelated unchecked
+query/cache items above; this does not mark the whole phase complete.

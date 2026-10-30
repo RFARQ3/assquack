@@ -281,18 +281,23 @@ def test_same_asset_nested_run_does_not_recover_live_outer(tmp_path: Path) -> No
         ]
 
 
-def test_native_partial_files_follow_retention_allowlist(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "filename", ["copy_000000_0.partial", "copy_000000_input.parquet"]
+)
+def test_native_partial_files_follow_retention_allowlist(
+    tmp_path: Path, filename
+) -> None:
     from assquack._materialization.retention import _remove_run_directory
 
     run_id = "a" * 32
     directory = tmp_path / "asset=source" / f"run_id={run_id}"
     directory.mkdir(parents=True)
-    (directory / "copy_000000_0.partial").write_bytes(b'{"id":1}\n')
+    (directory / filename).write_bytes(b'{"id":1}\n')
     _remove_run_directory(tmp_path, "source", run_id)
     assert not directory.exists()
 
 
-def test_native_copy_failure_keeps_partial_evidence_for_retention(
+def test_native_evaluation_failure_cleans_intermediate(
     tmp_path: Path,
 ) -> None:
     from assquack._materialization.retention import _remove_run_directory
@@ -308,8 +313,72 @@ def test_native_copy_failure_keeps_partial_evidence_for_retention(
         with pytest.raises(duckdb.Error, match="synthetic COPY failure"):
             writer.write_relation(relation)
     writer.abort()
-    assert list(directory.glob("*.partial"))
+    assert not list(directory.glob("*.partial"))
+    assert not list(directory.glob("*.parquet"))
     assert not list(directory.glob("*.ndjson"))
     assert not (directory / "_COMPLETE").exists()
     _remove_run_directory(tmp_path, "source", run_id)
     assert not directory.exists()
+
+
+def test_read_only_native_capture_preserves_json_types_and_source(tmp_path):
+    database = tmp_path / "source.duckdb"
+    expected = tmp_path / "expected.ndjson"
+    sql = (
+        "SELECT {'x': [1, NULL, 2]} nested, 12.34::DECIMAL(8,2) amount, "
+        "DATE '2026-01-01' AS day, TIMESTAMP '2026-01-01 01:02:03' stamp, "
+        "{'a': [1, 2]}::VARIANT dynamic_value, MAP {'a': 1, 'b': NULL} AS mapping, "
+        "NULL::INTEGER missing, union_value(a := 42) AS tagged, "
+        "170141183460469231731687303715884105727::HUGEINT AS huge, "
+        "340282366920938463463374607431768211455::UHUGEINT AS unsigned_huge, "
+        "TIME WITH TIME ZONE '12:00:00+02:00' AS zoned_time, "
+        "INTERVAL '1 month 2 days 1 microsecond' AS duration"
+    )
+    with duckdb.connect(
+        str(database), config={"storage_compatibility_version": "v1.5.0"}
+    ) as conn:
+        conn.execute("CREATE TABLE items AS " + sql)
+        conn.execute("COPY items TO ? (FORMAT JSON, ARRAY false)", [str(expected)])
+    before = database.read_bytes()
+    directory = tmp_path / "capture"
+    writer = NDJSONFragmentWriter(directory, target_bytes=1000)
+    with duckdb.connect(
+        str(database), config={"storage_compatibility_version": "v1.5.0"}
+    ) as conn:
+        conn.execute("BEGIN TRANSACTION READ ONLY")
+        assert writer.write_relation(conn.sql("SELECT * FROM items")) == 1
+    actual = [
+        json.loads(line)
+        for f in writer.finish()
+        for line in Path(f.path).read_text().splitlines()
+    ]
+    assert actual == [json.loads(line) for line in expected.read_text().splitlines()]
+    assert before == database.read_bytes()
+    assert not list(directory.glob("*.parquet"))
+
+
+def test_json_copy_failure_cleans_intermediate_and_keeps_partial(tmp_path, monkeypatch):
+    from assquack._materialization import fragments
+
+    directory = tmp_path / "capture"
+    writer = NDJSONFragmentWriter(directory, target_bytes=1000)
+    with duckdb.connect() as source:
+        relation = source.sql("SELECT 1 AS value")
+
+        class FailedCopy:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def execute(self, sql):
+                (directory / "copy_000000_0.partial").write_text('{"value":1}\n')
+                raise RuntimeError("synthetic JSON COPY failure")
+
+        monkeypatch.setattr(fragments.duckdb, "connect", FailedCopy)
+        with pytest.raises(RuntimeError, match="synthetic JSON COPY failure"):
+            writer.write_relation(relation)
+    assert not list(directory.glob("*.parquet"))
+    assert list(directory.glob("*.partial"))
+    assert not list(directory.glob("*.ndjson"))

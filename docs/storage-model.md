@@ -55,8 +55,8 @@ DuckDB temp directory. Database placement is not part of the asset identity API.
 ## Concurrency
 
 A DuckDB database file has one writer at a time. Assquack must enforce this rule
-with an Assquack lock keyed by the resolved database path before opening a
-write-capable connection or starting materialization.
+with an Assquack lock keyed by the resolved database path before starting
+materialization or modifying canonical tables and metadata.
 
 The lock is an application-level guard around the database file, not a
 replacement for DuckDB's own transaction rules. Its responsibilities are:
@@ -68,8 +68,14 @@ replacement for DuckDB's own transaction rules. Its responsibilities are:
 - allow external orchestrators to add their own concurrency controls without
   becoming core Assquack dependencies.
 
-Multiple readers are acceptable when the database is opened read-only or after a
-materialization transaction has completed.
+General queries use read-only transactions on connections with the same access
+mode and storage settings as publication connections. This allows retained native
+relations to read their snapshots while an asset publishes on another connection
+in the same process. The relation and its derivatives keep their connection alive;
+DuckDB releases it when those references are reclaimed. Native queries do not take
+the materialization lock. Read-only connection mode and other-process writers can
+conflict with these retained handles under DuckDB's ordinary file locking rules.
+See [query lifetime](developer-api.md#results-and-lifetime).
 
 ## Internal Schemas
 

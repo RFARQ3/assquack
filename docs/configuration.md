@@ -70,18 +70,22 @@ for resets, chaining and dependency behavior.
 
 ## Core Paths
 
-The standalone `assquack.query()` API has a stricter source selection rule:
-explicit named sources, then the executing asset's effective config, then
-process environment configuration. Outside an asset, it requires nonblank
-`ASSQUACK_DATABASE_PATH` or `ASSQUACK_HOME`; it does not use the implicit
-working-directory fallback. Ordinary asset defaults remain unchanged.
-Multiple explicit query sources can refer to independent local databases;
-each config still owns one database and each output asset one publishing target.
-The first explicit source config supplies query-engine resource settings; implicit
-queries use their selected config. Query spill files live in a private directory
-under that config's DuckDB temporary directory until the result is closed or
-consumed by an asset. Source database files must already exist.
-See [general database queries](developer-api.md#general-database-queries).
+`assquack.query()` selects one database: the innermost explicit
+`assquack.use_config(config)` scope, then the executing asset's effective config,
+then process environment configuration. Without an explicit scope or executing
+asset it requires nonblank `ASSQUACK_DATABASE_PATH` or `ASSQUACK_HOME`.
+Ordinary asset defaults and publishing config selection remain unchanged.
+
+```mermaid
+flowchart LR
+  Scope[Explicit query config scope] --> Asset[Executing asset config]
+  Asset --> Environment[Explicit environment database or home]
+  Environment --> Missing[Error if absent]
+```
+
+Use the first available config in this order. Multiple asset configs remain
+supported; cross-database querying is parked as `assquack.cross_database_query()`.
+See the [query contract](developer-api.md#general-database-queries).
 
 `ASSQUACK_HOME` is the base local directory for Assquack runtime state. When it
 is not set, Assquack uses the process's current working directory:

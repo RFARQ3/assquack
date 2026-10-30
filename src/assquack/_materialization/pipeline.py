@@ -143,7 +143,7 @@ async def materialize(
                 )
                 metadata.claim_run_fragments(run_id)
                 # Keep the writer lock, but release the file handle while user code
-                # reads sources. DuckDB cannot attach an independently opened file.
+                # reads sources; queries own separate read-only transactions.
                 connection.close()
                 connection = None
                 capture_error = None
