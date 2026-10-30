@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-10-28
+Last updated: 2026-10-30
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -295,3 +295,18 @@ native fingerprints; this placeholder is not an approved final policy.
 All tests use synthetic credentials and local temporary DuckDB files. No live
 systems, credentials, commits or branch changes were used. Existing uncommitted
 work is preserved against the external baseline manifest.
+
+## Plain export-path configuration — 30 October 2026
+
+Implemented `AssquackConfig(exports="E:/data/namely/exports")` and the equivalent
+plain `ASSQUACK_EXPORTS` value. The field accepts `str` and normalizes it to one
+`FileSystemDestination(base_uri=value)`, retaining the destination's existing
+`auth="auto"` default. Pydantic-settings' union decoding already allows raw
+strings through while decoding JSON objects/lists; no custom decoder is needed.
+
+Destination instances, JSON object/list environment forms, explicit auth,
+direct-value precedence and `exports=[]` remain supported. Regression tests in
+`tests/test_config.py` cover Windows slash/backslash and relative paths plus
+those existing forms. Focused config/export tests: **47 passed** on DuckDB 1.5.6.
+The configuration fix is complete; the overall phase remains In Progress for
+its unrelated outstanding work. See [configuration usage](../../configuration.md#exports).

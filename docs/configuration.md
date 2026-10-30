@@ -237,8 +237,16 @@ Connection setup should be deterministic:
 
 ## Exports
 
-`AssquackConfig.exports` accepts one `ExportDestination` or a list, normalized to
-an ordered list. The default is `[]`: no automatic exports, even when an asset
+`AssquackConfig.exports` accepts a single path string, one `ExportDestination`,
+or a list of destinations, normalized to an ordered list. A path string creates
+a `FileSystemDestination` with its default `auth="auto"`; no authentication
+setting is needed for an ordinary local export directory:
+
+```python
+config = AssquackConfig(exports="E:/data/namely/exports")
+```
+
+The default is `[]`: no automatic exports, even when an asset
 has an export declaration. This does not prevent materialization or cache hits.
 The supplied destination is `FileSystemDestination(base_uri, auth)`, constructed
 with keyword arguments. `base_uri` is required; `auth` defaults to `"auto"`.
@@ -267,7 +275,14 @@ The operation rejects the same resolved write path with different destination
 fingerprints; repeated identical configurations are allowed. See
 [Exports](exports.md) for credential capture, lifetime, and fingerprint semantics.
 
-Set `ASSQUACK_EXPORTS` to a JSON object or list using `base_uri` and `auth`:
+Set `ASSQUACK_EXPORTS` directly to the export directory. For example, in PowerShell:
+
+```powershell
+$env:ASSQUACK_EXPORTS = "E:/data/namely/exports"
+```
+
+JSON objects and lists remain supported when configuring multiple destinations
+or explicit options. `auth` is optional and defaults to `"auto"`:
 
 ```json
 [{"base_uri": "./exports", "auth": "auto"}]

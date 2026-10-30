@@ -89,7 +89,8 @@ class AssquackConfig(_ProcessSettings):
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     schema_settings: SchemaConfig = Field(default_factory=SchemaConfig, alias="schema")
     exports: (
-        SerializeAsAny[FileSystemDestination | ExportDestination]
+        str
+        | SerializeAsAny[FileSystemDestination | ExportDestination]
         | list[SerializeAsAny[FileSystemDestination | ExportDestination]]
     ) = Field(
         default_factory=list[ExportDestination], validation_alias="ASSQUACK_EXPORTS"
@@ -98,6 +99,8 @@ class AssquackConfig(_ProcessSettings):
     @field_validator("exports", mode="before")
     @classmethod
     def normalize_exports(cls, value: object) -> list[ExportDestination]:
+        if isinstance(value, str):
+            return [FileSystemDestination(base_uri=value)]
         destinations = cast(list[object], value) if isinstance(value, list) else [value]
         return [
             item

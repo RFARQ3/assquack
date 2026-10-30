@@ -5,9 +5,60 @@ from pydantic import ValidationError
 
 from assquack import (
     AssquackConfig,
+    FileSystemDestination,
     IngestionConfig,
     SchemaConfig,
 )
+
+
+@pytest.mark.parametrize("source", ["python", "environment"])
+@pytest.mark.parametrize(
+    "path", ["E:/data/namely/exports", r"E:\data\namely\exports", "./exports"]
+)
+def test_plain_export_path_uses_default_auth(monkeypatch, source, path):
+    if source == "environment":
+        monkeypatch.setenv("ASSQUACK_EXPORTS", path)
+        config = AssquackConfig()
+    else:
+        config = AssquackConfig(exports=path)
+
+    assert len(config.export_destinations) == 1
+    destination = config.export_destinations[0]
+    assert isinstance(destination, FileSystemDestination)
+    assert destination.base_uri == path
+    assert destination.auth == "auto"
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ('{"base_uri": "./exports"}', [("./exports", "auto")]),
+        (
+            '[{"base_uri": "./one"}, {"base_uri": "./two", "auth": "none"}]',
+            [("./one", "auto"), ("./two", "none")],
+        ),
+        ("[]", []),
+    ],
+)
+def test_export_json_environment_forms_remain_supported(monkeypatch, value, expected):
+    monkeypatch.setenv("ASSQUACK_EXPORTS", value)
+    destinations = AssquackConfig().export_destinations
+    assert [destination.model_dump() for destination in destinations] == [
+        {"base_uri": path, "auth": auth} for path, auth in expected
+    ]
+
+
+def test_export_path_override_and_destination_instances(monkeypatch):
+    monkeypatch.setenv("ASSQUACK_EXPORTS", "./environment")
+    config = AssquackConfig(exports="./direct")
+    assert config.export_destinations[0].model_dump() == {
+        "base_uri": "./direct",
+        "auth": "auto",
+    }
+    destination = FileSystemDestination(base_uri="./instance", auth="none")
+    assert AssquackConfig(exports=destination).export_destinations[0] is destination
+    assert AssquackConfig(exports=[destination]).export_destinations[0] is destination
+    assert AssquackConfig(exports=[]).export_destinations == []
 
 
 def test_process_environment_populates_the_full_config_tree(
