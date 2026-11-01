@@ -18,16 +18,16 @@ class MetadataRepository:
     def save_asset(self, asset: AssetRecord) -> None:
         self._connection.execute(
             """
-            INSERT INTO assquack_meta.assets (
-                asset_id, asset_name, asset_signature, schema_name, table_name,
-                materialization_mode
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO assquack_meta.assets VALUES (
+                ?, ?, ?, ?, ?, ?, current_timestamp, current_timestamp
+            )
             ON CONFLICT (asset_id) DO UPDATE SET
                 asset_name = excluded.asset_name,
                 asset_signature = excluded.asset_signature,
                 schema_name = excluded.schema_name,
                 table_name = excluded.table_name,
-                materialization_mode = excluded.materialization_mode
+                materialization_mode = excluded.materialization_mode,
+                updated_at = excluded.updated_at
             """,
             [
                 asset.asset_id,
@@ -145,21 +145,6 @@ class MetadataRepository:
             WHERE run_id = ?
             """,
             [duration_ms, row_count, run_id],
-        )
-
-        # The publication strategy owns the transaction containing the table
-        # replacement and both metadata updates. Use the run's exact timestamp.
-        self._connection.execute(
-            """
-            UPDATE assquack_meta.assets AS a
-            SET first_materialized_at = coalesce(
-                    a.first_materialized_at, r.materialized_at
-                ),
-                last_materialized_at = r.materialized_at
-            FROM assquack_meta.runs AS r
-            WHERE r.run_id = ? AND a.asset_id = r.asset_id
-            """,
-            [run_id],
         )
 
     def mark_run_failed(self, run_id: str, error: str, duration_ms: int) -> None:

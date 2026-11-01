@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-11-02
+Last updated: 2026-10-29
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -48,8 +48,8 @@ CREATE TABLE assquack_meta.assets (
   schema_name VARCHAR NOT NULL,
   table_name VARCHAR NOT NULL,
   materialization_mode VARCHAR NOT NULL,
-  first_materialized_at TIMESTAMPTZ,
-  last_materialized_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE assquack_meta.runs (
@@ -88,14 +88,6 @@ The published table owns its schema. No migration or deletion of existing
 records is performed.
 
 ## Implementation Checklist
-
-Publication timestamp correction is complete. Registration leaves both
-asset timestamps null. Successful publication updates them in the table/run
-transaction; cache hits and failed attempts do not. Bootstrap replaces the old
-registration timestamps using only successful run evidence, never their values.
-Validation covers first/subsequent success, capture and transaction failures,
-cache hits, export failures, historical migration, and repeated bootstrap with
-synthetic DBs. Independent review passed with no remaining actionable defects.
 
 - [ ] Implement typed configuration models.
 - [ ] Resolve database path, temp directory, and DuckDB settings.
@@ -148,29 +140,3 @@ changed-file formatting, Poetry metadata, documentation links, and diff checks
 passed. Pyright reports 7 errors in unchanged API/query/template code. The full
 format check flags existing line endings in 8 untouched files. The broader core
 phase remains In Progress; this path simplification is complete.
-
-## Publication timestamps — 2 November 2026
-
-`assets.first_materialized_at` and `last_materialized_at` replace registration
-dates. `save_asset` writes identity/configuration only. The existing replace
-transaction updates the table, successful run, and asset dates together, using
-the run's exact `materialized_at`. Append remains unsupported. Export failures
-occur after commit and cannot erase publication dates.
-
-The explicitly requested migration is limited to the old asset timestamp schema:
-add nullable columns, drop registration columns, then backfill successful run
-MIN/MAX in one transaction. DuckDB requires these ALTERs before the UPDATE;
-altering again after data modification can fail at commit. Run metadata is not
-pruned with fragments. Missing evidence stays null; manually removed history
-limits dates to the surviving evidence. Current-schema bootstrap never recalculates
-dates. No customer databases were accessed or migrated.
-
-Validation: 369 tests passed on Python 3.11 / DuckDB 1.5.6, including six focused
-timestamp cases. They cover rollback after metadata writes, interrupted migration
-restoring old schema/data, and repeated bootstrap after historical run removal.
-Ruff lint, changed-file formatting, documentation links, and `git diff --check`
-passed. Terminology scan found only the existing historical Kubernetes note and
-its references. Pyright reports the same seven existing API/query/template
-diagnostics, none in this change. The broader core phase remains **In Progress**.
-Independent review passed 45 targeted publication, rollback, migration, cache,
-and retention tests and approved the implementation without outstanding findings.

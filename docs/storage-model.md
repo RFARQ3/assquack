@@ -133,24 +133,6 @@ DDL belongs to the implementor-facing
 
 ## Asset Tables
 
-`assquack_meta.assets.first_materialized_at` and `last_materialized_at` are
-nullable `TIMESTAMPTZ` publication dates. Both remain null until the first
-successful publication. The first date stays fixed; the last advances on each
-successful publication, using the same timestamp as `runs.materialized_at`.
-Registration, cache hits, and failed attempts do not advance either date.
-Run attempts and their status belong in `assquack_meta.runs`. An export failure
-after publication does not undo the table or its publication dates.
-
-On opening an existing database for writing, bootstrap replaces the former
-`assets.created_at` and `updated_at` registration fields in one transaction.
-It derives publication dates from the earliest/latest non-null `materialized_at`
-among that asset's recorded successful runs. It never copies registration dates.
-Assquack retains run records when pruning fragment files, so normal retention
-preserves this evidence. If records were manually removed, the dates describe
-only the remaining successful evidence; the true historical first date cannot
-be recovered. Assets without dated successful evidence remain null until their
-next successful publication. Repeated bootstrap preserves the migrated dates.
-
 Each asset gets a stable `asset_id` derived from the function identity, resolved
 asset name, and bound arguments. The public asset name uses explicit `name=`
 when supplied; otherwise it resolves the declared table template.
