@@ -68,13 +68,16 @@ replacement for DuckDB's own transaction rules. Its responsibilities are:
 - allow external orchestrators to add their own concurrency controls without
   becoming core Assquack dependencies.
 
-General queries use read-only transactions on connections with the same access
-mode and storage settings as publication connections. This allows retained native
-relations to read their snapshots while an asset publishes on another connection
-in the same process. The relation and its derivatives keep their connection alive;
-DuckDB releases it when those references are reclaimed. Native queries do not take
-the materialization lock. Read-only connection mode and other-process writers can
-conflict with these retained handles under DuckDB's ordinary file locking rules.
+Query wrappers own read-only connections compatible with publication connections.
+Live wrappers reuse a connection per resolved database path within their task and
+execution; child tasks and nested asset executions have independent connection
+scopes. The cache holds weak references and never changes DuckDB's module default.
+Each root query refreshes the shared read transaction to see new publications;
+wrapper query chains keep using that transaction. Retained lazy relations do not
+have independent frozen snapshots. Wrapper/native references retain the handle
+until reclaimed. Native queries do not take the materialization lock. Read-only
+connection mode and other-process writers can conflict with retained handles under
+DuckDB's ordinary file locking rules.
 See [query lifetime](developer-api.md#results-and-lifetime).
 
 ## Internal Schemas

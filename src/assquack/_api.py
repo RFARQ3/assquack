@@ -10,15 +10,13 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar
 
-import duckdb
-
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
 from assquack._errors import MissingAssetSchemaWarning
 from assquack._materialization.models import AssetMode as AssetMode
 from assquack._materialization.models import MaterializationRequest
 from assquack._materialization.pipeline import materialize
-from assquack._query import execute_query
+from assquack._query import AssquackQueryResult, execute_query
 from assquack._result import AssquackResult
 from assquack._storage.database import open_database
 from assquack._storage.metadata import MetadataRepository
@@ -118,7 +116,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
         params: Sequence[object] | None = None,
         *,
         assquack_config: AssquackConfig | None = None,
-    ) -> duckdb.DuckDBPyRelation:
+    ) -> AssquackQueryResult:
         config = assquack_config or self.config or AssquackConfig()
         request = self._request((), {})
         return execute_query(config, request.table, sql, params)

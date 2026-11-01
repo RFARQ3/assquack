@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import duckdb
-
 from assquack._config import AssquackConfig
 from assquack._errors import MissingAssetTableError
+from assquack._query.connection import query_session
+from assquack._query.result import AssquackQueryResult, select_relation, validate_select
 from assquack._storage.database import open_database
 from assquack._storage.sql import quote_table
 from assquack._storage.tables import TableReference, table_exists
@@ -17,14 +17,35 @@ def execute_query(
     table: TableReference,
     sql: str | None = None,
     params: Sequence[object] | None = None,
-) -> duckdb.DuckDBPyRelation:
-    connection = open_database(config)
-    try:
-        _create_data_alias(connection, table)
-        return connection.sql(sql or "SELECT * FROM data", params=params)
-    except BaseException:
-        connection.close()
-        raise
+) -> AssquackQueryResult:
+    if sql:
+        validate_select(sql)
+    session = query_session(config)
+    connection = session.connection
+    if not table_exists(connection, table):
+        raise MissingAssetTableError(
+            "The asset has no published table. Materialize it successfully "
+            "before querying."
+        )
+    target = quote_table(table.schema_name, table.table_name)
+    if not sql and params is None:
+        return AssquackQueryResult(session, connection.table(target))
+
+    # Keep the compatibility alias inside this statement. A persistent table
+    # called data must not redirect asset reads, nor may later asset queries.
+    # Let DuckDB normalize comments and statement terminators before embedding.
+    normalized = connection.execute(
+        "SELECT json_deserialize_sql(json_serialize_sql(?))",
+        [sql or "SELECT * FROM data"],
+    ).fetchone()
+    assert normalized is not None
+    statement = normalized[0]
+    relation = select_relation(
+        session,
+        f"WITH data AS (SELECT * FROM {target}) SELECT * FROM (\n{statement}\n)",
+        params,
+    )
+    return AssquackQueryResult(session, relation)
 
 
 def query_dataframe(

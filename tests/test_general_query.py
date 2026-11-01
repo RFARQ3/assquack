@@ -28,7 +28,7 @@ def source_config(path: Path, value: int = 1) -> AssquackConfig:
 
 def test_public_surface():
     assert list(inspect.signature(assquack.query).parameters) == ["sql", "params"]
-    assert not hasattr(assquack, "AssquackQueryResult")
+    assert hasattr(assquack, "AssquackQueryResult")
     assert not hasattr(assquack, "cross_database_query")
     with (
         pytest.raises(TypeError, match="AssquackConfig"),
@@ -37,7 +37,7 @@ def test_public_surface():
         pass
 
 
-def test_native_lifetime_snapshot_and_source_immutability(tmp_path):
+def test_native_lifetime_and_source_immutability(tmp_path):
     config = source_config(tmp_path / "source", 3)
     before = config.resolved_database_path.read_bytes()
     with assquack.use_config(config):
@@ -46,17 +46,16 @@ def test_native_lifetime_snapshot_and_source_immutability(tmp_path):
                 "SELECT value + $extra AS total FROM bronze.items", {"extra": 2}
             )
         )
-    assert isinstance(result, duckdb.DuckDBPyRelation)
+    assert isinstance(result, assquack.AssquackQueryResult)
     gc.collect()
     assert result.fetchall() == [(5,)]
-    derived = result.project("total + 1 AS total")
+    derived = result.relation.project("total + 1 AS total")
     del result
     gc.collect()
     assert derived.fetchall() == [(6,)]
     del derived
     gc.collect()
-    # Reopening with incompatible read-only connection settings proves the last
-    # relation released its connection. Reads did not bootstrap metadata or write.
+    # The weak owner cache does not retain handles after the last native result.
     assert config.resolved_database_path.read_bytes() == before
     with duckdb.connect(str(config.resolved_database_path), read_only=True) as conn:
         assert conn.execute("SHOW ALL TABLES").fetchall()[0][1] == "bronze"
@@ -64,6 +63,8 @@ def test_native_lifetime_snapshot_and_source_immutability(tmp_path):
             "SELECT count(*) FROM information_schema.schemata "
             "WHERE schema_name='assquack_meta'"
         ).fetchone() == (0,)
+
+        assert conn.sql("SELECT value FROM bronze.items").fetchall() == [(3,)]
 
 
 @pytest.mark.parametrize("empty", [False, True])
@@ -77,7 +78,7 @@ def test_native_types_empty_results_and_retained_asset_input(tmp_path, empty):
                 + ("WHERE false" if empty else "")
             )
         )
-    assert str(result.types[1]) == "DECIMAL(8,2)"
+    assert str(result.relation.types[1]) == "DECIMAL(8,2)"
 
     @asset("silver.output", config=config)
     def output():
@@ -100,7 +101,7 @@ def test_retained_snapshot_allows_same_table_replacement_and_nested_publication(
     @asset("silver.output", config=config)
     async def output():
         result = await assquack.query("SELECT value FROM bronze.items")
-        retained.append(result.project("value + 1 AS value"))
+        retained.append(result.relation.project("value + 1 AS value"))
         await replace()
         return result
 
@@ -173,12 +174,14 @@ def test_mutating_select_is_rejected_by_transaction(tmp_path):
         result.fetchall()
 
 
-def test_failed_select_releases_connection(tmp_path):
+def test_failed_select_allows_following_query(tmp_path):
     config = source_config(tmp_path / "source")
     with assquack.use_config(config), pytest.raises(duckdb.Error):
         asyncio.run(assquack.query("SELECT * FROM missing"))
-    with duckdb.connect(str(config.resolved_database_path), read_only=True) as conn:
-        assert conn.sql("SELECT * FROM bronze.items").fetchall() == [(1,)]
+    with assquack.use_config(config):
+        assert asyncio.run(assquack.query("SELECT * FROM bronze.items")).fetchall() == [
+            (1,)
+        ]
 
 
 def test_scope_precedence_nested_assets_and_publishing_config(tmp_path, monkeypatch):
@@ -211,7 +214,7 @@ def test_scope_precedence_nested_assets_and_publishing_config(tmp_path, monkeypa
 
     assert asyncio.run(parent(assquack_config=inner)).row_count == 2
     assert seen == [13, 11, 13, 7, 13]
-    with duckdb.connect(str(inner.resolved_database_path)) as conn:
+    with connect_database(inner) as conn:
         assert conn.sql(
             "SELECT value FROM silver.parent ORDER BY value"
         ).fetchall() == [(11,), (13,)]

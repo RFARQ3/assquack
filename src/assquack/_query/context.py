@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from assquack._config import AssquackConfig
+from assquack._query.connection import connection_scope
 
 _QUERY_CONFIG: ContextVar[AssquackConfig | None] = ContextVar(
     "assquack_query_config", default=None
@@ -19,7 +20,8 @@ _EXPLICIT_CONFIG: ContextVar[AssquackConfig | None] = ContextVar(
 def query_context(config: AssquackConfig) -> Generator[None, None, None]:
     token = _QUERY_CONFIG.set(config)
     try:
-        yield
+        with connection_scope():
+            yield
     finally:
         _QUERY_CONFIG.reset(token)
 

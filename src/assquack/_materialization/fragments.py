@@ -189,6 +189,7 @@ async def write_fragments(
     """Dispatch each yielded value before considering generic iteration."""
     # Import here because asset execution itself imports the capture pipeline.
     from assquack._api import AssquackAsset
+    from assquack._query import AssquackQueryResult
 
     if value is None:
         return 0
@@ -205,6 +206,8 @@ async def write_fragments(
             return writer.write_relation(relation)
         finally:
             connection.close()
+    if isinstance(value, AssquackQueryResult):
+        return writer.write_relation(value.relation)
     if isinstance(value, duckdb.DuckDBPyRelation):
         return writer.write_relation(value)
 

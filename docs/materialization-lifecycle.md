@@ -100,9 +100,10 @@ COPY size targets are approximate and may be substantially exceeded.
 
 This route lets general-query relations remain in read-only transactions:
 DuckDB's relation-based COPY helper otherwise creates a persistent source view.
+`AssquackQueryResult` inputs pass their native relation to this same writer.
 No pandas intermediate, mandatory Arrow dependency, eager general-query copy,
-or result cleanup wrapper is involved. Retained native results stay usable after
-consumption. See [general database queries](developer-api.md#general-database-queries).
+or caller cleanup is involved. Retained query results stay usable after capture.
+See [general database queries](developer-api.md#general-database-queries).
 
 Sync and async iterables dispatch each yielded item through its matching route,
 including mixed batches. An `AssquackResult` reads its materialized table without

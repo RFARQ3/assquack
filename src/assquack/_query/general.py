@@ -4,36 +4,25 @@ import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-import duckdb
-
 from assquack._config import AssquackConfig
+from assquack._query.connection import query_session
 from assquack._query.context import current_query_config
-from assquack._storage.database import connect_database
+from assquack._query.result import AssquackQueryResult, select_relation, validate_select
 
 
 async def query(
     sql: str,
     params: Sequence[object] | Mapping[str, object] | None = None,
-) -> duckdb.DuckDBPyRelation:
-    """Return a native relation reading one configured database."""
+) -> AssquackQueryResult:
+    """Return a connection-owning result reading one configured database."""
     config = _resolve_config()
     path = config.resolved_database_path
     if not path.is_file():
         raise FileNotFoundError(f"Query source database does not exist: {path}")
 
-    connection = connect_database(config)
-    try:
-        statements = connection.extract_statements(sql)
-        if len(statements) != 1 or statements[0].type != duckdb.StatementType.SELECT:
-            raise ValueError("assquack.query requires one read-only SELECT statement.")
-
-        # Native relations retain their connection. A read-only transaction protects
-        # the source while compatible writer connections can publish newer tables.
-        connection.execute("BEGIN TRANSACTION READ ONLY")
-        return connection.sql(sql, params=params)
-    except BaseException:
-        connection.close()
-        raise
+    validate_select(sql)
+    session = query_session(config)
+    return AssquackQueryResult(session, select_relation(session, sql, params))
 
 
 def _resolve_config() -> AssquackConfig:

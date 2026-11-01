@@ -4,13 +4,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-import duckdb
-
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
 from assquack._exports import resolve_exports
 from assquack._exports.destinations import FileSystemDestination
-from assquack._query import execute_query, query_dataframe
+from assquack._query import AssquackQueryResult, execute_query, query_dataframe
 from assquack._storage.database import open_database
 from assquack._storage.locking import writer_lock
 from assquack._storage.metadata import MetadataRepository
@@ -33,7 +31,7 @@ class AssquackResult:
         self,
         sql: str | None = None,
         params: Sequence[object] | None = None,
-    ) -> duckdb.DuckDBPyRelation:
+    ) -> AssquackQueryResult:
         return execute_query(self.config, self.table, sql, params)
 
     def to_df(self) -> Any:

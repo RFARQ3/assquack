@@ -117,7 +117,7 @@ and sizing are runtime configuration, not decorator arguments.
 
 ## General database queries
 
-Read one configured database and consume the native relation:
+Read one configured database and consume its connection-owning query result:
 
 ```python
 import assquack
@@ -144,6 +144,36 @@ with assquack.use_config(namely):
 
 rows = history.fetchall()
 ```
+
+Use the connection-owning result to query Python variables directly:
+
+```python
+with assquack.use_config(namely):
+    reports = await assquack.query("SELECT * FROM bronze.reports")
+    latest = reports.query(
+        "SELECT * FROM reports WHERE snapshot_date = CURRENT_DATE"
+    )
+    summary = latest.query("SELECT COUNT(*) FROM latest")
+
+rows = summary.fetchall()
+```
+
+`reports = await reports_asset.query()` supports the same chain. Two results
+read from the same database in one task/execution can be joined:
+
+```python
+with assquack.use_config(namely):
+    reports = await reports_asset.query()
+    people = await people_asset.query()
+    joined = reports.query(
+        "SELECT r.*, p.display_name FROM reports r "
+        "JOIN people p ON r.person_id = p.id"
+    )
+```
+
+These assets must select the same database. Different task/execution connections
+cannot be joined implicitly. The wrapper does not change `duckdb.query` or its
+module default. Use `joined.relation` when native relational methods are needed.
 
 The result needs no caller-managed connection cleanup. The explicit scope selects
 query reads only, including reads inside nested assets; publishing still uses each

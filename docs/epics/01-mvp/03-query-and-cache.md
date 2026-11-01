@@ -8,6 +8,10 @@ Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.m
 
 ## Intent
 
+The 30 October [connection-owning wrapper revision](#connection-owning-query-wrappers-30-october-2026)
+is complete and independently reviewed. The overall phase retains unrelated
+unchecked items below.
+
 Expose the current DuckDB table through a small result/query surface and make
 cache-first reads depend on Assquack metadata rather than exported files.
 
@@ -356,3 +360,57 @@ DuckDB connection/ATTACH management is the alternative. Table globbing is deferr
 
 The revision is complete. The phase remains In Progress for unrelated unchecked
 query/cache items above; this does not mark the whole phase complete.
+
+## Connection-owning query wrappers (30 October 2026)
+
+This revision is complete and independently approved. It supersedes the
+uncommitted default-connection experiment and the earlier native-only public
+query return contract. The overall phase remains In Progress.
+
+The approved public surface is `AssquackQueryResult.query(sql, params=None)`
+with synchronous chaining through actual Python variable names. Async general,
+asset and published-result queries return that wrapper. It exposes fetchall,
+fetchone and a native relation escape hatch without proxying all DuckDB methods.
+
+A real DuckDB probe rejected a custom wrapper as a replacement-scan object.
+The implementation therefore converts immediate caller local/global wrapper
+references into native relations in a disposable evaluation namespace. A generated
+collision-free helper invokes a fixed Python call; user SQL remains an argument.
+There is no caller-frame mutation, registration, eager copying or global-default
+switch. DuckDB's normal CTE/table precedence is retained for wrapper variables.
+The initial asset-query `data` alias is statement-local so an existing table named
+data cannot redirect it.
+
+Weak session caches are task-owned and keyed by resolved database path, ignoring
+unrelated export/processing settings. Each asset execution creates an independent
+scope; nested explicit config scopes share the active execution's pool. Child
+tasks cannot mutate inherited pools. Root reads refresh the read-only transaction;
+wrapper chains do not. This deliberately permits read/publish/read/join while
+making retained lazy results observe the connection's newer transaction.
+Independent frozen snapshots and cross-connection joins are not claimed.
+
+Regression coverage includes variable chains, two independently published asset
+variables, same-path differing config settings, helper arguments, missing aliases,
+CTE precedence, source immutability, root recovery after failure, task isolation,
+config/cancellation restoration, native and wrapper materialization, lifetime
+beyond scope exit, and unchanged DuckDB module defaults.
+
+Validation:
+
+- Full offline suite on Python 3.11 / DuckDB 1.5.6: **363 passed**.
+- Independent reviewer: **85 passed** for query, native/optional input and asset
+  option tests; final **61 passed** after the repeated-config-scope fix.
+- Independent probes verified exact variable chains, local/global lookup,
+  unchanged module default, cross-connection rejection and final handle release.
+- Review found and verified fixes for persistent `data` alias collisions,
+  semicolons inside SQL comments, and connection reuse across repeated standalone
+  `use_config` scopes. SQL normalization now uses DuckDB's own parser functions;
+  `use_config` selects config without creating a separate connection pool.
+- Ruff lint, changed-file formatting, Markdown links and diff whitespace pass.
+  Pyright retains **seven baseline diagnostics**, with no new diagnostics;
+  the reviewer independently confirmed that result using the explicit venv config.
+- Final independent review: **approved, no known actionable in-scope defects**.
+- Commands and local evidence: `.local/query-default-validation/wrapper-report.md`;
+  full-suite output: `.local/query-default-validation/wrapper-final-full.txt`.
+- No live systems, credentials, `.env`, Namely edits, branches, commits or pushes.
+  The committed export-path fix `95c1e366` remains unchanged.
