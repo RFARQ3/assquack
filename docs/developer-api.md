@@ -14,6 +14,12 @@ This document defines the developer-facing contract.
 
 ## Package
 
+To inspect publication history, query `assquack_meta.assets` for
+`first_materialized_at` and `last_materialized_at`. These nullable timestamps
+describe successful publication, not registration or attempted execution.
+Use `assquack_meta.runs` for attempts and statuses. See the
+[storage contract](storage-model.md#asset-tables) for cache and failure semantics.
+
 The target package name is `assquack`.
 
 The core package must not depend on Prefect or any other orchestrator. Runtime

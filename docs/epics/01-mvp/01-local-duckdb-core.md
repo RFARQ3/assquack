@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-10-29
+Last updated: 2026-11-02
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -48,8 +48,8 @@ CREATE TABLE assquack_meta.assets (
   schema_name VARCHAR NOT NULL,
   table_name VARCHAR NOT NULL,
   materialization_mode VARCHAR NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL
+  first_materialized_at TIMESTAMPTZ,
+  last_materialized_at TIMESTAMPTZ
 );
 
 CREATE TABLE assquack_meta.runs (
@@ -88,6 +88,21 @@ The published table owns its schema. No migration or deletion of existing
 records is performed.
 
 ## Implementation Checklist
+
+Publication timestamp work is complete. The fresh schema defines nullable
+first/last publication dates. Registration leaves them null; publication updates
+them atomically with the table and successful run. Tests cover first/subsequent
+success, capture failures, cache hits, rollback, and post-publication export
+failure using fresh synthetic databases. Pre-release schema changes do not add
+backward compatibility. No existing databases are modified for this work.
+
+Validation on 2 November 2026: full offline suite **368 passed** on Python 3.11 /
+DuckDB 1.5.6. Independent review approved the fresh-schema implementation with
+no actionable defects: 43 targeted tests and all five final timestamp cases
+passed. Ruff lint, changed-file formatting, documentation links, and whitespace
+checks pass. Pyright retains seven existing API/query/template diagnostics,
+none in this change. The terminology scan retains only the historical
+Kubernetes note and references. The broader core phase remains **In Progress**.
 
 - [ ] Implement typed configuration models.
 - [ ] Resolve database path, temp directory, and DuckDB settings.

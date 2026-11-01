@@ -35,10 +35,18 @@ flowchart LR
 7. Reopen the writer connection and use DuckDB to infer the current run schema
    from completed fragments.
 8. Build the typed candidate table directly from the completed fragments.
-9. Transactionally replace the current table and mark the run successful.
+9. Transactionally replace the current table, mark the run successful, and update
+   the asset's first/last publication dates using the run's publication timestamp.
 10. Write configured exports from the committed table.
 
 ## Storage Boundaries
+
+Asset registration leaves `first_materialized_at` and `last_materialized_at`
+null until publication succeeds. The first date is set once; the last advances
+on subsequent successful publications. Transaction rollback preserves the prior
+table and both dates. Capture failures and cache hits leave them unchanged;
+export failure after commit leaves the successful publication recorded. See
+[asset metadata](storage-model.md#asset-tables).
 
 The request carries the asset's declared mode into execution. A framework-owned
 registry selects its commit strategy before opening the database, and the asset

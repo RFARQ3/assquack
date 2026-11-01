@@ -26,8 +26,8 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
             schema_name VARCHAR NOT NULL,
             table_name VARCHAR NOT NULL,
             materialization_mode VARCHAR NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL,
-            updated_at TIMESTAMPTZ NOT NULL
+            first_materialized_at TIMESTAMPTZ,
+            last_materialized_at TIMESTAMPTZ
         )
         """
     )
