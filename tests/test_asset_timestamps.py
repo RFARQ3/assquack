@@ -10,12 +10,13 @@ from assquack import AssquackConfig, asset
 from assquack._materialization import pipeline
 from assquack._storage.metadata import MetadataRepository
 from assquack._storage.tables import bootstrap_database
+from database_helpers import inspect_database
 
 
 def test_fresh_schema_defines_nullable_publication_dates(tmp_path: Path) -> None:
     with duckdb.connect(str(tmp_path / "fresh.duckdb")) as db:
-        bootstrap_database(db)
-        bootstrap_database(db)
+        bootstrap_database(db, "fresh")
+        bootstrap_database(db, "fresh")
         columns = {
             row[0]: (row[1], row[2])
             for row in db.execute("DESCRIBE assquack_meta.assets").fetchall()
@@ -33,9 +34,10 @@ def test_fresh_schema_defines_nullable_publication_dates(tmp_path: Path) -> None
 
 
 def timestamps(config: AssquackConfig):
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         return db.execute(
-            "SELECT first_materialized_at, last_materialized_at "
+            "SELECT CAST(first_materialized_at AS VARCHAR), "
+            "CAST(last_materialized_at AS VARCHAR) "
             "FROM assquack_meta.assets"
         ).fetchone()
 
@@ -60,9 +62,10 @@ def test_publication_dates_ignore_failed_attempts_and_cache(tmp_path: Path) -> N
     first_dates = timestamps(config)
     assert first_dates is not None
     assert first_dates[0] is not None and first_dates[0] == first_dates[1]
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute(
-            "SELECT materialized_at FROM assquack_meta.runs WHERE run_id = ?",
+            "SELECT CAST(materialized_at AS VARCHAR) FROM assquack_meta.runs "
+            "WHERE run_id = ?",
             [first.run_id],
         ).fetchone() == (first_dates[0],)
 
@@ -72,9 +75,10 @@ def test_publication_dates_ignore_failed_attempts_and_cache(tmp_path: Path) -> N
     assert second_dates is not None
     assert second_dates[0] == first_dates[0]
     assert second_dates[1] > first_dates[1]
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute(
-            "SELECT materialized_at FROM assquack_meta.runs WHERE run_id = ?",
+            "SELECT CAST(materialized_at AS VARCHAR) FROM assquack_meta.runs "
+            "WHERE run_id = ?",
             [second.run_id],
         ).fetchone() == (second_dates[1],)
 
@@ -84,7 +88,7 @@ def test_publication_dates_ignore_failed_attempts_and_cache(tmp_path: Path) -> N
     with pytest.raises(ValueError, match="capture failed"):
         asyncio.run(orders(assquack_config=config))
     assert timestamps(config) == second_dates
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT id FROM main.orders").fetchall() == [(2,)]
         assert db.execute(
             "SELECT count(*) FROM assquack_meta.runs WHERE status = 'failed' "
@@ -119,7 +123,7 @@ def test_publication_rollback_reverts_table_and_dates(
     with pytest.raises(RuntimeError, match="publication rolled back"):
         asyncio.run(orders(assquack_config=config))
     assert timestamps(config) == before
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         if previous_success:
             assert db.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
         else:
@@ -128,7 +132,7 @@ def test_publication_rollback_reverts_table_and_dates(
                 "WHERE table_schema = 'main' AND table_name = 'orders'"
             ).fetchone() == (0,)
         assert db.execute(
-            "SELECT status, materialized_at FROM assquack_meta.runs "
+            "SELECT status, CAST(materialized_at AS VARCHAR) FROM assquack_meta.runs "
             "ORDER BY runtime DESC LIMIT 1"
         ).fetchone() == ("failed", None)
 
@@ -149,8 +153,8 @@ def test_export_failure_preserves_successful_publication(
         asyncio.run(orders(assquack_config=config))
     dates = timestamps(config)
     assert dates is not None and dates[0] is not None and dates[0] == dates[1]
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
         assert db.execute(
-            "SELECT status, materialized_at FROM assquack_meta.runs"
+            "SELECT status, CAST(materialized_at AS VARCHAR) FROM assquack_meta.runs"
         ).fetchone() == ("success", dates[0])

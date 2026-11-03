@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import logging
-from contextvars import ContextVar
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from math import ceil
@@ -35,32 +35,33 @@ from assquack._materialization.staging import (
 )
 from assquack._query import query_context
 from assquack._result import AssquackResult
-from assquack._storage.database import open_database
-from assquack._storage.locking import writer_lock
+from assquack._storage.database import database_catalog, database_operation
 from assquack._storage.metadata import MetadataRepository
 from assquack._storage.models import AssetRecord
 from assquack._storage.tables import TableReference
 
 _LOGGER = logging.getLogger(__name__)
-_ACTIVE_RUNS: ContextVar[tuple[str, ...]] = ContextVar(
-    "assquack_active_runs", default=()
-)
+# Capture runs remain live while user code awaits or invokes another asset.
+# Access is protected by database_operation, including across OS threads.
+_ACTIVE_RUNS: set[tuple[str, str]] = set()
 
 
 async def materialize(
     request: MaterializationRequest,
     config: AssquackConfig,
 ) -> AssquackResult:
-    """Capture fragments, infer the current schema, and publish one asset run."""
-
+    """Capture outside the database lock, then publish one destination atomically."""
     started = perf_counter()
     strategy = commit_strategy(request.mode)
     with resolve_exports(
         request.export, request.asset_name, config.export_destinations
     ) as exports:
-        async with writer_lock(config.resolved_database_path):
-            connection = open_database(config)
-            metadata = MetadataRepository(connection)
+        with database_operation(config) as connection:
+            catalog = database_catalog(config)
+            request = replace(
+                request, table=replace(request.table, catalog_name=catalog)
+            )
+            metadata = MetadataRepository(connection, catalog)
             metadata.save_asset(
                 AssetRecord(
                     asset_id=request.asset_id,
@@ -71,16 +72,20 @@ async def materialize(
                     materialization_mode=request.mode,
                 )
             )
-
-            # Nested assets share this task's lock; their outer runs are still live.
-            metadata.recover_interrupted_runs(request.asset_id, _ACTIVE_RUNS.get())
+            metadata.recover_interrupted_runs(
+                request.asset_id,
+                tuple(
+                    active_id
+                    for active_catalog, active_id in _ACTIVE_RUNS
+                    if active_catalog == catalog
+                ),
+            )
             prune_fragments(
                 metadata,
                 config.resolved_fragment_directory,
                 request.asset_id,
                 request.asset_name,
             )
-
             if request.use_cache:
                 cached = find_cached_run(
                     connection,
@@ -90,18 +95,15 @@ async def materialize(
                     expiration=request.cache_expiration,
                 )
                 if cached is not None:
-                    try:
-                        _write_exports(
-                            connection,
-                            metadata,
-                            request,
-                            exports,
-                            run_id=cached.run_id,
-                            row_count=cached.row_count,
-                            skip_completed=True,
-                        )
-                    finally:
-                        connection.close()
+                    _write_exports(
+                        connection,
+                        metadata,
+                        request,
+                        exports,
+                        run_id=cached.run_id,
+                        row_count=cached.row_count,
+                        skip_completed=True,
+                    )
                     return AssquackResult(
                         config=config,
                         asset_id=request.asset_id,
@@ -116,64 +118,40 @@ async def materialize(
             run_id = hashlib.md5(
                 f"{request.asset_id}:{runtime.isoformat()}".encode()
             ).hexdigest()
-            staging = StagingTables(
-                shaped=TableReference("assquack_stage", f"shaped_{run_id}"),
+            metadata.start_run(run_id, request.asset_id, runtime)
+            _ACTIVE_RUNS.add((catalog, run_id))
+
+        staging = StagingTables(
+            shaped=TableReference("assquack_stage", f"shaped_{run_id}", catalog),
+        )
+        fragment_writer = None
+        committed = False
+        try:
+            fragment_writer = NDJSONFragmentWriter(
+                fragment_run_directory(
+                    config.resolved_fragment_directory,
+                    request.asset_name,
+                    run_id,
+                ),
+                target_bytes=ceil(
+                    Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
+                ),
             )
-            # A duplicate must fail before capture without changing the existing run.
-            try:
-                metadata.start_run(run_id, request.asset_id, runtime)
-            except BaseException:
-                connection.close()
-                raise
-
-            fragment_writer = None
-            active_runs = _ACTIVE_RUNS.set((*_ACTIVE_RUNS.get(), run_id))
-            committed = False
-            row_count = 0
-            try:
-                fragment_writer = NDJSONFragmentWriter(
-                    fragment_run_directory(
-                        config.resolved_fragment_directory,
-                        request.asset_name,
-                        run_id,
-                    ),
-                    target_bytes=ceil(
-                        Decimal(str(config.ingestion.fragment_target_mb)) * 1_000_000
-                    ),
-                )
+            with database_operation(config):
                 metadata.claim_run_fragments(run_id)
-                # Keep the writer lock, but release the file handle while user code
-                # reads sources; queries own separate read-only transactions.
-                connection.close()
-                connection = None
-                capture_error = None
-                try:
-                    with query_context(config):
-                        value = request.fn(
-                            *request.arguments, **request.keyword_arguments
-                        )
-                        if inspect.isawaitable(value):
-                            value = await value
-                        row_count = await write_fragments(
-                            value, fragment_writer, config
-                        )
-                except BaseException as error:
-                    capture_error = error
-                    raise
-                finally:
-                    try:
-                        connection = open_database(config)
-                        metadata = MetadataRepository(connection)
-                    except Exception as reopen_error:
-                        if capture_error is not None:
-                            capture_error.add_note(
-                                "Could not reopen the database to record "
-                                "the failed run."
-                            )
-                            raise capture_error from reopen_error
-                        raise
 
-                fragments = fragment_writer.finish()
+            # No transaction or lock spans user code, including async generators.
+            # Nested assets can publish before this source resumes capture.
+            with query_context(config):
+                value = request.fn(*request.arguments, **request.keyword_arguments)
+                if inspect.isawaitable(value):
+                    value = await value
+                row_count = await write_fragments(value, fragment_writer, config)
+            fragments = fragment_writer.finish()
+
+            # Everything from inference through exports is synchronous. Other
+            # tasks cannot commit or roll back any part of this publication.
+            with database_operation(config) as connection:
                 reader = JsonReadRecovery()
                 schema_strategy = replace_schema_strategy(
                     config.schema, connection, fragment_writer.finish, reader
@@ -187,8 +165,6 @@ async def materialize(
                     run_id,
                     reader,
                 )
-
-                duration_ms = int((perf_counter() - started) * 1_000)
                 strategy.publish(
                     connection,
                     metadata,
@@ -196,50 +172,23 @@ async def materialize(
                     staging=staging,
                     run_id=run_id,
                     row_count=row_count,
-                    duration_ms=duration_ms,
+                    duration_ms=int((perf_counter() - started) * 1_000),
                 )
                 committed = True
-            except BaseException as error:
-                if fragment_writer is not None:
-                    try:
-                        fragment_writer.abort()
-                    except Exception:
-                        _LOGGER.warning(
-                            "Could not close fragments for run %s",
-                            run_id,
-                            exc_info=True,
-                        )
-                if not committed and connection is not None:
-                    metadata.mark_run_failed(
+                try:
+                    drop_shaped_staging(connection, staging.shaped)
+                except Exception:
+                    _LOGGER.warning(
+                        "Could not drop staging for published run %s",
                         run_id,
-                        str(error),
-                        int((perf_counter() - started) * 1_000),
+                        exc_info=True,
                     )
-                if connection is not None:
-                    prune_fragments(
-                        metadata,
-                        config.resolved_fragment_directory,
-                        request.asset_id,
-                        request.asset_name,
-                    )
-                    connection.close()
-                raise
-            finally:
-                _ACTIVE_RUNS.reset(active_runs)
-
-            try:
-                drop_shaped_staging(connection, staging.shaped)
-            except Exception:
-                _LOGGER.warning(
-                    "Could not drop staging for published run %s", run_id, exc_info=True
+                prune_fragments(
+                    metadata,
+                    config.resolved_fragment_directory,
+                    request.asset_id,
+                    request.asset_name,
                 )
-            prune_fragments(
-                metadata,
-                config.resolved_fragment_directory,
-                request.asset_id,
-                request.asset_name,
-            )
-            try:
                 _write_exports(
                     connection,
                     metadata,
@@ -248,17 +197,41 @@ async def materialize(
                     run_id=run_id,
                     row_count=row_count,
                 )
-
-                return AssquackResult(
-                    config=config,
-                    asset_id=request.asset_id,
-                    asset_name=request.asset_name,
-                    run_id=run_id,
-                    table=request.table,
-                    row_count=row_count,
+        except BaseException as error:
+            if fragment_writer is not None:
+                try:
+                    fragment_writer.abort()
+                except Exception:
+                    _LOGGER.warning(
+                        "Could not close fragments for run %s", run_id, exc_info=True
+                    )
+            with database_operation(config) as connection:
+                if not committed:
+                    metadata.mark_run_failed(
+                        run_id,
+                        str(error),
+                        int((perf_counter() - started) * 1_000),
+                    )
+                    connection.execute(f"DROP TABLE IF EXISTS {staging.shaped.sql}")
+                prune_fragments(
+                    metadata,
+                    config.resolved_fragment_directory,
+                    request.asset_id,
+                    request.asset_name,
                 )
-            finally:
-                connection.close()
+            raise
+        finally:
+            with database_operation(config):
+                _ACTIVE_RUNS.discard((catalog, run_id))
+
+        return AssquackResult(
+            config=config,
+            asset_id=request.asset_id,
+            asset_name=request.asset_name,
+            run_id=run_id,
+            table=request.table,
+            row_count=row_count,
+        )
 
 
 def _write_exports(

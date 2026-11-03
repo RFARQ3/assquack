@@ -27,13 +27,13 @@ flowchart LR
    only missing exports for that run/path/fingerprint, then return the cached
    table without renewing its TTL.
 3. Create a `running` metadata record.
-4. Release the writer connection while retaining its lock, and dispatch returned
-   or yielded values to the Python or native relation writer.
+4. Release the shared connection lock before user source execution and dispatch
+   returned or yielded values to the Python or native relation writer.
 5. Write rows into size-controlled local NDJSON fragments.
 6. Complete each fragment through an atomic rename, then mark the run directory
    complete after capture succeeds.
-7. Reopen the writer connection and use DuckDB to infer the current run schema
-   from completed fragments.
+7. Acquire the shared connection lock and infer the current run schema from
+   completed fragments on the default connection.
 8. Build the typed candidate table directly from the completed fragments.
 9. Transactionally replace the current table, mark the run successful, and update
    the asset's first/last publication dates using the run's publication timestamp.
@@ -96,22 +96,18 @@ DuckDB relations use native serialization; pandas DataFrames, Arrow Tables and
 RecordBatches first become relations and use that same writer. Optional pandas
 and Arrow libraries are needed only for their corresponding objects.
 
-During capture, DuckDB converts each relation column to JSON using its source
-session, writes a temporary Parquet transport file in the run directory, then
-uses native JSON COPY to produce NDJSON fragments. Converting before transport
-preserves huge integers, timezone offsets, intervals, unions and nested values
-that a raw Parquet round trip can change. The transport file is removed on
-success or failure; an interrupted process may leave one for normal failed-run
-retention. It is not a compatibility export or canonical storage.
-This adds one local write/read per native batch, only during materialization.
-COPY size targets are approximate and may be substantially exceeded.
+Native capture writes JSON directly from a default-connection relation with
+DuckDB COPY through a Python replacement scan. The scan binds the original
+relation under a unique name checked against existing tables and views. It creates
+no SQL view and performs no eager count or first-row probe. There is no temporary
+Parquet, pandas, Arrow or Python row-conversion bridge. pandas and Arrow inputs become native
+relations on the same default connection. Foreign-connection relations fail
+explicitly before any data is copied.
 
-This route lets general-query relations remain in read-only transactions:
-DuckDB's relation-based COPY helper otherwise creates a persistent source view.
-`AssquackQueryResult` inputs pass their native relation to this same writer.
-No pandas intermediate, mandatory Arrow dependency, eager general-query copy,
-or caller cleanup is involved. Retained query results stay usable after capture.
-See [general database queries](developer-api.md#general-database-queries).
+COPY size targets are approximate and may be exceeded. Empty COPY files are
+removed before fragment registration. Failed COPY output stays partial for normal
+failed-run retention; it is never inference input. Retained native results stay
+usable after capture. See [general queries](developer-api.md#general-database-queries).
 
 Sync and async iterables dispatch each yielded item through its matching route,
 including mixed batches. An `AssquackResult` reads its materialized table without
@@ -121,27 +117,33 @@ Asset authors decode HTTP responses themselves; direct response handling is not
 supported. This 29 October approval supersedes earlier HTTP support and pending
 pandas/Arrow routing notes in the [writer decisions](journal/2026-09-08-mvp-scope.md#fragment-writer-decisions-28-october-2026).
 
-Direct nested asset execution in the same async task shares the existing database
-writer lock. Other tasks and processes still wait. Nested runs retain independent
-run records; recovery excludes active runs, and only the outer call releases the
-lock. A dependency awaited through a separate task cannot share that lock.
+Nested assets, including dependencies awaited through child tasks, can publish
+while the parent captures. No transaction or connection lock spans user source
+execution. Each run has independent metadata and active-run tracking; publication
+transactions are synchronous, serialized and confined to one database.
 
 During capture the asset's effective config is available to general queries,
 including deferred generator consumption. Nested execution restores the parent
 query context; failure and cancellation reset it. Explicit `assquack.use_config`
-scopes take precedence across nested assets without changing publication config.
-If consumption fails, sync/async generators close in the consuming task so their
-scopes unwind before the asset context exits. Cleanup errors do not mask the
-original capture error. The writer connection is reopened after capture for
-publication or failure metadata; general queries use compatible connections with
-separate read-only transactions. If reopening itself fails,
-the original capture error is preserved with a note, and the running record is
-left for normal interrupted-run recovery.
+scopes take precedence without changing publication config. Failed sync/async
+generators close in the consuming task so their scopes unwind before the asset
+context exits. A failed or cancelled capture records failure without replacing
+the previous table. Publication failure rolls back both table replacement and
+successful metadata updates. Exports start after commit.
 
 A fragment is first written with a `.partial` suffix. Assquack flushes and
 renames it to `.ndjson` only when that fragment is complete. DuckDB receives an
 explicit list of completed fragments; partial files are never inference input.
 The run directory receives `_COMPLETE` only after source capture finishes.
+
+For lazy DuckDB relations, write directly and delete any empty COPY output instead
+of first executing `limit(1).fetchone()`. The
+[empty-fragment benchmark](../benchmarks/empty-check-20261103/results.md) found
+direct writing faster for nonempty aggregation/window queries and the million-row
+empty scan/filter cases. Pre-checking won some small empty cases, so this is not
+a universal speed claim. Direct writing avoids evaluating a nonempty source twice
+and preserves the result of volatile queries. Already materialized pandas/Arrow
+inputs retain their cheap empty checks.
 
 **Hard requirement: no empty fragments, regardless of input type or writer.**
 Empty inputs and empty batches produce no fragment files. Every completed
@@ -194,11 +196,12 @@ Successful runs are ordered by publication time, then runtime; failed attempts
 by runtime. Run IDs break exact timestamp ties deterministically.
 Metadata, published tables, and export artifacts are not deleted by this policy.
 
-At the next call for an asset, acquiring the exclusive database writer lock
-proves that its earlier `running` attempts are no longer active, except direct
-nested runs tracked in the current task. Abandoned attempts
-are marked failed before cache lookup and retention. Cleanup itself ignores
-`running` and unknown runs. No cursor or fragment reuse is introduced.
+At the next call for an asset, recovery excludes all process-local active runs
+for its destination, including nested and concurrent captures. Remaining earlier
+`running` attempts are marked failed before cache lookup and retention. The
+connection lock protects this check; DuckDB's attachment ownership excludes other
+process writers. Cleanup ignores live and unknown runs. No fragment reuse is
+introduced.
 
 Cleanup only examines exact catalog-owned run directories under the configured
 fragment root, supporting existing UUID and new hash identifiers. New attempts

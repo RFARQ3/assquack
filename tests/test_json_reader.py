@@ -15,6 +15,7 @@ from assquack._materialization.json_reader import (
     read_json_objects_sql,
     read_json_sql,
 )
+from database_helpers import inspect_database
 
 
 @pytest.mark.parametrize("buffer_size", [1, 2, 7, 16])
@@ -119,7 +120,7 @@ def test_large_record_materializes_with_one_scan_and_extraction(
     assert result.row_count == 1
     assert extractions == 1
     assert len(scans) == 1
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT length(value), asset FROM main.large_record"
         ).fetchall() == [(24 * 1024 * 1024, "source")]

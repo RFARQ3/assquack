@@ -1,0 +1,35 @@
+{
+  "python": "3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]",
+  "interpreter": "C:\\Users\\RowanFarquharson\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\assquack-jOOrBb3L-py3.13\\Scripts\\python.exe",
+  "duckdb": "1.5.2",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+  "logical_cpus": 8,
+  "harness_sha256": "8c56d1efc892fff92da2c63ba151febf11527ad80344574f73134074580d552f",
+  "reference_sha256": "c20a19c8580633f794754cbbf73232624b616a6d59350a08a043ec2ae0f23ee7",
+  "historical_revision": "5ab0e2192422b3bce3df58fd860d5c6dd4ba5007",
+  "settings": [
+    [
+      "TimeZone",
+      "UTC"
+    ],
+    [
+      "memory_limit",
+      "3.7 GiB"
+    ],
+    [
+      "preserve_insertion_order",
+      "true"
+    ],
+    [
+      "temp_directory",
+      "E:\\projects\\assquack\\benchmarks\\empty-check-20261103\\scratch\\spill"
+    ],
+    [
+      "threads",
+      "4"
+    ]
+  ],
+  "target_bytes": 64000000,
+  "utc_started": "2026-11-03T01:23:49Z"
+}

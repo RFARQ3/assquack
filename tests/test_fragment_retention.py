@@ -15,8 +15,8 @@ from assquack import AssquackConfig, IngestionConfig, asset
 from assquack._materialization import pipeline
 from assquack._materialization.fragments import fragment_run_directory
 from assquack._materialization.retention import prune_fragments
-from assquack._storage.database import open_database
 from assquack._storage.metadata import MetadataRepository
+from database_helpers import inspect_database
 
 
 def test_retention_preserves_success_and_three_failures_then_retries_fresh(
@@ -51,7 +51,7 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
         with pytest.raises(RuntimeError, match="extraction failed"):
             asyncio.run(source(assquack_config=config))
 
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         failures = connection.execute(
             "SELECT run_id FROM assquack_meta.runs "
             "WHERE status = 'failed' ORDER BY runtime DESC"
@@ -75,7 +75,7 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
     recovered = asyncio.run(source(assquack_config=config))
     assert recovered.run_id not in {row[0] for row in failures}
     assert not fragment_run_directory(root, "source", latest.run_id).exists()
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT id, _qa_run_id FROM main.retained"
         ).fetchall() == [(8, recovered.run_id)]
@@ -131,7 +131,7 @@ def test_catalog_chronology_and_identity_preserve_running_unknown_and_history(
 ) -> None:
     config = AssquackConfig(home=tmp_path)
     root = config.resolved_fragment_directory
-    with open_database(config) as connection:
+    with inspect_database(config, bootstrap=True) as connection:
         old_success = seed_run(connection, root, "f" * 32, "success", 1)
         latest_success = seed_run(connection, root, "0" * 32, "success", 2)
         old_failure = seed_run(
@@ -195,12 +195,12 @@ def test_colliding_orphan_is_not_claimed_by_failed_run_and_later_deleted(
     evidence.write_bytes(b"unknown evidence\n")
     with pytest.raises(FileExistsError):
         asyncio.run(orders(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT fragments_owned FROM assquack_meta.runs WHERE run_id = ?",
             [run_id],
         ).fetchone() == (False,)
-    with open_database(config) as connection:
+    with inspect_database(config, bootstrap=True) as connection:
         assert connection.execute(
             "SELECT fragments_owned FROM assquack_meta.runs WHERE run_id = ?",
             [run_id],
@@ -220,7 +220,7 @@ def test_retention_rejects_redirected_directories(
 ) -> None:
     config = AssquackConfig(home=tmp_path)
     root = config.resolved_fragment_directory
-    with open_database(config) as connection:
+    with inspect_database(config, bootstrap=True) as connection:
         old = seed_run(connection, root, "a" * 32, "success", 1)
         seed_run(connection, root, "b" * 32, "success", 2)
         link = {"root": root, "asset": old.parent, "run": old, "child": old / "nested"}[
@@ -260,7 +260,7 @@ def test_unknown_content_prevents_partial_deletion(
 ) -> None:
     config = AssquackConfig(home=tmp_path)
     root = config.resolved_fragment_directory
-    with open_database(config) as connection:
+    with inspect_database(config, bootstrap=True) as connection:
         old = seed_run(connection, root, "a" * 32, "success", 1)
         seed_run(connection, root, "b" * 32, "success", 2)
         extra = old / unexpected
@@ -290,7 +290,7 @@ def test_cleanup_error_does_not_change_publication_or_hide_source_failure(
 
     config = AssquackConfig(home=tmp_path)
     first = asyncio.run(orders(assquack_config=config))
-    with open_database(config) as connection:
+    with inspect_database(config, bootstrap=True) as connection:
         old = seed_run(
             connection,
             config.resolved_fragment_directory,
@@ -316,7 +316,7 @@ def test_cleanup_error_does_not_change_publication_or_hide_source_failure(
         assert result.run_id != first.run_id
     assert old.exists()
     assert "synthetic cleanup denial" in caplog.text
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT status, error FROM assquack_meta.runs ORDER BY runtime DESC LIMIT 1"
         ).fetchone() == (
@@ -342,7 +342,7 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
     config = AssquackConfig(home=tmp_path)
     first = asyncio.run(orders(assquack_config=config))
     root = config.resolved_fragment_directory
-    with open_database(config) as connection:
+    with inspect_database(config, bootstrap=True) as connection:
         stale = [
             seed_run(
                 connection, root, str(day) * 32, "running", day, asset_id=first.asset_id
@@ -359,7 +359,7 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
     assert all(path.exists() for path in stale[1:])
     assert unrelated.exists()
     assert fragment_run_directory(root, "orders", first.run_id).exists()
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT count(*) FROM assquack_meta.runs WHERE status = 'failed' "
             "AND error = 'Interrupted before publication completed'"
@@ -388,7 +388,7 @@ def test_catalog_cleanup_failure_preserves_successful_result(
     result = asyncio.run(orders(assquack_config=config))
     assert result.row_count == 1
     assert "synthetic catalog cleanup failure" in caplog.text
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT status FROM assquack_meta.runs"
         ).fetchone() == ("success",)
@@ -399,7 +399,7 @@ def test_equal_timestamps_still_retain_exactly_three_failed_runs(
 ) -> None:
     config = AssquackConfig(home=tmp_path)
     root = config.resolved_fragment_directory
-    with open_database(config) as connection:
+    with inspect_database(config, bootstrap=True) as connection:
         directories = [
             seed_run(connection, root, str(number) * 32, "failed", 1)
             for number in range(1, 6)
@@ -442,7 +442,7 @@ def test_cancelled_capture_keeps_evidence_and_retry_starts_fresh(
             await task
 
     asyncio.run(cancel_capture())
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         row = connection.execute(
             "SELECT run_id, status FROM assquack_meta.runs"
         ).fetchone()
@@ -458,7 +458,7 @@ def test_cancelled_capture_keeps_evidence_and_retry_starts_fresh(
     result = asyncio.run(source(assquack_config=config))
     assert result.run_id != failed_id
     assert failed_directory.exists()
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute("SELECT id FROM main.cancelled").fetchall() == [(2,)]
 
 
@@ -480,7 +480,7 @@ def test_staging_cleanup_failure_does_not_report_committed_run_as_failed(
     result = asyncio.run(orders(assquack_config=config))
     assert result.row_count == 1
     assert "staging cleanup failed" in caplog.text
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT status FROM assquack_meta.runs"
         ).fetchone() == ("success",)
@@ -505,7 +505,7 @@ def test_abort_cleanup_failure_does_not_mask_extraction_error(
     with pytest.raises(RuntimeError, match="original extraction error"):
         asyncio.run(orders(assquack_config=config))
     assert "abort cleanup failed" in caplog.text
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT status, error FROM assquack_meta.runs"
         ).fetchone() == ("failed", "original extraction error")

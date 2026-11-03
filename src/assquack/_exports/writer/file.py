@@ -2,7 +2,6 @@ import duckdb
 
 from assquack._errors import ExportError
 from assquack._exports.models import ExportTarget
-from assquack._storage.sql import quote_table
 from assquack._storage.tables import TableReference
 
 _COPY_OPTIONS: dict[str, tuple[dict[str, object], str]] = {
@@ -28,7 +27,7 @@ class DuckDBFileWriter:
             raise ExportError("Unsupported export format.") from None
         if target.options != expected:
             raise ExportError("Custom export options are not implemented.")
-        table = quote_table(source.schema_name, source.table_name)
+        table = source.sql
         connection.execute(
             f"COPY (SELECT * FROM {table}) TO $uri ({options}, USE_TMP_FILE true)",
             {"uri": uri},

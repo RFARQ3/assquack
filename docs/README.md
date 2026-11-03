@@ -70,6 +70,9 @@ the topic links that match the work in front of you.
 
 ## Implementation Tracking
 
+- [Default connection and direct fragment writing](epics/01-mvp/07-default-connection.md):
+  named database attachments on the shared DuckDB default connection, native
+  query results, direct fragment capture and validation evidence.
 - [MVP extensibility defects](epics/01-mvp/06-extensibility-defects.md): numbered
   source-review findings, proposed acceptance criteria and related release gaps
   to work through individually before commissioning implementation.

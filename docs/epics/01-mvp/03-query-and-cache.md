@@ -1,16 +1,17 @@
 # Query And Cache
 
 Status: **In Progress**
-Last updated: 2026-10-30
+Last updated: 2026-11-03
 Epic: 01 MVP
 Phase: 03
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Storage Model](../../storage-model.md)
 
 ## Intent
 
-The 30 October [connection-owning wrapper revision](#connection-owning-query-wrappers-30-october-2026)
-is complete and independently reviewed. The overall phase retains unrelated
-unchecked items below.
+The connection and wrapper revisions recorded below are historical. The approved
+[default connection phase](07-default-connection.md) supersedes them with named
+attachments, native relations and cross-database joins. Cache behavior remains;
+the overall phase retains unrelated unchecked items below.
 
 Expose the current DuckDB table through a small result/query surface and make
 cache-first reads depend on Assquack metadata rather than exported files.

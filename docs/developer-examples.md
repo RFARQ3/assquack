@@ -117,65 +117,45 @@ and sizing are runtime configuration, not decorator arguments.
 
 ## General database queries
 
-Read one configured database and consume its connection-owning query result:
+Configure public catalog names and let assets attach on first use:
 
 ```python
+from pathlib import Path
 import assquack
-from assquack import asset
+import duckdb
 
+people = assquack.AssquackConfig(home=Path("./people"), attachment_name="people")
+work = assquack.AssquackConfig(home=Path("./work"), attachment_name="work")
 
-@asset("silver.weekly_history", config=namely)
-async def weekly_history():
-    return await assquack.query("SELECT * FROM history.report_snapshots")
+@assquack.asset("hr.employees", config=people)
+def employee_asset():
+    return [{"id": 1, "department_id": 3}]
 
+@assquack.asset("hr.departments", config=work)
+def department_asset():
+    return [{"id": 3, "name": "Engineering"}]
 
-# Outside an asset, process environment configuration selects the database.
-history = await assquack.query("SELECT * FROM history.report_snapshots")
+await employee_asset()
+await department_asset()
+employees = await employee_asset.query()
+departments = await department_asset.query()
+joined = duckdb.query(
+    "SELECT e.id, d.name FROM employees e "
+    "JOIN departments d ON e.department_id = d.id"
+)
+print(joined.fetchall())
 ```
 
-Here `namely` is an `AssquackConfig`. Select it explicitly outside an asset
-without changing process environment variables:
+For an existing database without an asset invocation, attach explicitly:
 
 ```python
-with assquack.use_config(namely):
-    history = await assquack.query(
-        "SELECT * FROM history.report_snapshots WHERE report_id = ?", [42]
-    )
+people.attach()
+rows = await assquack.query("SELECT id FROM people.hr.employees WHERE id = ?", [1])
 
-rows = history.fetchall()
+# Short names are allowed when people is the only attached user database.
+same_rows = await assquack.query("SELECT id FROM hr.employees WHERE id = ?", [1])
 ```
 
-Use the connection-owning result to query Python variables directly:
-
-```python
-with assquack.use_config(namely):
-    reports = await assquack.query("SELECT * FROM bronze.reports")
-    latest = reports.query(
-        "SELECT * FROM reports WHERE snapshot_date = CURRENT_DATE"
-    )
-    summary = latest.query("SELECT COUNT(*) FROM latest")
-
-rows = summary.fetchall()
-```
-
-`reports = await reports_asset.query()` supports the same chain. Two results
-read from the same database in one task/execution can be joined:
-
-```python
-with assquack.use_config(namely):
-    reports = await reports_asset.query()
-    people = await people_asset.query()
-    joined = reports.query(
-        "SELECT r.*, p.display_name FROM reports r "
-        "JOIN people p ON r.person_id = p.id"
-    )
-```
-
-These assets must select the same database. Different task/execution connections
-cannot be joined implicitly. The wrapper does not change `duckdb.query` or its
-module default. Use `joined.relation` when native relational methods are needed.
-
-The result needs no caller-managed connection cleanup. The explicit scope selects
-query reads only, including reads inside nested assets; publishing still uses each
-asset's effective config. See the [query contract](developer-api.md#general-database-queries)
-for lifetime and the parked `assquack.cross_database_query()` feature.
+Both queries return native relations. With multiple user databases attached,
+use `people.hr.employees`; config scopes do not override that rule. See the
+[query contract](developer-api.md#general-database-queries) for lazy-result lifetime.

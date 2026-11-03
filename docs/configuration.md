@@ -70,21 +70,19 @@ for resets, chaining and dependency behavior.
 
 ## Core Paths
 
-`assquack.query()` selects one database: the innermost explicit
-`assquack.use_config(config)` scope, then the executing asset's effective config,
-then process environment configuration. Without an explicit scope or executing
-asset it requires nonblank `ASSQUACK_DATABASE_PATH` or `ASSQUACK_HOME`.
-Ordinary asset defaults and publishing config selection remain unchanged.
+General queries accept `table` and `schema.table` when exactly one user database
+is attached. Multiple user attachments require `database.schema.table`, regardless
+of config scope or asset write destination. System, temp and default memory
+catalogs do not count. Environment configuration still attaches its database when
+needed. No query switches the connection's current database.
 
 ```mermaid
 flowchart LR
-  Scope[Explicit query config scope] --> Asset[Executing asset config]
-  Asset --> Environment[Explicit environment database or home]
-  Environment --> Missing[Error if absent]
+  Count[Attached user databases] --> Zero[Zero: native resolution]
+  Count --> One[One: table or schema.table allowed]
+  Count --> Many[Multiple: database.schema.table required]
 ```
 
-Use the first available config in this order. Multiple asset configs remain
-supported; cross-database querying is parked as `assquack.cross_database_query()`.
 See the [query contract](developer-api.md#general-database-queries).
 
 `ASSQUACK_HOME` is the base local directory for Assquack runtime state. When it
@@ -205,35 +203,55 @@ The asset decorator and its `mode="replace"` string remain unchanged.
 An empty extraction publishes an empty table with only run metadata columns.
 See [Schema Inference](schema-inference.md) for column removal and type behavior.
 
+## Database Attachments
+
+`AssquackConfig.attachment_name` is the public SQL catalog name, defaulting to
+`assquack`. Set `ASSQUACK_ATTACHMENT_NAME` for environment-derived configuration.
+Names are safely quoted; ordinary ASCII case differences identify the same name.
+Use distinct names for different files. The canonical resolved file path and name
+must both match on reuse: attaching another file under that name or the same file
+under a different name raises a clear error.
+
+```python
+from pathlib import Path
+from assquack import AssquackConfig
+
+people = AssquackConfig(home=Path("./people"), attachment_name="people")
+people.attach()  # synchronous; no-op when the same attachment already exists
+```
+
+Constructing configs and decorating assets do not open databases or create paths.
+Materialization, asset queries and existence checks attach their effective config
+on first use. An environment-selected default attaches when first needed by
+Assquack. Other configs must call `.attach()` before general querying, including
+inside `use_config`. Manual attachment creates a missing database but does not
+create Assquack metadata; asset use bootstraps metadata in its own destination.
+
+The automatic and manual routes share one registry on DuckDB's actual default
+connection. Afterwards `people.hr.employees` works in both `duckdb.query()` and
+`await assquack.query()`. Attachments and the connection persist for the process
+lifetime. Do not close, replace or detach them while Assquack is using them.
+
 ## DuckDB Settings
 
-DuckDB settings belong under `assquack.duckdb`.
+`threads`, `memory_limit`, `temp_directory` and `extensions` configure the shared
+engine, not individual databases. The first successful engine initialization
+establishes them. Later configs inherit omitted fields; explicitly supplied values
+must match or attachment fails before creating that destination. Environment-loaded
+values count as explicit. `temp_directory=None` explicitly means inherit, like an
+omitted path. Different homes therefore do not imply different engine spill paths.
 
-`threads` controls DuckDB execution parallelism and maps to DuckDB's `threads`
-setting when a connection is opened.
+The initial defaults are four threads, `8GB` memory and `<home>/tmp` spill storage.
+A supplied spill path or `DUCKDB_TEMP_DIRECTORY`/`ASSQUACK_DUCKDB__TEMP_DIRECTORY`
+overrides that initial location. Memory-limit strings and extension tuples are
+compared as configured, so repeat the same values when supplying them explicitly.
+Extensions must already be installed; Assquack does not install them. Azure
+exports load their required extension on demand.
 
-`memory_limit` controls DuckDB's memory cap and maps to DuckDB's `memory_limit`
-setting. It should accept DuckDB-compatible strings such as `8GB`.
-
-`temp_directory` controls where DuckDB writes temporary spill files. It should
-default from `DUCKDB_TEMP_DIRECTORY` when present, otherwise to a local path
-under `ASSQUACK_HOME`. The runtime must ensure this directory is writable and
-has sufficient capacity for the largest expected materialization.
-
-`extensions` lists already installed DuckDB extensions Assquack loads during
-connection setup. Assquack does not install extensions. The local MVP profile should include `json` and `parquet`.
-Azure exports load `azure` on demand; listing it here is optional. Source and sink
-integrations such as `postgres` are optional extensions, not core storage
-requirements.
-
-Connection setup should be deterministic:
-
-1. Resolve and validate `AssquackConfig`.
-2. Ensure local directories exist or fail with a clear error.
-3. Open DuckDB at the resolved `database_path`.
-4. Apply `threads`, `memory_limit`, and `temp_directory`.
-5. Load configured extensions (provision them separately).
-6. Bootstrap Assquack system schemas and tables.
+Database destinations and names, fragment directories/size, schema policy and
+export controls remain per-config. Native operations and asset operations share
+engine settings. Arbitrary external changes to those settings or simultaneous
+multi-threaded use of the global connection are outside Assquack's coordination.
 
 ## Exports
 
@@ -400,7 +418,8 @@ Each secret has a unique name and directory scope ending in `/`. It is dropped
 after COPY, including failure. Cleanup failure propagates a safe error; cleanup
 failure during an existing error is logged safely and does not expose backend
 diagnostics. Provider, extension-load and authentication errors suppress their
-potentially sensitive printed exception context. The connection closes afterward.
+potentially sensitive printed exception context. Temporary secrets are removed;
+the shared connection stays open.
 No success manifest is recorded for a failed export or failed cleanup.
 
 Verification is offline with synthetic credentials and intercepted Azure SQL;

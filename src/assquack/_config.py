@@ -85,6 +85,11 @@ class AssquackConfig(_ProcessSettings):
         default=None,
         validation_alias="ASSQUACK_DATABASE_PATH",
     )
+    attachment_name: str = Field(
+        default="assquack",
+        min_length=1,
+        validation_alias="ASSQUACK_ATTACHMENT_NAME",
+    )
     duckdb: DuckDBConfig = Field(default_factory=DuckDBConfig)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     schema_settings: SchemaConfig = Field(default_factory=SchemaConfig, alias="schema")
@@ -95,6 +100,19 @@ class AssquackConfig(_ProcessSettings):
     ) = Field(
         default_factory=list[ExportDestination], validation_alias="ASSQUACK_EXPORTS"
     )
+
+    @field_validator("attachment_name")
+    @classmethod
+    def validate_attachment_name(cls, value: str) -> str:
+        if not value.strip() or "\0" in value:
+            raise ValueError("attachment_name must be a nonblank SQL catalog name.")
+        return value
+
+    def attach(self) -> None:
+        """Attach this destination to DuckDB's default connection for SQL use."""
+        from assquack._storage.database import connect_database
+
+        connect_database(self)
 
     @field_validator("exports", mode="before")
     @classmethod
@@ -125,8 +143,6 @@ class AssquackConfig(_ProcessSettings):
     def resolve_local_paths(self) -> Self:
         if self.database_path is None:
             self.database_path = self.home / "assquack.duckdb"
-        if self.duckdb.temp_directory is None:
-            self.duckdb.temp_directory = self.home / "tmp"
         if self.ingestion.fragment_directory is None:
             self.ingestion.fragment_directory = (
                 self.resolved_database_path.parent / "fragments"
@@ -146,8 +162,7 @@ class AssquackConfig(_ProcessSettings):
 
     @property
     def resolved_temp_directory(self) -> Path:
-        assert self.duckdb.temp_directory is not None
-        return self.duckdb.temp_directory
+        return self.duckdb.temp_directory or self.home / "tmp"
 
     @property
     def resolved_fragment_directory(self) -> Path:

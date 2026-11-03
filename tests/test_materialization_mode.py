@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import cast
 from unittest.mock import Mock
 
-import duckdb
 import pytest
 
 from assquack import AssquackConfig, asset
 from assquack._materialization import commit, pipeline
 from assquack._materialization.models import AssetMode
+from database_helpers import inspect_database
 
 
 @pytest.mark.parametrize("explicit_mode", [False, True])
@@ -46,7 +46,7 @@ def test_declared_mode_selects_publication_and_persists_metadata(
     assert source.call_count == 2
     assert cached.cached and cached.run_id == second.run_id
     assert first.run_id != second.run_id
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute("SELECT id FROM main.orders").fetchall() == [(2,)]
         assert connection.execute(
             "SELECT materialization_mode FROM assquack_meta.assets"

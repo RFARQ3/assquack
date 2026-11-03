@@ -5,7 +5,6 @@ import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-import duckdb
 import pytest
 
 from assquack import AssquackConfig, IngestionConfig, asset
@@ -13,6 +12,7 @@ from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
     fragment_run_directory,
 )
+from database_helpers import inspect_database
 
 
 @pytest.mark.parametrize("chunk_size", [1, 3, 20])
@@ -58,13 +58,10 @@ def test_materialization_uses_bounded_local_ndjson_fragments(
     assert (run_directory / "_COMPLETE").exists()
     assert not list(run_directory.glob("*.partial"))
 
-    connection = duckdb.connect(str(config.resolved_database_path))
-    try:
+    with inspect_database(config) as connection:
         rows = connection.execute(
             "SELECT id, late_field FROM main.fragmented_orders ORDER BY id"
         ).fetchall()
-    finally:
-        connection.close()
 
     assert rows == [(1, None), (2, None), (3, "found"), (4, None), (5, None)]
 
@@ -93,16 +90,13 @@ def test_reader_preserves_heterogeneous_values_as_variant(tmp_path: Path) -> Non
     config = AssquackConfig(home=tmp_path)
     asyncio.run(values(assquack_config=config))
 
-    connection = duckdb.connect(str(config.resolved_database_path))
-    try:
+    with inspect_database(config) as connection:
         schema = connection.execute(
             "DESCRIBE SELECT value FROM main.mixed_values"
         ).fetchone()
         value_types = connection.execute(
             "SELECT variant_typeof(value) FROM main.mixed_values ORDER BY id"
         ).fetchall()
-    finally:
-        connection.close()
 
     assert schema is not None and schema[1] == "VARIANT"
     assert value_types[0][0].startswith("OBJECT(")
@@ -125,14 +119,11 @@ def test_empty_run_has_only_metadata_columns(
     rows.clear()
     asyncio.run(refreshable(assquack_config=config))
 
-    connection = duckdb.connect(str(config.resolved_database_path))
-    try:
+    with inspect_database(config) as connection:
         schema = connection.execute("DESCRIBE main.refreshable").fetchall()
         row_count = connection.execute(
             "SELECT count(*) FROM main.refreshable"
         ).fetchone()
-    finally:
-        connection.close()
 
     assert [row[0] for row in schema] == ["_qa_run_id", "_qa_loaded_at"]
     assert row_count == (0,)
@@ -200,7 +191,7 @@ def test_failed_extraction_after_rollover_preserves_publication(
     with pytest.raises(RuntimeError, match="synthetic extraction failure"):
         asyncio.run(source(assquack_config=config))
 
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         failed = connection.execute(
             "SELECT run_id FROM assquack_meta.runs WHERE status = 'failed'"
         ).fetchone()
@@ -224,7 +215,7 @@ def test_failed_extraction_after_rollover_preserves_publication(
     fail = False
     recovered = asyncio.run(source(assquack_config=config))
     assert recovered.run_id != failed[0]
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT id, _qa_run_id FROM main.safe_fragments"
         ).fetchall() == [(1, recovered.run_id)]

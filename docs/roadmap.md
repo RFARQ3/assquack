@@ -61,12 +61,13 @@ The implementation sequence and acceptance checks are recorded there.
 
 ### Phase 3: Query And Cache
 
-- General `assquack.query()` reads one database selected from explicit
-  `assquack.use_config`, executing-asset config, or environment configuration.
-  It returns a native relation with no mandatory caller cleanup.
-  `assquack.cross_database_query()` is parked as a potential future feature;
-  developers can alternatively manage DuckDB attachments themselves. Table globbing
-  remains deferred. See the [public contract](developer-api.md#general-database-queries).
+- General and asset queries return native relations on DuckDB's actual default
+  connection. Named `AssquackConfig` attachments support fully qualified SQL and
+  joins across databases. One user attachment allows short table names; multiple
+  attachments require `database.schema.table`. Config scopes do not override this
+  rule. No task changes the global default. Table globbing remains deferred. See the
+  [public contract](developer-api.md#general-database-queries) and
+  [default connection phase](epics/01-mvp/07-default-connection.md).
 - Implement `.query(sql=None, params=None)` against the current table.
 - Implement `cache_first()` and TTL behavior from Assquack metadata.
 - Implement `.exists()` based on table presence and the latest successful run.

@@ -54,31 +54,34 @@ DuckDB temp directory. Database placement is not part of the asset identity API.
 
 ## Concurrency
 
-A DuckDB database file has one writer at a time. Assquack must enforce this rule
-with an Assquack lock keyed by the resolved database path before starting
-materialization or modifying canonical tables and metadata.
+Assquack attaches configured files to one actual DuckDB default connection using
+public `attachment_name` catalogs. Asset tables, staging tables and metadata use
+fully qualified catalog/schema/table references. Each publication transaction
+writes one destination database, including its successful run and asset metadata.
 
-The lock is an application-level guard around the database file, not a
-replacement for DuckDB's own transaction rules. Its responsibilities are:
+A process-wide reentrant lock protects complete synchronous database operations,
+including BEGIN through COMMIT or ROLLBACK. Source functions and generators run
+outside it, so awaited child assets and concurrent async captures can progress.
+Active runs are tracked by destination and run ID, preventing recovery from marking
+another live capture abandoned. Capture completion order determines publication
+order when two runs target the same table.
 
-- serialize write-capable Assquack materializations for the same database path;
-- fail or wait predictably when another writer owns the path;
-- keep lock ownership independent of asset name, because two assets can share
-  one database file;
-- allow external orchestrators to add their own concurrency controls without
-  becoming core Assquack dependencies.
+```mermaid
+flowchart LR
+  Sources[Async source capture] --> Fragments[Completed NDJSON]
+  Fragments --> Lock[Shared connection lock]
+  Lock --> Stage[Qualified staging table]
+  Stage --> Transaction[One destination transaction]
+  Transaction --> Published[Table and metadata committed]
+```
 
-Query wrappers own read-only connections compatible with publication connections.
-Live wrappers reuse a connection per resolved database path within their task and
-execution; child tasks and nested asset executions have independent connection
-scopes. The cache holds weak references and never changes DuckDB's module default.
-Each root query refreshes the shared read transaction to see new publications;
-wrapper query chains keep using that transaction. Retained lazy relations do not
-have independent frozen snapshots. Wrapper/native references retain the handle
-until reclaimed. Native queries do not take the materialization lock. Read-only
-connection mode and other-process writers can conflict with retained handles under
-DuckDB's ordinary file locking rules.
-See [query lifetime](developer-api.md#results-and-lifetime).
+No per-task connection or long-lived read-only transaction is created. Native
+relations remain lazy and may see subsequent replacements; see
+[query lifetime](developer-api.md#results-and-lifetime). The default connection and
+its attachment file handles live for the process lifetime. This is a single-process
+writer model, not support for alternating external writers between asset runs.
+DuckDB enforces file ownership across processes. Direct concurrent multi-threaded
+use of its global connection bypasses Assquack's coordination and is unsupported.
 
 ## Internal Schemas
 

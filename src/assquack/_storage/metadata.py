@@ -7,18 +7,24 @@ from uuid import uuid4
 import duckdb
 
 from assquack._storage.models import AssetRecord, SuccessfulRun
+from assquack._storage.sql import quote_identifier
 
 
 class MetadataRepository:
     """Domain-oriented access to the small metadata catalog used by the MVP."""
 
-    def __init__(self, connection: duckdb.DuckDBPyConnection) -> None:
+    def __init__(
+        self, connection: duckdb.DuckDBPyConnection, catalog: str | None = None
+    ) -> None:
         self._connection = connection
+        self._schema = (
+            f"{quote_identifier(catalog)}." if catalog else ""
+        ) + "assquack_meta"
 
     def save_asset(self, asset: AssetRecord) -> None:
         self._connection.execute(
-            """
-            INSERT INTO assquack_meta.assets (
+            f"""
+            INSERT INTO {self._schema}.assets (
                 asset_id, asset_name, asset_signature, schema_name, table_name,
                 materialization_mode
             ) VALUES (?, ?, ?, ?, ?, ?)
@@ -41,8 +47,8 @@ class MetadataRepository:
 
     def start_run(self, run_id: str, asset_id: str, runtime: datetime) -> None:
         self._connection.execute(
-            """
-            INSERT INTO assquack_meta.runs (
+            f"""
+            INSERT INTO {self._schema}.runs (
                 run_id, asset_id, status, runtime, fragments_owned
             ) VALUES (?, ?, 'running', ?, false)
             """,
@@ -53,15 +59,15 @@ class MetadataRepository:
         """Record ownership only after exclusively creating the run directory."""
 
         self._connection.execute(
-            "UPDATE assquack_meta.runs SET fragments_owned = true WHERE run_id = ?",
+            f"UPDATE {self._schema}.runs SET fragments_owned = true WHERE run_id = ?",
             [run_id],
         )
 
     def find_latest_successful_run(self, asset_id: str) -> SuccessfulRun | None:
         row = self._connection.execute(
-            """
+            f"""
             SELECT run_id, CAST(materialized_at AS VARCHAR), coalesce(row_count, 0)
-            FROM assquack_meta.runs
+            FROM {self._schema}.runs
             WHERE asset_id = ? AND status = 'success'
             ORDER BY materialized_at DESC
             LIMIT 1
@@ -82,8 +88,8 @@ class MetadataRepository:
         """Mark abandoned attempts failed while holding the database writer lock."""
 
         self._connection.execute(
-            """
-            UPDATE assquack_meta.runs
+            f"""
+            UPDATE {self._schema}.runs
             SET status = 'failed', error = 'Interrupted before publication completed'
             WHERE asset_id = ? AND status = 'running'
                 AND run_id NOT IN (SELECT unnest(?::VARCHAR[]))
@@ -95,14 +101,14 @@ class MetadataRepository:
         """Select completed attempts outside retention using catalog chronology."""
 
         rows = self._connection.execute(
-            """
+            f"""
             SELECT run_id FROM (
                 SELECT run_id, status, fragments_owned, row_number() OVER (
                     PARTITION BY status
                     ORDER BY CASE WHEN status = 'success' THEN materialized_at
                                   ELSE runtime END DESC, runtime DESC, run_id DESC
                 ) AS position
-                FROM assquack_meta.runs
+                FROM {self._schema}.runs
                 WHERE asset_id = ? AND status IN ('success', 'failed')
             )
             WHERE fragments_owned AND (
@@ -118,9 +124,9 @@ class MetadataRepository:
         self, run_id: str, resolved_uri: str, destination_fingerprint: str
     ) -> bool:
         row = self._connection.execute(
-            """
+            f"""
             SELECT count(*)
-            FROM assquack_meta.exports
+            FROM {self._schema}.exports
             WHERE run_id = ? AND resolved_uri = ? AND destination_fingerprint = ?
             """,
             [run_id, resolved_uri, destination_fingerprint],
@@ -135,8 +141,8 @@ class MetadataRepository:
         row_count: int,
     ) -> None:
         self._connection.execute(
-            """
-            UPDATE assquack_meta.runs
+            f"""
+            UPDATE {self._schema}.runs
             SET status = 'success',
                 materialized_at = current_timestamp,
                 duration_ms = ?,
@@ -150,13 +156,13 @@ class MetadataRepository:
         # The publication strategy owns the transaction containing the table
         # replacement and both metadata updates. Use the run's exact timestamp.
         self._connection.execute(
-            """
-            UPDATE assquack_meta.assets AS a
+            f"""
+            UPDATE {self._schema}.assets AS a
             SET first_materialized_at = coalesce(
                     a.first_materialized_at, r.materialized_at
                 ),
                 last_materialized_at = r.materialized_at
-            FROM assquack_meta.runs AS r
+            FROM {self._schema}.runs AS r
             WHERE r.run_id = ? AND a.asset_id = r.asset_id
             """,
             [run_id],
@@ -164,8 +170,8 @@ class MetadataRepository:
 
     def mark_run_failed(self, run_id: str, error: str, duration_ms: int) -> None:
         self._connection.execute(
-            """
-            UPDATE assquack_meta.runs
+            f"""
+            UPDATE {self._schema}.runs
             SET status = 'failed', duration_ms = ?, error = ?
             WHERE run_id = ?
             """,
@@ -187,8 +193,8 @@ class MetadataRepository:
         options: dict[str, object] | None = None,
     ) -> None:
         self._connection.execute(
-            """
-            INSERT INTO assquack_meta.exports (
+            f"""
+            INSERT INTO {self._schema}.exports (
                 export_id, run_id, asset_id, alias, uri, resolved_uri,
                 destination_fingerprint,
                 format, role, row_count, options_json, created_at

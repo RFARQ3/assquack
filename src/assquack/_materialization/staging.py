@@ -4,7 +4,7 @@ import duckdb
 
 from assquack._materialization.json_reader import JsonReadRecovery, read_json_sql
 from assquack._materialization.models import FragmentFile, ProjectionSpec
-from assquack._storage.sql import quote_identifier, quote_table
+from assquack._storage.sql import quote_identifier
 from assquack._storage.tables import TableReference
 
 
@@ -35,7 +35,7 @@ def create_shaped_staging(
     run_id: str,
     reader: JsonReadRecovery | None = None,
 ) -> None:
-    shaped_table = quote_table(shaped.schema_name, shaped.table_name)
+    shaped_table = shaped.sql
     if not fragments:
         empty_projections = "".join(
             f",\n                CAST(NULL AS {projection.duckdb_type}) AS "
@@ -80,6 +80,4 @@ def drop_shaped_staging(
     connection: duckdb.DuckDBPyConnection,
     shaped: TableReference,
 ) -> None:
-    connection.execute(
-        f"DROP TABLE {quote_table(shaped.schema_name, shaped.table_name)}"
-    )
+    connection.execute(f"DROP TABLE {shaped.sql}")

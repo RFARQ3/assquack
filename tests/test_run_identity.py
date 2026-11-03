@@ -15,6 +15,7 @@ from assquack._materialization import pipeline
 from assquack._materialization.fragments import fragment_run_directory
 from assquack._materialization.models import MaterializationRequest
 from assquack._storage.tables import TableReference
+from database_helpers import inspect_database
 
 
 @pytest.fixture
@@ -50,10 +51,16 @@ def test_run_identity_matches_persisted_runtime_and_fragments(
     async def orders() -> list[dict[str, int]]:
         return [{"id": 1}]
 
-    config = AssquackConfig(home=tmp_path / "first")
+    config = AssquackConfig(
+        home=tmp_path / "first", attachment_name=(tmp_path / "first").name
+    )
     first = asyncio.run(orders(assquack_config=config))
     repeated = asyncio.run(
-        orders(assquack_config=AssquackConfig(home=tmp_path / "repeat"))
+        orders(
+            assquack_config=AssquackConfig(
+                home=tmp_path / "repeat", attachment_name=(tmp_path / "repeat").name
+            )
+        )
     )
     assert repeated.run_id == first.run_id
     assert (
@@ -65,7 +72,7 @@ def test_run_identity_matches_persisted_runtime_and_fragments(
     assert re.fullmatch(r"[0-9a-f]{32}", first.run_id)
     run_clock.now.assert_called_with(UTC)
 
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT run_id, asset_id, runtime = ? FROM assquack_meta.runs",
             [run_clock.now.return_value],
@@ -120,7 +127,7 @@ def test_duplicate_identity_preserves_existing_run(
     else:
         asyncio.run(orders(assquack_config=config))
 
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         original = connection.execute(
             "SELECT run_id, to_json(r) FROM assquack_meta.runs AS r"
         ).fetchall()
@@ -137,7 +144,7 @@ def test_duplicate_identity_preserves_existing_run(
         for path in config.resolved_fragment_directory.rglob("*")
         if path.is_file()
     }
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert (
             connection.execute(
                 "SELECT run_id, to_json(r) FROM assquack_meta.runs AS r"
@@ -189,7 +196,7 @@ def test_existing_fragment_directory_is_never_overwritten(
     assert calls == 1
     assert fragment.read_bytes() == b"preserve this evidence\n"
     assert list(directory.iterdir()) == [fragment]
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT status, runtime = ? FROM assquack_meta.runs WHERE run_id = ?",
             [run_clock.now.return_value, orphan_id],

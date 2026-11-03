@@ -5,7 +5,6 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from assquack._config import AssquackConfig
-from assquack._query.connection import connection_scope
 
 _QUERY_CONFIG: ContextVar[AssquackConfig | None] = ContextVar(
     "assquack_query_config", default=None
@@ -20,8 +19,7 @@ _EXPLICIT_CONFIG: ContextVar[AssquackConfig | None] = ContextVar(
 def query_context(config: AssquackConfig) -> Generator[None, None, None]:
     token = _QUERY_CONFIG.set(config)
     try:
-        with connection_scope():
-            yield
+        yield
     finally:
         _QUERY_CONFIG.reset(token)
 
@@ -32,7 +30,7 @@ def current_query_config() -> AssquackConfig | None:
 
 @contextmanager
 def use_config(config: AssquackConfig) -> Generator[None, None, None]:
-    """Select the database for general queries within this task-local scope."""
+    """Require an attached configuration within this task-local query scope."""
     if not isinstance(config, AssquackConfig):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError("assquack.use_config requires an AssquackConfig.")
     token = _EXPLICIT_CONFIG.set(config)

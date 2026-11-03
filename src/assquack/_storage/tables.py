@@ -4,22 +4,28 @@ from dataclasses import dataclass
 
 import duckdb
 
-from assquack._storage.sql import quote_identifier
+from assquack._storage.sql import quote_identifier, quote_table
 
 
 @dataclass(frozen=True, slots=True)
 class TableReference:
     schema_name: str
     table_name: str
+    catalog_name: str | None = None
+
+    @property
+    def sql(self) -> str:
+        return quote_table(self.schema_name, self.table_name, self.catalog_name)
 
 
-def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
-    connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_meta")
-    connection.execute("CREATE SCHEMA IF NOT EXISTS assquack_stage")
+def bootstrap_database(connection: duckdb.DuckDBPyConnection, catalog: str) -> None:
+    prefix = quote_identifier(catalog)
+    connection.execute(f"CREATE SCHEMA IF NOT EXISTS {prefix}.assquack_meta")
+    connection.execute(f"CREATE SCHEMA IF NOT EXISTS {prefix}.assquack_stage")
 
     connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS assquack_meta.assets (
+        f"""
+        CREATE TABLE IF NOT EXISTS {prefix}.assquack_meta.assets (
             asset_id VARCHAR PRIMARY KEY,
             asset_name VARCHAR NOT NULL,
             asset_signature VARCHAR,
@@ -32,8 +38,8 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
         """
     )
     connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS assquack_meta.runs (
+        f"""
+        CREATE TABLE IF NOT EXISTS {prefix}.assquack_meta.runs (
             run_id VARCHAR PRIMARY KEY,
             asset_id VARCHAR NOT NULL,
             status VARCHAR NOT NULL,
@@ -47,8 +53,8 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection) -> None:
         """
     )
     connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS assquack_meta.exports (
+        f"""
+        CREATE TABLE IF NOT EXISTS {prefix}.assquack_meta.exports (
             export_id VARCHAR PRIMARY KEY,
             run_id VARCHAR NOT NULL,
             asset_id VARCHAR NOT NULL,
@@ -76,9 +82,10 @@ def table_exists(
         """
         SELECT count(*)
         FROM information_schema.tables
-        WHERE table_schema = ? AND table_name = ?
+        WHERE table_catalog = coalesce(?, current_database())
+            AND table_schema = ? AND table_name = ?
         """,
-        [table.schema_name, table.table_name],
+        [table.catalog_name, table.schema_name, table.table_name],
     ).fetchone()
     return bool(row and row[0])
 
@@ -86,5 +93,9 @@ def table_exists(
 def create_schema(
     connection: duckdb.DuckDBPyConnection,
     schema_name: str,
+    catalog_name: str | None = None,
 ) -> None:
-    connection.execute(f"CREATE SCHEMA IF NOT EXISTS {quote_identifier(schema_name)}")
+    schema = quote_identifier(schema_name)
+    if catalog_name is not None:
+        schema = f"{quote_identifier(catalog_name)}.{schema}"
+    connection.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")

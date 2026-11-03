@@ -1,9 +1,11 @@
 # Cache And Writer Lock Behaviour
 
-Status: Working MVP requirement observation
+Status: Historical prototype observation
 
 This document records prototype behaviour and does not change the contracts in
-the canonical documentation.
+the canonical documentation. Its per-process lock description predates the
+[shared default connection](../storage-model.md#concurrency), whose attachments
+retain file ownership for the process lifetime.
 
 ## Cache Behaviour
 

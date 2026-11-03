@@ -1,12 +1,16 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-11-02
+Last updated: 2026-11-03
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
 
 ## Intent
+
+[Phase 07](07-default-connection.md) supersedes the connection setup and
+per-database materialization-lock design below with named attachments and shared
+connection coordination. This phase retains its unrelated outstanding work.
 
 Create the embedded DuckDB foundation that all MVP asset behavior depends on:
 configuration, connection setup, metadata tables, and one-writer coordination.

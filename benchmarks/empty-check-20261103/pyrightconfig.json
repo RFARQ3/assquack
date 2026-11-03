@@ -1,0 +1,7 @@
+{
+  "include": ["run.py", "summarize.py", "rerun.py"],
+  "extraPaths": ["C:/Users/RowanFarquharson/AppData/Local/pypoetry/Cache/virtualenvs/assquack-jOOrBb3L-py3.13/Lib/site-packages"],
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "standard",
+  "reportMissingTypeStubs": false
+}

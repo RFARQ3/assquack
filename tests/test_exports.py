@@ -1,12 +1,12 @@
 import asyncio
 from pathlib import Path
 
-import duckdb
 import pytest
 from pydantic import ValidationError
 
 from assquack import AssquackConfig, FileSystemDestination, asset
 from assquack._errors import ExportError
+from database_helpers import inspect_database
 
 
 def test_empty_destinations_skip_exports_and_allow_cache(tmp_path: Path) -> None:
@@ -17,7 +17,7 @@ def test_empty_destinations_skip_exports_and_allow_cache(tmp_path: Path) -> None
     config = AssquackConfig(home=tmp_path, exports=[])
     result = asyncio.run(groups(assquack_config=config))
     assert asyncio.run(groups.cache_first()(assquack_config=config)).cached
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             0,
         )
@@ -45,7 +45,7 @@ def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) 
         for suffix in ("parquet", "csv", "json"):
             assert (tmp_path / folder / f"orders.{suffix}").exists()
     assert asyncio.run(orders.cache_first()(assquack_config=config)).cached
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             6,
         )
@@ -55,7 +55,7 @@ def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) 
         )
     result = asyncio.run(orders.cache_first()(assquack_config=config))
     assert result.cached and calls == 1
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             6,
         )

@@ -1,0 +1,20 @@
+{
+  "A": {
+    "calls_after_capture": 11,
+    "calls_after_relation_reuse": 21,
+    "total_seconds": 0.00829620000149589,
+    "cpu_seconds": 0.015625,
+    "probe_seconds": 0.004840900000999682,
+    "copy_executed": true,
+    "zero_files_removed": 0
+  },
+  "B": {
+    "calls_after_capture": 10,
+    "calls_after_relation_reuse": 20,
+    "total_seconds": 0.0024840999976731837,
+    "cpu_seconds": 0.0,
+    "probe_seconds": 0.0,
+    "copy_executed": true,
+    "zero_files_removed": 0
+  }
+}

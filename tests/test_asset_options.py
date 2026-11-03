@@ -99,8 +99,12 @@ def test_option_copies_validate_like_decorator(options):
 def test_config_precedence_execution_query_exists_and_clear(
     tmp_path: Path, monkeypatch
 ):
-    attached = AssquackConfig(home=tmp_path / "attached")
-    override = AssquackConfig(home=tmp_path / "override")
+    attached = AssquackConfig(
+        home=tmp_path / "attached", attachment_name=(tmp_path / "attached").name
+    )
+    override = AssquackConfig(
+        home=tmp_path / "override", attachment_name=(tmp_path / "override").name
+    )
     monkeypatch.setenv("ASSQUACK_HOME", str(tmp_path / "default"))
     calls = 0
 
@@ -141,9 +145,15 @@ def test_option_ttl_overrides_unlimited_cache(tmp_path: Path, expiration):
 
 
 def test_nested_returned_assets_use_parent_override(tmp_path: Path):
-    child_config = AssquackConfig(home=tmp_path / "child")
-    parent_config = AssquackConfig(home=tmp_path / "parent")
-    override = AssquackConfig(home=tmp_path / "override")
+    child_config = AssquackConfig(
+        home=tmp_path / "child", attachment_name=(tmp_path / "child").name
+    )
+    parent_config = AssquackConfig(
+        home=tmp_path / "parent", attachment_name=(tmp_path / "parent").name
+    )
+    override = AssquackConfig(
+        home=tmp_path / "override", attachment_name=(tmp_path / "override").name
+    )
 
     @asset("main.child", config=child_config)
     def child():

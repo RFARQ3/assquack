@@ -1,0 +1,199 @@
+SQL: SELECT s.id, s.label, s.amount, s.active, s.detail FROM source s WHERE contains(s.label, 'missing')
+Input: 10000; dimension: 1000; output: 0
+FULL PLAN
+┌───────────────────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             id            │
+│           label           │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│        ~2,000 rows        │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│           Table:          │
+│    memory.main."source"   │
+│                           │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│           label           │
+│             id            │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│          Filters:         │
+│ contains(label, 'missing')│
+│                           │
+│        ~2,000 rows        │
+└───────────────────────────┘
+
+
+PROBE PLAN
+┌───────────────────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             id            │
+│           label           │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│          ~0 rows          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      STREAMING_LIMIT      │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│           Table:          │
+│    memory.main."source"   │
+│                           │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│           label           │
+│             id            │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│          Filters:         │
+│ contains(label, 'missing')│
+│                           │
+│        ~2,000 rows        │
+└───────────────────────────┘
+
+
+FULL EXECUTION
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE SELECT s.id, s.label, s.amount, s.active, s.detail FROM source s WHERE contains(s.label, 'missing')
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0011s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             id            │
+│           label           │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│                           │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│           Table:          │
+│    memory.main."source"   │
+│                           │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│           label           │
+│             id            │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│          Filters:         │
+│ contains(label, 'missing')│
+│                           │
+│                           │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└───────────────────────────┘
+
+PROBE EXECUTION
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE SELECT * FROM (SELECT s.id, s.label, s.amount, s.active, s.detail FROM source s WHERE contains(s.label, 'missing')) LIMIT 1
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0007s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             id            │
+│           label           │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│                           │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      STREAMING_LIMIT      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│           Table:          │
+│    memory.main."source"   │
+│                           │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│           label           │
+│             id            │
+│           amount          │
+│           active          │
+│           detail          │
+│                           │
+│          Filters:         │
+│ contains(label, 'missing')│
+│                           │
+│                           │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└───────────────────────────┘

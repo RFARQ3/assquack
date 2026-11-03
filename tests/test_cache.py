@@ -4,13 +4,13 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import duckdb
 import pytest
 
 from assquack import AssquackConfig, FileSystemDestination, asset
 from assquack._cache import _is_expired
 from assquack._exports.writer.file import DuckDBFileWriter
 from assquack._storage.models import SuccessfulRun
+from database_helpers import inspect_database
 
 
 def test_cache_expires_at_ttl_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -44,7 +44,7 @@ def test_decorator_cache_reuses_then_expires(tmp_path: Path) -> None:
     assert not first.cached and cached.cached and calls == 1
     assert cached.run_id == first.run_id
 
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         db.execute(
             "UPDATE assquack_meta.runs SET materialized_at = "
             "current_timestamp - INTERVAL '3 hours' WHERE run_id = ?",
@@ -86,7 +86,7 @@ def test_decorator_ttl_preserves_binding_and_fluent_overrides(tmp_path: Path) ->
     bound = orders.with_arguments(target="bound_orders")
     config = AssquackConfig(home=tmp_path)
     first = asyncio.run(bound(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         db.execute(
             "UPDATE assquack_meta.runs SET materialized_at = "
             "current_timestamp - INTERVAL '90 minutes' WHERE run_id = ?",
@@ -160,8 +160,7 @@ def test_expired_cache_rematerializes(tmp_path: Path) -> None:
     config = AssquackConfig(home=tmp_path)
     first = asyncio.run(orders(assquack_config=config))
 
-    connection = duckdb.connect(str(config.resolved_database_path))
-    try:
+    with inspect_database(config) as connection:
         connection.execute(
             """
             UPDATE assquack_meta.runs
@@ -170,8 +169,6 @@ def test_expired_cache_rematerializes(tmp_path: Path) -> None:
             """,
             [first.run_id],
         )
-    finally:
-        connection.close()
 
     second = asyncio.run(
         orders.cache_first(expiration=timedelta(hours=1))(assquack_config=config)
@@ -194,11 +191,8 @@ def test_missing_current_table_rematerializes(tmp_path: Path) -> None:
     config = AssquackConfig(home=tmp_path)
     first = asyncio.run(orders(assquack_config=config))
 
-    connection = duckdb.connect(str(config.resolved_database_path))
-    try:
+    with inspect_database(config) as connection:
         connection.execute("DROP TABLE main.missing_orders")
-    finally:
-        connection.close()
 
     second = asyncio.run(orders.cache_first()(assquack_config=config))
 
@@ -226,14 +220,11 @@ def test_missing_export_manifest_reuses_materialization(tmp_path: Path) -> None:
     assert calls == 1
     assert cached.cached is True
 
-    connection = duckdb.connect(str(config.resolved_database_path))
-    try:
+    with inspect_database(config) as connection:
         connection.execute(
             "DELETE FROM assquack_meta.exports WHERE run_id = ?",
             [first.run_id],
         )
-    finally:
-        connection.close()
 
     refreshed = asyncio.run(orders.cache_first()(assquack_config=config))
 
@@ -272,7 +263,7 @@ def test_export_retries_preserve_materialization_and_partial_successes(
     cached_orders = orders.cache_first(expiration=timedelta(hours=1))
     with pytest.raises(ValueError, match="synthetic export failure"):
         asyncio.run(cached_orders(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         # Age the original publication so retries cannot silently renew its TTL.
         db.execute(
             "UPDATE assquack_meta.runs SET materialized_at = "
@@ -298,7 +289,7 @@ def test_export_retries_preserve_materialization_and_partial_successes(
         ["parquet", "json", "csv"] if failed_format == "parquet" else ["json", "csv"]
     )
     assert result.cached and calls == 1
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert (
             db.execute("SELECT to_json(r) FROM assquack_meta.runs r").fetchall()
             == original_run
@@ -355,13 +346,13 @@ def test_changed_destination_fingerprint_reexports_same_table(tmp_path: Path) ->
     )
     result = asyncio.run(orders.cache_first()(assquack_config=changed))
     assert result.cached and result.run_id == first.run_id and calls == 1
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute(
             "SELECT count(*), count(DISTINCT run_id), count(DISTINCT resolved_uri), "
             "count(DISTINCT destination_fingerprint) FROM assquack_meta.exports"
         ).fetchone() == (2, 1, 1, 2)
     assert asyncio.run(orders.cache_first()(assquack_config=changed)).cached
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             2,
         )

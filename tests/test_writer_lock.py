@@ -8,7 +8,9 @@ from assquack import AssquackConfig, asset
 from assquack._storage.locking import writer_lock
 
 
-def test_async_materializations_are_serialized(tmp_path: Path) -> None:
+def test_async_capture_can_overlap_before_synchronous_publication(
+    tmp_path: Path,
+) -> None:
     active_calls = 0
     maximum_active_calls = 0
 
@@ -32,7 +34,7 @@ def test_async_materializations_are_serialized(tmp_path: Path) -> None:
 
     asyncio.run(materialize_both())
 
-    assert maximum_active_calls == 1
+    assert maximum_active_calls == 2
 
 
 def test_separate_processes_are_serialized(tmp_path: Path) -> None:

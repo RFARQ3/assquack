@@ -10,15 +10,17 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar
 
+import duckdb
+
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
 from assquack._errors import MissingAssetSchemaWarning
 from assquack._materialization.models import AssetMode as AssetMode
 from assquack._materialization.models import MaterializationRequest
 from assquack._materialization.pipeline import materialize
-from assquack._query import AssquackQueryResult, execute_query
+from assquack._query import execute_query
 from assquack._result import AssquackResult
-from assquack._storage.database import open_database
+from assquack._storage.database import database_catalog, database_operation
 from assquack._storage.metadata import MetadataRepository
 from assquack._storage.sql import sanitize_identifier
 from assquack._storage.tables import TableReference
@@ -116,7 +118,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
         params: Sequence[object] | None = None,
         *,
         assquack_config: AssquackConfig | None = None,
-    ) -> AssquackQueryResult:
+    ) -> duckdb.DuckDBPyRelation:
         config = assquack_config or self.config or AssquackConfig()
         request = self._request((), {})
         return execute_query(config, request.table, sql, params)
@@ -124,16 +126,13 @@ class AssquackAsset(Generic[P, AssetReturn]):
     def exists(self, *, assquack_config: AssquackConfig | None = None) -> bool:
         config = assquack_config or self.config or AssquackConfig()
         request = self._request((), {})
-        connection = open_database(config)
-        try:
+        with database_operation(config) as connection:
             return asset_exists(
                 connection,
-                MetadataRepository(connection),
+                MetadataRepository(connection, database_catalog(config)),
                 asset_id=request.asset_id,
-                table=request.table,
+                table=replace(request.table, catalog_name=database_catalog(config)),
             )
-        finally:
-            connection.close()
 
     def cache_first(
         self,

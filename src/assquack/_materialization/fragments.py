@@ -8,6 +8,7 @@ import re
 from collections.abc import AsyncIterable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, BinaryIO, cast
+from uuid import uuid4
 
 import duckdb
 
@@ -15,8 +16,8 @@ from assquack._config import AssquackConfig
 from assquack._errors import MaterializationError
 from assquack._materialization.models import FragmentFile
 from assquack._result import AssquackResult
-from assquack._storage.database import open_database
-from assquack._storage.sql import quote_literal, quote_table
+from assquack._storage.database import DATABASE_LOCK, default_connection
+from assquack._storage.sql import identifier_key, quote_identifier, quote_literal
 
 _UNSAFE_PARTITION_VALUE = re.compile(r"[^A-Za-z0-9_.-]+")
 
@@ -97,25 +98,48 @@ class NDJSONFragmentWriter:
         # Each invocation has its own names, including empty or failed COPY output.
         prefix = f"copy_{self._copy_index:06d}_"
         self._copy_index += 1
-        # DuckDB's relation.query(COPY ...) creates a persistent source view.
-        # Stage only during capture so read-only relations can use native JSON
-        # COPY without mutating their source or requiring pandas/Arrow.
-        intermediate = self._directory / f"{prefix}input.parquet"
-        intermediate_sql = quote_literal(str(intermediate))
-        try:
-            # Serialize with the source session before transport: Parquet alone
-            # can round huge integers and lose timezone/interval/union details.
-            relation.project("to_json(COLUMNS(*))").write_parquet(str(intermediate))
-            with duckdb.connect() as connection:
-                connection.execute(
-                    f"COPY (SELECT * FROM read_parquet({intermediate_sql})) "
-                    f"TO {quote_literal(str(self._directory))} "
-                    f"(FORMAT JSON, ARRAY false, FILE_SIZE_BYTES {self._target_bytes}, "
-                    "FILE_EXTENSION partial, OVERWRITE_OR_IGNORE true, "
-                    f"FILENAME_PATTERN {quote_literal(prefix + '{i}')})"
-                )
-        finally:
-            intermediate.unlink(missing_ok=True)
+        # COPY resolves a Python local directly. Pick a name absent from the
+        # catalog because DuckDB gives SQL tables/views precedence over locals.
+        # This inspects names only; the lazy input executes once, inside COPY.
+        with DATABASE_LOCK:
+            connection = default_connection()
+            occupied = {
+                identifier_key(row[0])
+                for row in connection.execute(
+                    "SELECT table_name FROM duckdb_tables() "
+                    "UNION SELECT view_name FROM duckdb_views()"
+                ).fetchall()
+            }
+            alias = "assquack_capture_" + uuid4().hex
+            while identifier_key(alias) in occupied:
+                alias += "_"
+            statement = (
+                f"COPY {quote_identifier(alias)} "
+                f"TO {quote_literal(str(self._directory))} "
+                f"(FORMAT JSON, ARRAY false, FILE_SIZE_BYTES {self._target_bytes}, "
+                "FILE_EXTENSION partial, OVERWRITE_OR_IGNORE true, "
+                f"FILENAME_PATTERN {quote_literal(prefix + '{i}')})"
+            )
+            # A disposable Python frame supplies the generated local name to
+            # DuckDB's replacement scan. SQL is a value, never Python code.
+            bindings = {
+                alias: relation,
+                "connection": connection,
+                "statement": statement,
+            }
+            try:
+                eval("connection.execute(statement)", {}, bindings)
+            except duckdb.InvalidInputException as error:
+                if "another Connection" in str(error):
+                    raise MaterializationError(
+                        "DuckDB relation inputs must belong to "
+                        "duckdb.default_connection(). "
+                        "Create them with duckdb.sql/query or an Assquack query. "
+                        "Relations from independent connections are unsupported."
+                    ) from error
+                raise
+            finally:
+                bindings.clear()
 
         written = 0
         for partial_path in sorted(self._directory.glob(f"{prefix}*.partial")):
@@ -189,7 +213,6 @@ async def write_fragments(
     """Dispatch each yielded value before considering generic iteration."""
     # Import here because asset execution itself imports the capture pipeline.
     from assquack._api import AssquackAsset
-    from assquack._query import AssquackQueryResult
 
     if value is None:
         return 0
@@ -198,16 +221,7 @@ async def write_fragments(
     if isinstance(value, AssquackAsset):
         value = await value(assquack_config=config)
     if isinstance(value, AssquackResult):
-        connection = open_database(value.config)
-        try:
-            relation = connection.table(
-                quote_table(value.table.schema_name, value.table.table_name)
-            )
-            return writer.write_relation(relation)
-        finally:
-            connection.close()
-    if isinstance(value, AssquackQueryResult):
-        return writer.write_relation(value.relation)
+        return writer.write_relation(await value.query())
     if isinstance(value, duckdb.DuckDBPyRelation):
         return writer.write_relation(value)
 
@@ -215,7 +229,8 @@ async def write_fragments(
     # ordinary Python capture independent of pandas and Arrow installations.
     modules = {base.__module__.split(".")[0] for base in type(value).__mro__}
     if "pandas" in modules or "pyarrow" in modules:
-        with duckdb.connect() as connection:
+        with DATABASE_LOCK:
+            connection = default_connection()
             if "pandas" in modules:
                 pd = importlib.import_module("pandas")
 

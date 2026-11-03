@@ -9,7 +9,6 @@ import duckdb
 from assquack._materialization.models import StagingTables
 from assquack._storage.database import transaction
 from assquack._storage.metadata import MetadataRepository
-from assquack._storage.sql import quote_table
 from assquack._storage.tables import TableReference, create_schema
 
 
@@ -42,15 +41,12 @@ class ReplaceCommitStrategy:
         duration_ms: int,
     ) -> None:
         with transaction(connection):
-            create_schema(connection, target.schema_name)
-            shaped_table = quote_table(
-                staging.shaped.schema_name,
-                staging.shaped.table_name,
-            )
+            create_schema(connection, target.schema_name, target.catalog_name)
+            shaped_table = staging.shaped.sql
             connection.execute(
                 f"""
                 CREATE OR REPLACE TABLE
-                    {quote_table(target.schema_name, target.table_name)} AS
+                    {target.sql} AS
                 SELECT *
                 FROM {shaped_table}
                 """

@@ -12,6 +12,7 @@ from assquack._errors import ExportError
 from assquack._exports.authentication.azure import CredentialChainAuth
 from assquack._exports.preparation.azure import AzurePreparationStrategy
 from assquack._storage.database import open_database
+from database_helpers import inspect_database
 
 URI = "abfss://exampleaccount.dfs.core.windows.net/lake/orders.parquet"
 
@@ -101,10 +102,7 @@ def test_actual_export_connection_lifecycle_and_manifest(
         connections.append(proxy)
         return cast(duckdb.DuckDBPyConnection, proxy)
 
-    monkeypatch.setattr(
-        "assquack._materialization.pipeline.open_database", intercepted_open
-    )
-    monkeypatch.setattr("assquack._result.open_database", intercepted_open)
+    monkeypatch.setattr("assquack._storage.database.open_database", intercepted_open)
     isolated_sas_environment.update(
         AZURE_STORAGE_ACCOUNT_NAME="exampleaccount",
         AZURE_STORAGE_SAS_TOKEN="sig=synthetic%2Bsignature%3D",
@@ -131,7 +129,14 @@ def test_actual_export_connection_lifecycle_and_manifest(
     else:
         with pytest.raises(ExportError, match="Azure export failed"):
             run()
-    export_connection = connections[-1]
+    export_connection = next(
+        c
+        for c in connections
+        if any(
+            call.args[0].strip().startswith("CREATE TEMPORARY")
+            for call in c.execute.call_args_list
+        )
+    )
     statements = [
         call.args[0].strip() for call in export_connection.execute.call_args_list
     ]
@@ -143,8 +148,8 @@ def test_actual_export_connection_lifecycle_and_manifest(
         failure != "CREATE TEMPORARY"
     )
     for connection in connections:
-        connection.close.assert_called_once()
-    with duckdb.connect(str(config.resolved_database_path)) as check:
+        connection.close.assert_not_called()
+    with inspect_database(config) as check:
         assert check.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
         assert check.execute("SELECT status FROM assquack_meta.runs").fetchall() == [
             ("success",)
@@ -181,12 +186,14 @@ def test_local_exports_do_not_register_azure_and_failed_refresh_preserves_file(
     assert result.export_parquet(str(tmp_path / "O'Brien.parquet"))
 
 
-def test_database_setup_failure_closes_connection(tmp_path: Path, monkeypatch) -> None:
+def test_database_setup_failure_does_not_close_default_connection(
+    tmp_path: Path, monkeypatch
+) -> None:
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
     connection.execute.side_effect = RuntimeError("setup failed")
     monkeypatch.setattr(
-        "assquack._storage.database.duckdb.connect", lambda *a, **kw: connection
+        "assquack._storage.database.duckdb.default_connection", lambda: connection
     )
     with pytest.raises(RuntimeError, match="setup failed"):
         open_database(AssquackConfig(home=tmp_path))
-    connection.close.assert_called_once()
+    connection.close.assert_not_called()

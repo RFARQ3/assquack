@@ -1,0 +1,13 @@
+{
+  "criterion": "max/min > 1.4 AND max-min > 10ms in either strategy",
+  "reason": "Possible scheduling/filesystem variability; no confirmed sleep",
+  "cases": [
+    "scan-100000-nonempty",
+    "join-100000-nonempty",
+    "window-100000-empty",
+    "window-100000-nonempty",
+    "aggregate-1000000-nonempty"
+  ],
+  "bound": "one warmup plus three measured pairs per case",
+  "capture_harness_sha256": "8c56d1efc892fff92da2c63ba151febf11527ad80344574f73134074580d552f"
+}

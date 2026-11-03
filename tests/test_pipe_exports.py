@@ -12,6 +12,7 @@ from assquack._errors import ExportError
 from assquack._exports.targets import parse_export_targets
 from assquack._exports.writer.file import DuckDBFileWriter
 from assquack._storage.tables import TableReference
+from database_helpers import inspect_database
 
 
 @pytest.mark.parametrize(
@@ -108,7 +109,7 @@ def test_actual_formats_contents_manifests_and_cache(
     )
     result = asyncio.run(orders.cache_first()(assquack_config=config))
     output = Path(str(tmp_path / "exports"))
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         parquet_rows = db.execute(
             "SELECT id, text, optional FROM read_parquet(?) ORDER BY id",
             [str(output / "orders.parquet")],
@@ -143,7 +144,7 @@ def test_actual_formats_contents_manifests_and_cache(
     assert cached.cached and cached.run_id == result.run_id and calls == 1
 
     # A missing secondary manifest requires only that output to be retried.
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         db.execute("DELETE FROM assquack_meta.exports WHERE format = 'json'")
     refreshed = asyncio.run(orders.cache_first()(assquack_config=config))
     assert refreshed.cached and calls == 1
@@ -175,7 +176,7 @@ def test_partial_failure_keeps_only_completed_manifests_and_retries(
     )
     with pytest.raises(RuntimeError, match="synthetic output failure"):
         asyncio.run(orders.cache_first()(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
         assert db.execute("SELECT status FROM assquack_meta.runs").fetchall() == [
             ("success",)
@@ -258,7 +259,7 @@ def test_empty_extraction_writes_all_formats(tmp_path: Path) -> None:
     assert (output / "empty.json").read_text() == ""
     with (output / "empty.csv").open(newline="") as file:
         assert len(list(csv.reader(file))) == 1
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute(
             "SELECT count(*) FROM assquack_meta.exports WHERE row_count = 0"
         ).fetchone() == (3,)

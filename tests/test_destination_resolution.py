@@ -16,6 +16,7 @@ from assquack._exports.authentication.local import LocalAuthenticator
 from assquack._exports.destinations.fingerprint import hash_configuration
 from assquack._exports.preparation.azure import AzurePreparationStrategy
 from assquack._storage.tables import TableReference
+from database_helpers import inspect_database
 
 
 class Credentials:
@@ -146,7 +147,7 @@ def test_fingerprint_cache_matching_preserves_asset_identity(tmp_path, monkeypat
     assert len(extractions) == 1 and provider.loads == 3
     assert all(item._resolved is None for item in captured)
     assert destination._resolved is None
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         rows = connection.execute(
             "SELECT resolved_uri, destination_fingerprint FROM assquack_meta.exports"
         ).fetchall()

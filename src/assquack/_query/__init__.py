@@ -3,10 +3,8 @@
 from assquack._query.asset import execute_query, query_dataframe
 from assquack._query.context import query_context, use_config
 from assquack._query.general import query
-from assquack._query.result import AssquackQueryResult
 
 __all__ = [
-    "AssquackQueryResult",
     "execute_query",
     "query",
     "query_context",

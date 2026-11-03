@@ -16,6 +16,7 @@ from assquack._materialization.schema import (
     replace_schema_strategy,
 )
 from assquack._storage.metadata import MetadataRepository
+from database_helpers import inspect_database
 
 
 def test_replacement_uses_only_current_fragments(
@@ -47,7 +48,7 @@ def test_replacement_uses_only_current_fragments(
     ]
     asyncio.run(source(assquack_config=config))
 
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         schema = dict(
             (row[0], row[1])
             for row in connection.execute("DESCRIBE main.current_schema").fetchall()
@@ -113,7 +114,7 @@ def test_per_asset_config_selects_the_strategy_used_for_publication(
 
     asyncio.run(native_asset(assquack_config=native_config))
     asyncio.run(selected_asset(assquack_config=selected_config))
-    with duckdb.connect(str(native_config.resolved_database_path)) as connection:
+    with inspect_database(native_config) as connection:
         assert connection.execute("SELECT id FROM main.native_asset").fetchall() == [
             (1,)
         ]
@@ -129,7 +130,7 @@ def test_fragment_partition_names_do_not_replace_source_fields(tmp_path: Path) -
 
     config = AssquackConfig(home=tmp_path)
     asyncio.run(source(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT asset, run_id FROM main.source_partition_fields"
         ).fetchall() == [("source-asset", "source-run")]
@@ -160,7 +161,7 @@ def test_failed_publication_rolls_back_table_and_success_status(
         with pytest.raises(RuntimeError, match="synthetic metadata failure"):
             asyncio.run(source(assquack_config=config))
 
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         statuses = connection.execute(
             "SELECT status, count(*) FROM assquack_meta.runs GROUP BY status"
         ).fetchall()
@@ -180,7 +181,7 @@ def test_failed_publication_rolls_back_table_and_success_status(
             ).fetchone() == (0,)
 
     recovered = asyncio.run(source(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT id, replacement, _qa_run_id FROM main.safe_replacement"
         ).fetchall() == [(2, "unpublished", recovered.run_id)]
@@ -209,7 +210,7 @@ def test_schema_failure_preserves_published_table_and_allows_retry(
         with pytest.raises(RuntimeError, match="synthetic inference failure"):
             asyncio.run(source(assquack_config=config))
 
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT id, _qa_run_id FROM main.inference_failure"
         ).fetchall() == [(1, first.run_id)]
@@ -218,7 +219,7 @@ def test_schema_failure_preserves_published_table_and_allows_retry(
         ).fetchone() == (1,)
 
     asyncio.run(source(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT id FROM main.inference_failure"
         ).fetchall() == [(2,)]
@@ -231,7 +232,7 @@ def test_new_catalog_has_only_active_metadata_tables(tmp_path: Path) -> None:
 
     config = AssquackConfig(home=tmp_path)
     asyncio.run(source(assquack_config=config))
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT table_name FROM information_schema.tables "
             "WHERE table_schema = 'assquack_meta' ORDER BY table_name"

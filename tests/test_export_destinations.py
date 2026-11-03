@@ -19,6 +19,7 @@ from assquack._exports.models import ExportTarget
 from assquack._exports.preparation.registry import default_preparations
 from assquack._storage.database import open_database
 from assquack._storage.tables import TableReference
+from database_helpers import inspect_database
 
 
 class SyntheticProvider:
@@ -62,10 +63,7 @@ def intercepted_connections(monkeypatch):
         connections.append(proxy)
         return cast(duckdb.DuckDBPyConnection, proxy)
 
-    monkeypatch.setattr(
-        "assquack._materialization.pipeline.open_database", intercepted_open
-    )
-    monkeypatch.setattr("assquack._result.open_database", intercepted_open)
+    monkeypatch.setattr("assquack._storage.database.open_database", intercepted_open)
     return connections
 
 
@@ -103,11 +101,19 @@ def test_injected_async_provider_used_by_both_paths(
     assert "synthetic-sensitive" not in repr(config)
     assert "_credential_provider" not in config.model_dump_json()
     statements = [
-        call.args[0] for call in intercepted_connections[-1].execute.call_args_list
+        call.args[0]
+        for call in next(
+            c
+            for c in intercepted_connections
+            if any(
+                call.args[0].strip().startswith("CREATE TEMPORARY")
+                for call in c.execute.call_args_list
+            )
+        ).execute.call_args_list
     ]
     assert any(sql.startswith("CREATE TEMPORARY SECRET") for sql in statements)
     assert any(sql.startswith("DROP TEMPORARY SECRET") for sql in statements)
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             1,
         )
@@ -240,7 +246,7 @@ class SyntheticDestination(ExportDestination):
         source: TableReference,
         target: ExportTarget,
     ) -> None:
-        assert connection.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
+        assert connection.execute(f"SELECT id FROM {source.sql}").fetchall() == [(1,)]
         self._written.append(target.resolved_uri)
 
 
@@ -255,7 +261,7 @@ def test_generic_destination_does_not_require_file_formats(tmp_path):
     asyncio.run(orders(assquack_config=config))
     assert destination._written == ["record:orders"]
     assert asyncio.run(orders.cache_first()(assquack_config=config)).cached
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute("SELECT format FROM assquack_meta.exports").fetchall() == [
             ("record",)
         ]
@@ -291,7 +297,7 @@ def test_partial_multi_destination_failure_records_only_completed_outputs(
         if explicit:
             result.export_parquet()
     filename = "main.orders.parquet" if explicit else "orders.parquet"
-    with duckdb.connect(str(config.resolved_database_path)) as db:
+    with inspect_database(config) as db:
         assert db.execute(
             "SELECT resolved_uri FROM assquack_meta.exports"
         ).fetchall() == [(str(tmp_path / "a" / filename),)]
@@ -325,7 +331,14 @@ def test_each_destination_uses_its_own_provider(tmp_path, intercepted_connection
     )
     registrations = [
         call.args[1]["connection_string"]
-        for call in intercepted_connections[-1].execute.call_args_list
+        for call in next(
+            c
+            for c in intercepted_connections
+            if any(
+                call.args[0].strip().startswith("CREATE TEMPORARY")
+                for call in c.execute.call_args_list
+            )
+        ).execute.call_args_list
         if call.args[0].startswith("CREATE TEMPORARY")
     ]
     assert registrations[0].startswith("AccountName=firstaccount;")

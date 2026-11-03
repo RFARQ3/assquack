@@ -8,7 +8,8 @@ import pytest
 
 import assquack
 from assquack import AssquackConfig, asset
-from assquack._storage.database import connect_database
+from assquack._query.context import current_query_config
+from database_helpers import inspect_database
 
 
 @pytest.fixture(autouse=True)
@@ -19,8 +20,8 @@ def query_environment(monkeypatch):
 
 def source_config(path: Path, value: int = 1) -> AssquackConfig:
     path.mkdir(parents=True)
-    config = AssquackConfig(home=path)
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    config = AssquackConfig(home=path, attachment_name=path.name)
+    with inspect_database(config) as connection:
         connection.execute("CREATE SCHEMA bronze")
         connection.execute("CREATE TABLE bronze.items AS SELECT ? AS value", [value])
     return config
@@ -28,7 +29,7 @@ def source_config(path: Path, value: int = 1) -> AssquackConfig:
 
 def test_public_surface():
     assert list(inspect.signature(assquack.query).parameters) == ["sql", "params"]
-    assert hasattr(assquack, "AssquackQueryResult")
+    assert not hasattr(assquack, "AssquackQueryResult")
     assert not hasattr(assquack, "cross_database_query")
     with (
         pytest.raises(TypeError, match="AssquackConfig"),
@@ -39,25 +40,24 @@ def test_public_surface():
 
 def test_native_lifetime_and_source_immutability(tmp_path):
     config = source_config(tmp_path / "source", 3)
-    before = config.resolved_database_path.read_bytes()
     with assquack.use_config(config):
         result = asyncio.run(
             assquack.query(
                 "SELECT value + $extra AS total FROM bronze.items", {"extra": 2}
             )
         )
-    assert isinstance(result, assquack.AssquackQueryResult)
+    assert isinstance(result, duckdb.DuckDBPyRelation)
     gc.collect()
     assert result.fetchall() == [(5,)]
-    derived = result.relation.project("total + 1 AS total")
+    derived = result.project("total + 1 AS total")
     del result
     gc.collect()
     assert derived.fetchall() == [(6,)]
     del derived
     gc.collect()
-    # The weak owner cache does not retain handles after the last native result.
-    assert config.resolved_database_path.read_bytes() == before
-    with duckdb.connect(str(config.resolved_database_path), read_only=True) as conn:
+    # The process owns attachments; result lifetime does not close the engine.
+    assert duckdb.sql("SELECT value FROM source.bronze.items").fetchall() == [(3,)]
+    with inspect_database(config) as conn:
         assert conn.execute("SHOW ALL TABLES").fetchall()[0][1] == "bronze"
         assert conn.execute(
             "SELECT count(*) FROM information_schema.schemata "
@@ -78,7 +78,7 @@ def test_native_types_empty_results_and_retained_asset_input(tmp_path, empty):
                 + ("WHERE false" if empty else "")
             )
         )
-    assert str(result.relation.types[1]) == "DECIMAL(8,2)"
+    assert str(result.types[1]) == "DECIMAL(8,2)"
 
     @asset("silver.output", config=config)
     def output():
@@ -101,20 +101,21 @@ def test_retained_snapshot_allows_same_table_replacement_and_nested_publication(
     @asset("silver.output", config=config)
     async def output():
         result = await assquack.query("SELECT value FROM bronze.items")
-        retained.append(result.relation.project("value + 1 AS value"))
+        retained.append(result.project("value + 1 AS value"))
         await replace()
         return result
 
     assert asyncio.run(output()).row_count == 1
-    assert retained[0].fetchall() == [(4,)]
-    with connect_database(config) as conn:
+    assert retained[0].fetchall() == [(10,)]
+    with inspect_database(config) as conn:
         assert conn.sql("SELECT value FROM bronze.items").fetchall() == [(9,)]
-        assert conn.sql("SELECT value FROM silver.output").fetchall() == [(3,)]
+        assert conn.sql("SELECT value FROM silver.output").fetchall() == [(9,)]
 
 
 @pytest.mark.parametrize("environment", ["database", "home", "blank_database"])
 def test_environment_source(tmp_path, monkeypatch, environment):
     config = source_config(tmp_path / "source")
+    monkeypatch.setenv("ASSQUACK_ATTACHMENT_NAME", config.attachment_name)
     if environment == "database":
         monkeypatch.setenv("ASSQUACK_DATABASE_PATH", str(config.resolved_database_path))
     else:
@@ -132,10 +133,11 @@ def test_missing_context_and_source_do_not_fall_back(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path / "source")
     monkeypatch.setenv("ASSQUACK_DUCKDB__THREADS", "2")
     monkeypatch.setenv("ASSQUACK_HOME", " ")
-    with pytest.raises(ValueError, match="Outside an asset"):
-        asyncio.run(assquack.query("SELECT 1"))
-    missing = AssquackConfig(home=tmp_path / "missing")
-    with assquack.use_config(missing), pytest.raises(FileNotFoundError):
+    assert asyncio.run(assquack.query("SELECT 1")).fetchone() == (1,)
+    missing = AssquackConfig(
+        home=tmp_path / "missing", attachment_name=(tmp_path / "missing").name
+    )
+    with assquack.use_config(missing), pytest.raises(ValueError, match="attach"):
         asyncio.run(assquack.query("SELECT 1"))
     assert not missing.home.exists()
 
@@ -155,23 +157,21 @@ def test_missing_context_and_source_do_not_fall_back(tmp_path, monkeypatch):
 )
 def test_reject_writes_without_source_changes(tmp_path, sql):
     config = source_config(tmp_path / "source")
-    before = config.resolved_database_path.read_bytes()
     with (
         assquack.use_config(config),
         pytest.raises(ValueError, match="read-only SELECT"),
     ):
         asyncio.run(assquack.query(sql))
-    assert config.resolved_database_path.read_bytes() == before
+    assert duckdb.sql("SELECT value FROM source.bronze.items").fetchall() == [(1,)]
 
 
-def test_mutating_select_is_rejected_by_transaction(tmp_path):
+def test_select_validation_is_not_a_security_sandbox(tmp_path):
     config = source_config(tmp_path / "source")
-    with connect_database(config) as conn:
+    with inspect_database(config) as conn:
         conn.execute("CREATE SEQUENCE seq")
     with assquack.use_config(config):
-        result = asyncio.run(assquack.query("SELECT nextval('seq')"))
-    with pytest.raises(duckdb.TransactionException, match="read-only"):
-        result.fetchall()
+        result = asyncio.run(assquack.query("SELECT nextval('source.main.seq')"))
+    assert result.fetchone() == (1,)
 
 
 def test_failed_select_allows_following_query(tmp_path):
@@ -184,16 +184,21 @@ def test_failed_select_allows_following_query(tmp_path):
         ]
 
 
-def test_scope_precedence_nested_assets_and_publishing_config(tmp_path, monkeypatch):
+def test_config_selects_writes_but_not_short_reads(tmp_path, monkeypatch):
     parent_config = source_config(tmp_path / "parent", 2)
     child_config = source_config(tmp_path / "child", 7)
     explicit = source_config(tmp_path / "explicit", 11)
     inner = source_config(tmp_path / "inner", 13)
     monkeypatch.setenv("ASSQUACK_HOME", str(inner.home))
+    monkeypatch.setenv("ASSQUACK_ATTACHMENT_NAME", inner.attachment_name)
     seen = []
 
     async def read():
-        return (await assquack.query("SELECT value FROM bronze.items")).fetchall()[0][0]
+        with pytest.raises(ValueError, match=r"database\.schema\.table"):
+            await assquack.query("SELECT value FROM bronze.items")
+        return (
+            await assquack.query("SELECT value FROM parent.bronze.items")
+        ).fetchall()[0][0]
 
     @asset("silver.child", config=child_config)
     async def child():
@@ -207,20 +212,20 @@ def test_scope_precedence_nested_assets_and_publishing_config(tmp_path, monkeypa
             await child()
             with assquack.use_config(inner):
                 seen.append(await read())
-            yield await assquack.query("SELECT value FROM bronze.items")
+            yield await assquack.query("SELECT value FROM explicit.bronze.items")
         await child()
         seen.append(await read())
-        yield await assquack.query("SELECT value FROM bronze.items")
+        yield await assquack.query('SELECT value FROM "inner".bronze.items')
 
     assert asyncio.run(parent(assquack_config=inner)).row_count == 2
-    assert seen == [13, 11, 13, 7, 13]
-    with connect_database(inner) as conn:
+    assert seen == [2, 2, 2, 2, 2]
+    with inspect_database(inner) as conn:
         assert conn.sql(
             "SELECT value FROM silver.parent ORDER BY value"
         ).fetchall() == [(11,), (13,)]
-    with duckdb.connect(str(child_config.resolved_database_path)) as conn:
+    with inspect_database(child_config) as conn:
         assert conn.sql("SELECT value FROM silver.child").fetchall() == [(7,)]
-    assert asyncio.run(read()) == 13
+    assert asyncio.run(read()) == 2
 
 
 @pytest.mark.parametrize("cancel", [False, True])
@@ -237,11 +242,11 @@ def test_explicit_scopes_restore_after_exception_and_cancellation(tmp_path, canc
                 if cancel:
                     raise asyncio.CancelledError()
                 raise RuntimeError("deliberate")
+            assert current_query_config() is outer
             assert (
-                await assquack.query("SELECT value FROM bronze.items")
+                await assquack.query('SELECT value FROM "outer".bronze.items')
             ).fetchall() == [(1,)]
-        with pytest.raises(ValueError, match="Outside an asset"):
-            await assquack.query("SELECT 1")
+        assert (await assquack.query("SELECT 1")).fetchone() == (1,)
 
     asyncio.run(run())
 
@@ -251,8 +256,13 @@ def test_concurrent_scopes_and_child_task_inheritance(tmp_path):
     ready = asyncio.Event()
     entered = 0
 
-    async def read():
-        return (await assquack.query("SELECT value FROM bronze.items")).fetchall()
+    async def read(config):
+        assert current_query_config() is config
+        return (
+            await assquack.query(
+                f'SELECT value FROM "{config.attachment_name}".bronze.items'
+            )
+        ).fetchall()
 
     async def scoped(config):
         nonlocal entered
@@ -261,7 +271,7 @@ def test_concurrent_scopes_and_child_task_inheritance(tmp_path):
             if entered == 2:
                 ready.set()
             await ready.wait()
-            return await asyncio.create_task(read())
+            return await asyncio.create_task(read(config))
 
     async def run():
         return await asyncio.gather(*(scoped(c) for c in configs))
@@ -269,30 +279,18 @@ def test_concurrent_scopes_and_child_task_inheritance(tmp_path):
     assert asyncio.run(run()) == [[(0,)], [(1,)]]
 
 
-def test_capture_error_survives_reopen_failure(tmp_path, monkeypatch):
-    from assquack._materialization import pipeline
-
+def test_capture_failure_does_not_close_default_connection(tmp_path):
     config = source_config(tmp_path / "source")
-    original = pipeline.open_database
-    opened = 0
-
-    def open_once(config):
-        nonlocal opened
-        opened += 1
-        if opened > 1:
-            raise OSError("unavailable")
-        return original(config)
+    connection = duckdb.default_connection()
 
     @asset("silver.failed", config=config)
     def failed():
         raise RuntimeError("capture failure")
 
-    monkeypatch.setattr(pipeline, "open_database", open_once)
-    with pytest.raises(RuntimeError, match="capture failure") as error:
+    with pytest.raises(RuntimeError, match="capture failure"):
         asyncio.run(failed())
-    assert "Could not reopen" in error.value.__notes__[0]
-    with pytest.raises(ValueError, match="Outside an asset"):
-        asyncio.run(assquack.query("SELECT 1"))
+    assert duckdb.default_connection() is connection
+    assert duckdb.sql("SELECT 1").fetchone() == (1,)
 
 
 def test_sync_generator_can_invoke_query_during_deferred_consumption(tmp_path):
@@ -322,7 +320,11 @@ def test_concurrent_assets_have_separate_contexts(tmp_path):
         if entered == 2:
             ready.set()
         await ready.wait()
-        return await assquack.query("SELECT value FROM bronze.items")
+        config = current_query_config()
+        assert config is not None
+        return await assquack.query(
+            f'SELECT value FROM "{config.attachment_name}".bronze.items'
+        )
 
     async def run():
         return await asyncio.gather(*(output(assquack_config=c) for c in configs))
@@ -350,11 +352,10 @@ def test_failure_and_cancellation_restore_context_and_record_failure(tmp_path, c
     async def run():
         with pytest.raises(asyncio.CancelledError if cancel else RuntimeError):
             await failed()
-        with pytest.raises(ValueError, match="Outside an asset"):
-            await assquack.query("SELECT 1")
+        assert (await assquack.query("SELECT 1")).fetchone() == (1,)
 
     asyncio.run(run())
-    with connect_database(config) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT status FROM assquack_meta.runs"
         ).fetchall() == [("failed",)]
@@ -392,10 +393,10 @@ def test_failed_generator_consumption_restores_explicit_scope(
                 await output()
             if cleanup_fails:
                 assert "cleanup failed" in error.value.__notes__[0]
+            assert current_query_config() is own
             assert (
-                await assquack.query("SELECT value FROM bronze.items")
+                await assquack.query("SELECT value FROM own.bronze.items")
             ).fetchall() == [(1,)]
-        with pytest.raises(ValueError, match="Outside an asset"):
-            await assquack.query("SELECT 1")
+        assert (await assquack.query("SELECT 1")).fetchone() == (1,)
 
     asyncio.run(run())

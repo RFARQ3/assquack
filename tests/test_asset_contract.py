@@ -2,10 +2,10 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-import duckdb
 import pytest
 
 from assquack import AssquackAsset, AssquackConfig, MissingAssetSchemaWarning, asset
+from database_helpers import inspect_database
 
 
 def source(region: str = "au") -> list[dict[str, str]]:
@@ -101,7 +101,7 @@ def test_default_name_tracks_table_templates_and_execution(tmp_path: Path) -> No
     cached = asyncio.run(definition.cache_first()("uk", assquack_config=config))
     assert cached.cached and cached.asset_name == result.asset_name
     assert cached.asset_id == result.asset_id
-    with duckdb.connect(str(config.resolved_database_path)) as connection:
+    with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT asset_name FROM assquack_meta.assets"
         ).fetchall() == [("sales.orders_uk",)]

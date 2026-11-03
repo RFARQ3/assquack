@@ -1,12 +1,16 @@
 # Replace Materialization
 
 Status: **Complete**
-Last updated: 2026-10-29
+Last updated: 2026-11-03
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
 
 ## Intent
+
+The [default connection phase](07-default-connection.md) supersedes the connection,
+writer-lock and native capture details recorded below. This phase remains complete
+for its original lifecycle scope; the new behavior is tracked in phase 07.
 
 Implement the first complete asset lifecycle: decorate a function, run it,
 capture source data, infer the current extraction shape, and transactionally replace
