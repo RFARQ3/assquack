@@ -9,7 +9,6 @@ import duckdb
 from assquack._config import AssquackConfig
 from assquack._errors import MissingAssetTableError
 from assquack._query.general import qualify_sql
-from assquack._query.result import validate_select
 from assquack._storage.database import database_catalog, database_operation
 from assquack._storage.tables import TableReference, table_exists
 
@@ -20,8 +19,6 @@ def execute_query(
     sql: str | None = None,
     params: Sequence[object] | None = None,
 ) -> duckdb.DuckDBPyRelation:
-    if sql:
-        validate_select(sql)
     with database_operation(config) as connection:
         table = replace(table, catalog_name=database_catalog(config))
         if not table_exists(connection, table):

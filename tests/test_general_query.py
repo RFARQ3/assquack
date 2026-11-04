@@ -142,30 +142,7 @@ def test_missing_context_and_source_do_not_fall_back(tmp_path, monkeypatch):
     assert not missing.home.exists()
 
 
-@pytest.mark.parametrize(
-    "sql",
-    [
-        "DELETE FROM bronze.items",
-        "CREATE TABLE x (a INT)",
-        "SELECT 1; DELETE FROM bronze.items",
-        "COPY (SELECT 1) TO 'oops.csv'",
-        "ATTACH 'oops.duckdb' AS other",
-        "SET threads = 1",
-        "",
-        "-- comment",
-    ],
-)
-def test_reject_writes_without_source_changes(tmp_path, sql):
-    config = source_config(tmp_path / "source")
-    with (
-        assquack.use_config(config),
-        pytest.raises(ValueError, match="read-only SELECT"),
-    ):
-        asyncio.run(assquack.query(sql))
-    assert duckdb.sql("SELECT value FROM source.bronze.items").fetchall() == [(1,)]
-
-
-def test_select_validation_is_not_a_security_sandbox(tmp_path):
+def test_query_supports_native_sequence_expression(tmp_path):
     config = source_config(tmp_path / "source")
     with inspect_database(config) as conn:
         conn.execute("CREATE SEQUENCE seq")

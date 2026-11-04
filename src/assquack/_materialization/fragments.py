@@ -16,7 +16,7 @@ from assquack._config import AssquackConfig
 from assquack._errors import MaterializationError
 from assquack._materialization.models import FragmentFile
 from assquack._result import AssquackResult
-from assquack._storage.database import DATABASE_LOCK, default_connection
+from assquack._storage.database import CONNECTION_LOCK, default_connection
 from assquack._storage.sql import identifier_key, quote_identifier, quote_literal
 
 _UNSAFE_PARTITION_VALUE = re.compile(r"[^A-Za-z0-9_.-]+")
@@ -101,7 +101,7 @@ class NDJSONFragmentWriter:
         # COPY resolves a Python local directly. Pick a name absent from the
         # catalog because DuckDB gives SQL tables/views precedence over locals.
         # This inspects names only; the lazy input executes once, inside COPY.
-        with DATABASE_LOCK:
+        with CONNECTION_LOCK:
             connection = default_connection()
             occupied = {
                 identifier_key(row[0])
@@ -229,7 +229,7 @@ async def write_fragments(
     # ordinary Python capture independent of pandas and Arrow installations.
     modules = {base.__module__.split(".")[0] for base in type(value).__mro__}
     if "pandas" in modules or "pyarrow" in modules:
-        with DATABASE_LOCK:
+        with CONNECTION_LOCK:
             connection = default_connection()
             if "pandas" in modules:
                 pd = importlib.import_module("pandas")

@@ -14,7 +14,7 @@ from assquack._storage.sql import identifier_key, quote_identifier, quote_litera
 from assquack._storage.tables import bootstrap_database
 
 ASSQUACK_STORAGE_VERSION = "v1.5.0"
-DATABASE_LOCK = RLock()
+CONNECTION_LOCK = RLock()
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ def database_catalog(config: AssquackConfig) -> str:
 
 def is_attached(config: AssquackConfig) -> bool:
     path = os.path.normcase(str(config.resolved_database_path.resolve()))
-    with DATABASE_LOCK:
+    with CONNECTION_LOCK:
         return identifier_key(_catalogs.get(path, "")) == identifier_key(
             config.attachment_name
         )
@@ -59,7 +59,7 @@ def is_attached(config: AssquackConfig) -> bool:
 def connect_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
     """Attach a destination once. The caller must never close the shared connection."""
     global _connection, _settings
-    with DATABASE_LOCK:
+    with CONNECTION_LOCK:
         connection = default_connection()
         requested = _EngineSettings(
             config.duckdb.threads,
@@ -138,7 +138,7 @@ def connect_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
 
 
 def open_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
-    with DATABASE_LOCK:
+    with CONNECTION_LOCK:
         connection = connect_database(config)
         catalog = database_catalog(config)
         if catalog not in _bootstrapped:
@@ -152,7 +152,7 @@ def database_operation(
     config: AssquackConfig, *, bootstrap: bool = True
 ) -> Generator[duckdb.DuckDBPyConnection, None, None]:
     """Protect a complete synchronous operation; never await inside this scope."""
-    with DATABASE_LOCK:
+    with CONNECTION_LOCK:
         yield open_database(config) if bootstrap else connect_database(config)
 
 
@@ -160,7 +160,7 @@ def database_operation(
 def transaction(
     connection: duckdb.DuckDBPyConnection,
 ) -> Generator[duckdb.DuckDBPyConnection, None, None]:
-    with DATABASE_LOCK:
+    with CONNECTION_LOCK:
         connection.execute("BEGIN TRANSACTION")
         try:
             yield connection

@@ -11,9 +11,8 @@ import duckdb
 
 from assquack._config import AssquackConfig
 from assquack._query.context import current_query_config
-from assquack._query.result import validate_select
 from assquack._storage.database import (
-    DATABASE_LOCK,
+    CONNECTION_LOCK,
     database_operation,
     default_connection,
 )
@@ -25,10 +24,9 @@ async def query(
     params: Sequence[object] | Mapping[str, object] | None = None,
 ) -> duckdb.DuckDBPyRelation:
     """Bind a native relation without changing the default database or transaction."""
-    validate_select(sql)
     config = _resolve_config()
     if config is None:
-        with DATABASE_LOCK:
+        with CONNECTION_LOCK:
             connection = default_connection()
             connection.execute("SET python_scan_all_frames = true")
             statement, bindings = qualify_sql(connection, sql, params)

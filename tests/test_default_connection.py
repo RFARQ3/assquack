@@ -137,9 +137,7 @@ def test_nested_child_task_and_cross_database_native_join(tmp_path):
 
     @asset("reports.joined", config=work)
     async def joined():
-        await asyncio.create_task(employees())
-        await departments()
-        employee_rows = await employees.query()
+        employee_rows = await asyncio.create_task(employees.query())
         department_rows = await departments.query()  # noqa: F841
         assert isinstance(employee_rows, duckdb.DuckDBPyRelation)
         return duckdb.query(
@@ -178,16 +176,16 @@ def test_cancelled_capture_preserves_other_publication_and_previous_table(tmp_pa
 
     async def run():
         nonlocal cancel
-        await items()
+        published = await items()
         cancel = True
         task = asyncio.create_task(items())
         await started.wait()
-        await other_items()
+        other_published = await other_items()
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        assert (await items.query("SELECT id FROM data")).fetchone() == (1,)
-        assert (await other_items.query("SELECT id FROM data")).fetchone() == (2,)
+        assert (await published.query("SELECT id FROM data")).fetchone() == (1,)
+        assert (await other_published.query("SELECT id FROM data")).fetchone() == (2,)
 
     asyncio.run(asyncio.wait_for(run(), 5))
     assert duckdb.sql(

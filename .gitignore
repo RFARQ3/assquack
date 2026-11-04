@@ -17,3 +17,8 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Local raw benchmark measurements, console logs and generated scratch data.
+/benchmarks/capture-20261102-pyright.json
+/benchmarks/capture-results-20261102/*
+!/benchmarks/capture-results-20261102/results.md

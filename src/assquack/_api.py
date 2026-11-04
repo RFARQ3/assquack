@@ -18,7 +18,6 @@ from assquack._errors import MissingAssetSchemaWarning
 from assquack._materialization.models import AssetMode as AssetMode
 from assquack._materialization.models import MaterializationRequest
 from assquack._materialization.pipeline import materialize
-from assquack._query import execute_query
 from assquack._result import AssquackResult
 from assquack._storage.database import database_catalog, database_operation
 from assquack._storage.metadata import MetadataRepository
@@ -119,9 +118,8 @@ class AssquackAsset(Generic[P, AssetReturn]):
         *,
         assquack_config: AssquackConfig | None = None,
     ) -> duckdb.DuckDBPyRelation:
-        config = assquack_config or self.config or AssquackConfig()
-        request = self._request((), {})
-        return execute_query(config, request.table, sql, params)
+        result = await self(assquack_config=assquack_config)
+        return await result.query(sql, params)
 
     def exists(self, *, assquack_config: AssquackConfig | None = None) -> bool:
         config = assquack_config or self.config or AssquackConfig()

@@ -184,9 +184,17 @@ Parquet fragment.
 
 Assets and results expose `.query(sql=None, params=None)`.
 
-When called on an asset, `.query()` should query the latest available current
-table for that asset. When called after materialization on an `AssquackResult`,
-it should query that result's table.
+When called on an asset, `.query()` first invokes that bound asset using its normal
+cache policy and optional `assquack_config` override, then queries the returned
+result. A first query materializes a missing asset; an uncached query runs the
+source again. Bound arguments and table templates apply exactly as for an asset
+call. Cache hits skip extraction; expired caches refresh through normal execution.
+
+`AssquackResult.query()` and `assquack.query()` read existing data without invoking
+source extraction. Use a saved result or a general query to inspect publication
+after a failed run. Source/materialization failures propagate to the caller.
+Assquack does not pre-validate SQL statement counts or statement types; DuckDB
+parses the SQL used by the query implementation.
 
 Within SQL passed to `.query()`, Assquack should provide a stable relation alias
 for the current table. The examples use `data`:
@@ -202,7 +210,7 @@ string-interpolated by Assquack.
 
 `await assquack.query(sql, params=None)`, `await asset.query(...)` and
 `await result.query(...)` return actual `duckdb.DuckDBPyRelation` objects on
-DuckDB's default connection. Query calls accept one SELECT statement and optional
+DuckDB's default connection. Query calls accept SQL and optional
 bound parameters. SELECT validation is a convenience, not a security sandbox:
 functions invoked by trusted application SQL can have side effects.
 

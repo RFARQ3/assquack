@@ -1,12 +1,52 @@
 # Query And Cache
 
 Status: **In Progress**
-Last updated: 2026-11-03
+Last updated: 2026-11-04
 Epic: 01 MVP
 Phase: 03
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Storage Model](../../storage-model.md)
 
 ## Intent
+
+Follow-up, 4 November 2026: remove `validate_select` and all three call sites,
+including the pre-extraction check. Remove tests enforcing that restriction.
+This supersedes earlier validation requirements below; SQL parsing remains with
+DuckDB. The scope now also includes `_query/asset.py`, `_query/general.py`,
+removal of `_query/result.py`, and `tests/test_general_query.py`. Earlier 446-test
+and source-hash evidence below describes the preceding correction only.
+Removal validation: 436 offline tests passed. Ten cases enforcing the removed
+restriction were deleted; other coverage remains. Ruff lint and formatting,
+source/reference search, and diff whitespace checks passed. Pytest reported only
+the existing sandbox cache-directory warning. No commit or installation performed.
+
+Approved correction, 4 November 2026: `asset.query()` invokes the bound asset
+through its existing execution/cache policy, then queries the returned result.
+Result/general queries continue to
+read without invoking a source. This supersedes historical read-only asset-query
+wording; no new materialization API or storage/pipeline change is involved.
+
+The correction awaits the asset's existing call path, then queries its returned
+result. Offline tests cover initial
+materialization, template-bound arguments, execution config overrides, cache hits,
+TTL expiry, uncached reruns, source failures, native relation chaining and a
+snapshot whose source queries a not-yet-materialized base asset. Publication and
+query-error inspection tests retain results to avoid hiding failure by extracting
+again. The overall phase remains In Progress for the unrelated checklist below.
+
+This correction completed independent review on 4 November 2026 with no
+actionable findings. Both full offline suites passed **446 tests, no skips**
+(doer 30.77 seconds; reviewer 32.36 seconds). Ruff lint/format (77 files), local
+documentation links and diff whitespace checks pass. Strict Pyright retains the
+same five pre-existing diagnostics in `_api.py` and `_templates.py`; none were
+added. Terminology findings remain confined to existing historical notes.
+
+Task scope is exactly `_api.py`, `tests/test_asset_query_execution.py`,
+`tests/test_default_connection.py`, `tests/test_query_chaining.py`,
+`docs/developer-api.md` and this phase file. SHA256 manifests before and after
+the task show `_api.py` is the sole changed production file: the other 47 files
+under `src/` are byte-identical. Evidence is retained in ignored local folders
+`.local/asset-query-validation-20261104/` and
+`.local/asset-query-review-20261104/`. No benchmark rerun, live access or commits.
 
 The connection and wrapper revisions recorded below are historical. The approved
 [default connection phase](07-default-connection.md) supersedes them with named

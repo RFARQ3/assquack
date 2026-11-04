@@ -89,17 +89,16 @@ def test_same_database_assets_publish_then_join_in_one_execution(tmp_path):
 
     @asset("silver.joined", config=config)
     async def joined():
-        await first()
         lhs = await first.query()  # noqa: F841
-        await second()
         rhs = await second.query()  # noqa: F841
         return duckdb.query(
             "SELECT l.id, left_value + right_value AS total "
             "FROM lhs AS l JOIN rhs AS r USING(id)"
         )
 
-    assert asyncio.run(joined()).row_count == 1
-    assert asyncio.run(joined.query("SELECT total FROM data")).fetchall() == [(10,)]
+    result = asyncio.run(joined())
+    assert result.row_count == 1
+    assert asyncio.run(result.query("SELECT total FROM data")).fetchall() == [(10,)]
 
 
 def test_standalone_assets_reuse_owner_and_namespace_is_local(tmp_path):
@@ -115,9 +114,9 @@ def test_standalone_assets_reuse_owner_and_namespace_is_local(tmp_path):
         )
 
     async def run():
-        await items()
-        first = await items.query("SELECT value FROM data")
-        second = await items.query("SELECT value FROM data")  # noqa: F841
+        published = await items()
+        first = await published.query("SELECT value FROM data")
+        second = await published.query("SELECT value FROM data")  # noqa: F841
         joined = duckdb.query(
             "SELECT a.value + b.value FROM first a CROSS JOIN second b"
         )
@@ -126,7 +125,7 @@ def test_standalone_assets_reuse_owner_and_namespace_is_local(tmp_path):
         with pytest.raises(duckdb.CatalogException):
             duckdb.query("SELECT * FROM argument")
         # Error recovery occurs at the next root query, without caller cleanup.
-        refreshed = await items.query("SELECT value FROM data")
+        refreshed = await published.query("SELECT value FROM data")
         assert refreshed.fetchall() == [(3,)]
         assert duckdb.query(
             "SELECT count(*) FROM duckdb_views() "
@@ -241,7 +240,5 @@ def test_scoped_binding_precedence_and_no_retained_caller_frame(tmp_path):
         gc.collect()
         assert reference() is None
         assert derived.fetchall() == [(3,)]
-        with pytest.raises(ValueError, match="read-only SELECT"):
-            await assquack.query("DELETE FROM bronze.items")
 
     asyncio.run(run())
