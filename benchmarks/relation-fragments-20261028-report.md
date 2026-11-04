@@ -126,6 +126,6 @@ findings do not demonstrate that a framework is broken.
   versions. Production tests were not run because no package behavior changed.
 
 All nonempty fragments are preserved beneath
-`.tmp-relation-fragments-20261028/67174f6bd8`; raw results contain each trial's path.
+`.tmp/relation-fragments-20261028/67174f6bd8`; raw results contain each trial's path.
 Existing files and baseline artifacts were preserved. No live systems, customer
 data, credentials, branches or commits were used.

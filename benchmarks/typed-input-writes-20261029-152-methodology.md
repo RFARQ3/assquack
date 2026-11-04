@@ -31,7 +31,7 @@ conversion uses 2,048-row batches throughout. Twelve discarded 1,000-row warmups
 cover every input/shape/path; measured order varies using seeds 17300–17302.
 DuckDB uses one thread. A single process creates new inputs for each trial and a
 fresh connection for each COPY write. The shared Windows OS byte-range lock at
-`E:/projects/assquack/.tmp-fragment-benchmark-timing.lock` covers fixture preparation,
+`E:/projects/assquack/.tmp/fragment-benchmark-timing.lock` covers fixture preparation,
 write and validation. Waiting for it is outside timing.
 
 Write timing includes connection creation and close for COPY, relation creation,

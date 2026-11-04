@@ -29,8 +29,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # Reuse installed diagnostic dependencies, without modifying either environment.
 sys.path.extend(
     [
-        str(ROOT / ".tmp-normalization-benchmark/deps"),
-        str(ROOT / ".tmp-mad-parquet-repro/venv/Lib/site-packages"),
+        str(ROOT / ".tmp/normalization-benchmark/deps"),
+        str(ROOT / ".tmp/mad-parquet-repro/venv/Lib/site-packages"),
     ]
 )
 import duckdb  # noqa: E402
@@ -196,7 +196,8 @@ def write_original(source, config, directory):
 @contextlib.contextmanager
 def timing_lock():
     """Serialize benchmark workers across the two visible diagnostic chats."""
-    with (ROOT / ".tmp-fragment-benchmark-timing.lock").open("a+b") as handle:
+    (ROOT / ".tmp").mkdir(exist_ok=True)
+    with (ROOT / ".tmp/fragment-benchmark-timing.lock").open("a+b") as handle:
         handle.seek(0, 2)
         if handle.tell() == 0:
             handle.write(b"0")
@@ -375,7 +376,7 @@ def trial(config, directory):
     # Only remove the directory created by this worker, beneath its UUID scratch root.
     assert (
         directory.resolve().parent.parent
-        == (ROOT / ".tmp-dict-fragments-no-empty-20261028").resolve()
+        == (ROOT / ".tmp/dict-fragments-no-empty-20261028").resolve()
     )
     shutil.rmtree(directory)
     return result
@@ -484,7 +485,7 @@ def main():
     assert args.run
     assert duckdb.__version__ == "1.5.2", duckdb.__version__
     run_id = uuid.uuid4().hex[:10]
-    scratch = ROOT / ".tmp-dict-fragments-no-empty-20261028" / run_id
+    scratch = ROOT / ".tmp/dict-fragments-no-empty-20261028" / run_id
     scratch.mkdir(parents=True)
     output = ROOT / "benchmarks/results" / f"dict-fragments-no-empty-20261028-{run_id}"
     configs = list(configurations())
@@ -505,7 +506,7 @@ def main():
         ram=psutil.virtual_memory().total,
         semantic_probes=probes,
         fsync=False,
-        lock_path=str(ROOT / ".tmp-fragment-benchmark-timing.lock"),
+        lock_path=str(ROOT / ".tmp/fragment-benchmark-timing.lock"),
         baseline_sha256=hashlib.sha256(
             (ROOT / "benchmarks/dict_fragments_20261028.py").read_bytes()
         ).hexdigest(),

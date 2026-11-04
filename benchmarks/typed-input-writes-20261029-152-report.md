@@ -147,7 +147,7 @@ after each trial, outside timing; prior artifacts are preserved.
 
 Twelve discarded 1,000-row warmups cover every input/shape/path. Three measured
 repetitions use fixed order seeds 17300–17302. The shared Windows OS byte-range
-lock at `.tmp-fragment-benchmark-timing.lock` covers each trial's preparation,
+lock at `.tmp/fragment-benchmark-timing.lock` covers each trial's preparation,
 write and validation. The harness is self-contained and imports no moving
 production internals. The host otherwise remains uncontrolled, including other
 development activity, caches and allocator reuse. These ranges describe three

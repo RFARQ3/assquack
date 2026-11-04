@@ -116,7 +116,7 @@ poetry run python benchmarks/summarize_dict_fragments_20261028.py benchmarks/res
 ```
 
 Each run creates uniquely named metadata and raw JSONL results in `benchmarks/results/`
-and uses only its own UUID subdirectory under ignored `.tmp-dict-fragments-20261028/`.
+and uses only its own UUID subdirectory under ignored `.tmp/dict-fragments-20261028/`.
 Validated timed fragments are removed after their size statistics are recorded;
 small semantic-probe fragments remain in that run's scratch directory. Existing
 benchmark artifacts are never replaced. Summarization creates CSV and JSON tables

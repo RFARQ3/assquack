@@ -30,7 +30,8 @@ BATCHES = [2048]
 
 @contextmanager
 def timing_lock():
-    with (ROOT / ".tmp-fragment-benchmark-timing.lock").open("a+b") as handle:
+    (ROOT / ".tmp").mkdir(exist_ok=True)
+    with (ROOT / ".tmp/fragment-benchmark-timing.lock").open("a+b") as handle:
         announced = False
         while True:
             try:
@@ -283,7 +284,7 @@ def trial(config, output):
     )
     # Only remove this invocation's own validated synthetic outputs.
     assert output.resolve().is_relative_to(
-        (ROOT / ".tmp-typed-input-writes-20261029-152").resolve()
+        (ROOT / ".tmp/typed-input-writes-20261029-152").resolve()
     )
     shutil.rmtree(output)
     return result
@@ -348,7 +349,7 @@ def main():
     assert duckdb.__version__ == "1.5.2", versions
     run_id = uuid.uuid4().hex[:10]
     output = ROOT / "benchmarks/results" / f"typed-input-writes-20261029-152-{run_id}"
-    scratch = ROOT / ".tmp-typed-input-writes-20261029-152" / run_id
+    scratch = ROOT / ".tmp/typed-input-writes-20261029-152" / run_id
     scratch.mkdir(parents=True)
     configs = list(configurations(args.smoke))
     metadata = dict(

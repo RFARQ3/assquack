@@ -77,3 +77,11 @@ changes, run the checks in the coding skill and any project tooling introduced
 by the package scaffold.
 
 Always report checks run and any checks that could not run.
+
+## Local Scratch Artifacts
+
+- Put temporary scripts, patches, test runs, benchmark data, and dependency
+  environments under the ignored `.tmp/` directory, using task subdirectories.
+- Do not create root-level `.tmp-*` files or folders. For pytest, use a unique
+  `.tmp/<task>/pytest` path with `--basetemp` when a local test directory is needed.
+- Keep durable benchmark results in their existing tracked results directories.

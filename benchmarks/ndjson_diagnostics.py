@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / ".tmp-normalization-benchmark/deps"), str(ROOT / "src")]
+sys.path[:0] = [str(ROOT / ".tmp/normalization-benchmark/deps"), str(ROOT / "src")]
 
 import duckdb
 import orjson
@@ -31,7 +31,7 @@ from assquack._materialization.schema import CurrentRunSchemaStrategy
 from assquack._materialization.staging import create_shaped_staging
 from assquack._storage.tables import TableReference
 
-SCRATCH = ROOT / ".tmp-ndjson-diagnostics"
+SCRATCH = ROOT / ".tmp/ndjson-diagnostics"
 RESULTS = ROOT / "benchmarks/results/ndjson-2026-10-28.jsonl"
 BATCH = 1024
 TARGETS = [1_000_000, 10_000_000, 50_000_000]

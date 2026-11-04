@@ -31,3 +31,9 @@ poetry run pyright
 poetry run ruff check .
 poetry run ruff format --check .
 ```
+
+Keep local scratch artifacts under the ignored `.tmp/` directory, with a
+subdirectory per task or benchmark. For example, use
+`poetry run pytest --basetemp .tmp/my-check/pytest` for a local test run.
+Pytest clears its selected base directory, so keep other artifacts outside it.
+Historical benchmark results retain the original paths recorded at run time.

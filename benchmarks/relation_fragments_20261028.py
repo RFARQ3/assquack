@@ -33,7 +33,8 @@ duckdb = baseline.duckdb
 def timing_lock():
     # Lock the same byte as the other visible diagnostic chat. Closing the handle
     # releases the OS lock even if this process fails; never delete the lock file.
-    with (ROOT / ".tmp-fragment-benchmark-timing.lock").open("a+b") as handle:
+    (ROOT / ".tmp").mkdir(exist_ok=True)
+    with (ROOT / ".tmp/fragment-benchmark-timing.lock").open("a+b") as handle:
         waiting = False
         while True:
             try:
@@ -254,7 +255,7 @@ def main():
         return
     assert args.run or args.smoke
     run_id = uuid.uuid4().hex[:10]
-    scratch = ROOT / ".tmp-relation-fragments-20261028" / run_id
+    scratch = ROOT / ".tmp/relation-fragments-20261028" / run_id
     scratch.mkdir(parents=True)
     output = ROOT / "benchmarks/results" / f"relation-fragments-20261028-{run_id}"
     configs = list(configurations())

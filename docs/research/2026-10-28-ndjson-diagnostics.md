@@ -180,14 +180,14 @@ coverage sets; the large Arrow ranking cannot be generalized to dictionaries.
 
 Use the repository's Poetry environment with DuckDB 1.5.2. Benchmark-only
 PyArrow 26.0.0, psutil 7.2.2 and orjson 3.13.0 are loaded from the ignored
-`.tmp-normalization-benchmark/deps` directory. Install them there if absent;
+`.tmp/normalization-benchmark/deps` directory. Install them there if absent;
 do not add them to the project dependency declaration. Generated output lives
-under ignored `.tmp-ndjson-diagnostics` and is removed after each verified trial.
+under ignored `.tmp/ndjson-diagnostics` and is removed after each verified trial.
 
 ```powershell
-uv --cache-dir .tmp-ndjson-diagnostics/uv-cache pip install --python (poetry env info --executable) --target .tmp-normalization-benchmark/deps pyarrow==26.0.0 psutil==7.2.2 orjson==3.13.0
+uv --cache-dir .tmp/ndjson-diagnostics/uv-cache pip install --python (poetry env info --executable) --target .tmp/normalization-benchmark/deps pyarrow==26.0.0 psutil==7.2.2 orjson==3.13.0
 poetry run python benchmarks/ndjson_diagnostics.py --probe
-poetry run python benchmarks/ndjson_diagnostics.py --all --output .tmp-ndjson-diagnostics/reproduction.jsonl
+poetry run python benchmarks/ndjson_diagnostics.py --all --output .tmp/ndjson-diagnostics/reproduction.jsonl
 poetry run python benchmarks/ndjson_diagnostics.py --compatibility
 poetry run python benchmarks/summarize_ndjson.py
 ```
@@ -214,7 +214,7 @@ inside DuckDB. The process RSS measurements include that engine's allocations.
   small Arrow nested, dictionary nested and relation flat inputs. These discarded
   runs were not appended to the measured evidence.
 - 34 existing fragment/schema tests passed:
-  `poetry run pytest tests/test_fragments.py tests/test_schema_inference.py tests/test_schema_replacement.py -q --basetemp E:/projects/assquack/.tmp-ndjson-diagnostics/pytest-final-offline --tb=short`.
+  `poetry run pytest tests/test_fragments.py tests/test_schema_inference.py tests/test_schema_replacement.py -q --basetemp E:/projects/assquack/.tmp/ndjson-diagnostics/pytest-final-offline --tb=short`.
   Windows sandbox temporary-directory access initially failed; the same offline
   suite passed outside that restriction, using a fresh benchmark-owned directory.
 - Ruff lint and format checks passed for both benchmark scripts. Pyright reported

@@ -218,7 +218,7 @@ def summarize(path: Path) -> None:
             "serializer are unchanged. The order uses independently shuffled "
             "repetitions with seeds 9100-9102. Every worker holds an OS "
             "byte-range exclusive lock at "
-            "`.tmp-fragment-benchmark-timing.lock` throughout its workload, "
+            "`.tmp/fragment-benchmark-timing.lock` throughout its workload, "
             "including reads; the other diagnostic uses the same lock. "
             "Waiting is outside timing. OS process exit releases the lock."
         ),

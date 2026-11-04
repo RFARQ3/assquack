@@ -90,7 +90,7 @@ The matrix uses narrow 1,000/10,000/100,000 and wide 100/1,000/10,000 rows;
 22 discarded small-case warmups covering source, shape, writer and batch.
 One process creates a new fixture, output directory and native connection per
 trial. Every workload holds the OS byte-range exclusive lock at
-`.tmp-fragment-benchmark-timing.lock`; waiting is outside timing.
+`.tmp/fragment-benchmark-timing.lock`; waiting is outside timing.
 
 ## Correctness contract
 
@@ -138,7 +138,7 @@ retain actual bytes, every file size/count, schema and transient-empty counts.
 ## Reproduction
 
 ```powershell
-.tmp-mad-parquet-repro/venv/Scripts/python.exe benchmarks/typed_input_writes_20261028.py --run
+.tmp/mad-parquet-repro/venv/Scripts/python.exe benchmarks/typed_input_writes_20261028.py --run
 poetry run python benchmarks/summarize_typed_input_writes_20261028.py benchmarks/results/<run>.jsonl
 poetry run ruff check benchmarks/typed_input_writes_20261028.py benchmarks/summarize_typed_input_writes_20261028.py
 poetry run pyright --project benchmarks/typed-input-writes-20261028-pyright.json

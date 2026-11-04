@@ -30,7 +30,8 @@ BATCHES = [128, 2048]
 
 @contextmanager
 def timing_lock():
-    with (ROOT / ".tmp-fragment-benchmark-timing.lock").open("a+b") as handle:
+    (ROOT / ".tmp").mkdir(exist_ok=True)
+    with (ROOT / ".tmp/fragment-benchmark-timing.lock").open("a+b") as handle:
         announced = False
         while True:
             try:
@@ -286,7 +287,7 @@ def main():
     assert args.run or args.smoke
     run_id = uuid.uuid4().hex[:10]
     output = ROOT / "benchmarks/results" / f"typed-input-writes-20261028-{run_id}"
-    scratch = ROOT / ".tmp-typed-input-writes-20261028" / run_id
+    scratch = ROOT / ".tmp/typed-input-writes-20261028" / run_id
     scratch.mkdir(parents=True)
     configs = list(configurations(args.smoke))
     metadata = dict(

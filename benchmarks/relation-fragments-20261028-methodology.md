@@ -84,7 +84,7 @@ for all preparation, writing and reading. Metadata records dependency versions,
 OS, CPU, RAM, interpreter, input configuration and source hashes.
 
 Every worker takes the shared Windows OS byte-range lock on byte zero of
-`E:/projects/assquack/.tmp-fragment-benchmark-timing.lock`. It holds the lock
+`E:/projects/assquack/.tmp/fragment-benchmark-timing.lock`. It holds the lock
 through preparation, writing, reading and validation, so no worker in this
 harness runs outside the lock. The other diagnostic uses the same lock.
 Process exit releases it automatically. Waiting is excluded from timings.

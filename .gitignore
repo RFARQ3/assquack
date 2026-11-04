@@ -4,7 +4,7 @@ __pycache__/
 
 .pytest_cache/
 # Local scratch directories used for offline test runs.
-/.tmp*
+/.tmp/
 # Local agent test and probe artifacts.
 /.local/
 .ruff_cache/

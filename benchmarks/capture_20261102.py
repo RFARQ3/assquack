@@ -464,7 +464,8 @@ def main():
         )
     )
     # Share the repository's existing timing lock with older benchmark runners.
-    with (ROOT / ".tmp-fragment-benchmark-timing.lock").open("a+b") as lock:
+    (ROOT / ".tmp").mkdir(exist_ok=True)
+    with (ROOT / ".tmp/fragment-benchmark-timing.lock").open("a+b") as lock:
         lock.seek(0)
         msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
         filename = "gates.jsonl" if args.gates else f"tier-{args.tier}.jsonl"
