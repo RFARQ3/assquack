@@ -46,13 +46,6 @@ def _sas(provider: CredentialProvider) -> Authenticator:
     return SasAuth(credentials)
 
 
-def _azure_auto(provider: CredentialProvider) -> Authenticator:
-    credentials = load_credentials(provider)
-    if credentials is None:
-        return CredentialChainAuth(chain_environment(provider))
-    return SasAuth(credentials)
-
-
 def _credential_chain(provider: CredentialProvider) -> Authenticator:
     load_provider(provider)
     return CredentialChainAuth(chain_environment(provider))
@@ -62,7 +55,7 @@ def default_authenticators() -> AuthenticationRegistry:
     registry = AuthenticationRegistry()
     registry.register("local", "auto", lambda _: LocalAuthenticator())
     registry.register("local", "none", lambda _: LocalAuthenticator())
-    registry.register("azure", "auto", _azure_auto)
+    registry.register("azure", "auto", _credential_chain)
     registry.register("azure", "sas", _sas)
     registry.register("azure", "credential_chain", _credential_chain)
     return registry

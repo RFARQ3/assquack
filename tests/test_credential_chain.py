@@ -84,8 +84,13 @@ def test_supported_chain_inputs_are_captured_and_restrict_duckdb(extra, chain, m
         },
     ],
 )
-def test_incomplete_chain_fails_before_export(values):
-    output, _ = destination(values)
+@pytest.mark.parametrize("method", ["auto", "credential_chain"])
+def test_incomplete_chain_fails_before_export(values, method):
+    values.update(
+        AZURE_STORAGE_SAS_TOKEN="sig=synthetic",
+        AZURE_STORAGE_ACCOUNT_NAME="exampleaccount",
+    )
+    output, _ = destination(values, method)
     with pytest.raises(ConfigurationError, match="AZURE_TENANT_ID") as caught:
         output.resolve("orders.parquet", asset_name="orders")
     assert "synthetic-secret" not in str(caught.value)

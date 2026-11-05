@@ -347,7 +347,7 @@ The `auth` field selects a registered compatible authenticator:
 | Destination | Choice | Behavior |
 | --- | --- | --- |
 | Local/file | `auto` or `none` | No authentication or credential loading. |
-| Azure | `auto` | Complete SAS pair selects SAS; absent pair selects the validated environment credential chain; partial or invalid pair fails. |
+| Azure | `auto` | Use the validated environment credential chain; never read or select SAS credentials. |
 | Azure | `sas` | Require a complete valid SAS pair. |
 | Azure | `credential_chain` | Load and fingerprint supported environment inputs; require one complete method. |
 
@@ -359,8 +359,8 @@ credential-chain authentication. SAS can supply the account for a short URI.
 
 ### SAS Credential Provider And Selection
 
-During `FileSystemDestination.resolve()`, the environment provider reads each
-required value once for the operation, before cache lookup:
+Only with explicit `auth="sas"`, `FileSystemDestination.resolve()` reads each
+required SAS value once for the operation, before cache lookup:
 
 | Process variable | Value |
 | --- | --- |

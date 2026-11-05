@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -24,8 +24,8 @@ Included:
 - `assquack_meta.exports` manifest rows for successful exports.
 - ADLS/ABFSS export path support through native DuckDB.
 - Azure credential-chain secret registration, with optional explicit chain selection.
-- SAS authentication from the explicit environment pair, with automatic selection
-  and explicit authentication overrides (Rowan amendment, 22 October).
+- SAS authentication from the environment pair only with explicit `auth="sas"`;
+  Azure `auto` uses the credential chain (Rowan amendment, 5 November).
 
 Excluded:
 
@@ -147,6 +147,23 @@ decorator.
   and its explanatory epic reference; no new terminology violations.
 - Sandbox blocked pytest temporary files and Pyright dependency discovery;
   those checks succeeded with escalation for offline local execution.
+
+## 5 November Authentication Selection Amendment
+
+Azure `auto` now selects the existing credential-chain factory and never reads
+the SAS pair. Explicit `sas` retains its existing validation and registration.
+Supported environment, certificate and workload-identity chain behavior stays
+unchanged; local `auto` still performs no authentication. Offline regression
+checks cover SAS-pair independence, explicit SAS and both export entry points.
+This supersedes the automatic selection described in the historical amendment
+below. The phase remains In Progress for its existing export release gaps.
+
+Validation: 125 targeted offline tests pass, as do Ruff lint/format, local
+Markdown links and whitespace checks. Full Pyright reports seven existing errors
+in untouched `_api.py`, `_query/asset.py` and `_templates.py`; none in the changed
+files. No live services or credentials were used. Independent review approved
+the implementation and narrative with no actionable findings and reproduced
+the 125 passing tests, lint/format, links, whitespace and type-check results.
 
 ## 22 October SAS Amendment
 

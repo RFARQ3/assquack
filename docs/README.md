@@ -54,6 +54,9 @@ the topic links that match the work in front of you.
 
 ## Examples
 
+- [Materialization walkthrough](materialization-walkthrough.md): a Prefect/Kubernetes
+  integration from global asset definitions through `MaterializationRequest`,
+  NDJSON capture, DuckDB publication and Azure exports.
 - [Developer Examples](developer-examples.md): concise usage examples for the
   required table-first API.
 

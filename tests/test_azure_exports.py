@@ -150,6 +150,8 @@ def test_actual_export_connection_lifecycle_and_manifest(
         call.args[0].strip() for call in export_connection.execute.call_args_list
     ]
     assert sum(sql.startswith("CREATE TEMPORARY") for sql in statements) == 1
+    provider = "config" if auth == "sas" else "credential_chain"
+    assert any(f"PROVIDER {provider}" in sql for sql in statements)
     assert any(sql.startswith("COPY") for sql in statements) == (
         failure != "CREATE TEMPORARY"
     )
