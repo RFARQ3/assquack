@@ -9,10 +9,11 @@ from uuid import uuid4
 import duckdb
 from pydantic import SecretStr
 
-from assquack._errors import ConfigurationError, ExportError
+from assquack._errors import ExportError
 from assquack._exports.authentication.credentials import (
     CHAIN_REQUIREMENTS,
     AzureSasCredentials,
+    has_required_inputs,
 )
 from assquack._storage.sql import quote_identifier
 
@@ -65,22 +66,13 @@ class AzureAuthenticator:
 class CredentialChainAuth(AzureAuthenticator):
     inputs: dict[str, SecretStr]
 
-    def __post_init__(self) -> None:
-        if not self.chain:
-            raise ConfigurationError(
-                "Credential-chain authentication requires AZURE_TENANT_ID and "
-                "AZURE_CLIENT_ID plus AZURE_CLIENT_SECRET, "
-                "AZURE_CLIENT_CERTIFICATE_PATH, or AZURE_FEDERATED_TOKEN_FILE. "
-                "CLI and managed-identity fallback are disabled."
-            )
-
     @property
     def chain(self) -> str:
         return ";".join(
             dict.fromkeys(
                 method
                 for method, required in CHAIN_REQUIREMENTS
-                if all(name in self.inputs for name in required)
+                if has_required_inputs(self.inputs, (required,))
             )
         )
 

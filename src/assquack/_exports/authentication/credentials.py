@@ -1,6 +1,7 @@
 """Load explicit credentials independently of DuckDB authentication strategies."""
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from os import getenv
 from typing import Protocol
@@ -67,23 +68,6 @@ def load_provider(provider: CredentialProvider) -> None:
         raise ConfigurationError("Could not load export credentials.") from None
 
 
-def load_credentials(provider: CredentialProvider) -> AzureSasCredentials | None:
-    load_provider(provider)
-    try:
-        token = (provider.get("AZURE_STORAGE_SAS_TOKEN") or "").strip()
-        account = (provider.get("AZURE_STORAGE_ACCOUNT_NAME") or "").strip()
-    except Exception:
-        raise ConfigurationError("Could not load export credentials.") from None
-    if not token and not account:
-        return None
-    if not token or not account:
-        raise ConfigurationError(
-            "Azure SAS requires both AZURE_STORAGE_SAS_TOKEN and "
-            "AZURE_STORAGE_ACCOUNT_NAME."
-        )
-    return AzureSasCredentials(account, SecretStr(token.removeprefix("?")))
-
-
 CHAIN_ENVIRONMENT_NAMES = (
     "AZURE_TENANT_ID",
     "AZURE_CLIENT_ID",
@@ -104,13 +88,29 @@ CHAIN_REQUIREMENTS = (
 )
 
 
-def chain_environment(provider: CredentialProvider) -> dict[str, SecretStr]:
-    """Capture only documented chain inputs from an already loaded provider."""
+def has_required_inputs(
+    available_inputs: Mapping[str, SecretStr],
+    acceptable_input_combinations: tuple[tuple[str, ...], ...],
+) -> bool:
+    """Accept any complete combination of named inputs."""
+    return any(
+        all(name in available_inputs for name in combination)
+        for combination in acceptable_input_combinations
+    )
+
+
+def load_inputs(
+    provider: CredentialProvider, names: tuple[str, ...]
+) -> dict[str, SecretStr]:
+    """Load once and capture each requested nonblank input without exposing errors."""
+    if not names:
+        return {}
+    load_provider(provider)
     try:
         return {
             name: SecretStr(value)
-            for name in CHAIN_ENVIRONMENT_NAMES
-            if (value := provider.get(name))
+            for name in names
+            if (value := provider.get(name)) and value.strip()
         }
     except Exception:
-        raise ConfigurationError("Could not load credential-chain inputs.") from None
+        raise ConfigurationError("Could not load export credentials.") from None

@@ -215,7 +215,7 @@ def test_registry_duplicate_unknown_compatibility_and_isolation():
         preparation.select("synthetic://file")
     auth = default_authenticators()
     with pytest.raises(ValueError, match="already registered"):
-        auth.register("local", "auto", lambda _: LocalAuthenticator())
+        auth.register("local", "none", lambda _: LocalAuthenticator())
     with pytest.raises(ConfigurationError, match="Unsupported"):
         auth.select("local", "sas", SyntheticProvider())
     auth.register("local", "custom", lambda _: LocalAuthenticator())

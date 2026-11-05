@@ -28,9 +28,13 @@ has permission to write the export files. A plain `ASSQUACK_EXPORTS` string uses
 `auth="auto"`: the Azure credential chain uses the configured workload identity.
 Assquack does not create the identity or grant storage permissions.
 
-SAS is used only when a destination explicitly selects `auth="sas"`; SAS
-environment variables do not change `auto` authentication. This pod example
-needs no SAS token. Assquack reads the process environment, not a `.env` file.
+With `auto`, this complete workload-identity configuration takes priority over
+SAS. If chain configuration is absent or incomplete, `auto` can instead select
+SAS when both `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_SAS_TOKEN` are
+present. This pod example needs no SAS token. A destination can explicitly select
+`auth="credential_chain"` or `auth="sas"`; missing inputs fail rather than
+switching methods. Once selected, authentication failure also propagates without
+trying another strategy. Assquack reads the process environment, not a `.env` file.
 See [configuration](configuration.md#adls-credentials) for authentication options.
 
 ## 2. The downstream application defines its assets
@@ -157,7 +161,13 @@ that request and the config to `materialize()` in
 ## 5. The pipeline checks whether extraction is needed
 
 The pipeline resolves export destinations and qualifies the request's table with
-its configured database. `MetadataRepository` records the asset definition in
+its configured database. During resolution, the authentication registry loads
+credential inputs once and checks each strategy's registered input combinations.
+The complete pod workload-identity inputs select the credential chain. Assquack
+fingerprints the selected authentication configuration without storing raw
+credentials in metadata; DuckDB obtains the runtime token when exporting.
+
+`MetadataRepository` records the asset definition in
 `assquack_meta.assets`, recovers interrupted run records and prunes obsolete
 fragments.
 

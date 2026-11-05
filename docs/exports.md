@@ -303,9 +303,12 @@ COPY (
 For MVP, Assquack registers a temporary Azure secret on the export connection.
 Native `credential_chain` delegates runtime identity discovery to DuckDB's SDK;
 SAS uses the native `config` provider with an environment-supplied token.
-Azure `auth="auto"` uses the credential chain, including pod workload identity;
-it never reads SAS credentials. SAS requires explicit `auth="sas"`. Asset authors
-do not embed credentials in decorators. See [ADLS credentials](configuration.md#adls-credentials)
+Azure `auth="auto"` selects a complete credential chain first, including pod
+workload identity. If chain configuration is absent or incomplete, it selects a
+complete SAS pair. Explicit `credential_chain` or `sas` overrides that selection
+and fails if its required inputs are missing. A failure after selection never
+causes a switch to another strategy. Asset authors do not embed credentials in
+decorators. See [ADLS credentials](configuration.md#adls-credentials)
 for the implemented registration contract and deployment requirements.
 
 The MVP path is DuckDB table to native DuckDB `COPY` to the resolved export URI.

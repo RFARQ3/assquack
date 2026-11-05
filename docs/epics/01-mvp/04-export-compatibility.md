@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -24,8 +24,8 @@ Included:
 - `assquack_meta.exports` manifest rows for successful exports.
 - ADLS/ABFSS export path support through native DuckDB.
 - Azure credential-chain secret registration, with optional explicit chain selection.
-- SAS authentication from the environment pair only with explicit `auth="sas"`;
-  Azure `auto` uses the credential chain (Rowan amendment, 5 November).
+- Azure `auto` selects complete credential-chain inputs first, then a complete
+  SAS environment pair; explicit methods require their own inputs (6 November).
 
 Excluded:
 
@@ -148,7 +148,30 @@ decorator.
 - Sandbox blocked pytest temporary files and Pyright dependency discovery;
   those checks succeeded with escalation for offline local execution.
 
-## 5 November Authentication Selection Amendment
+## 6 November Authentication Input Selection Amendment
+
+Status: **Complete** for this amendment; the broader phase remains **In Progress**.
+Rowan approved replacing the 5 November policy below.
+Each authentication registration declares acceptable input combinations and any
+optional inputs. Shared `has_required_inputs(available_inputs,
+acceptable_input_combinations)` requires every input in one combination and
+accepts any complete combination. Registry order gives the credential chain
+priority over SAS. Explicit methods use the same check and report required inputs
+without switching methods. Selected authentication failure never tries another
+strategy. Provider loading and each input read happen once per resolution;
+strategy-specific SAS validity checks, redaction, fingerprints and credential
+lifetime remain intact. Local `auto`/`none` do not load credentials.
+
+Offline validation covers priority, explicit overrides, missing/partial inputs,
+chain alternatives, one provider load, no runtime failover, local exports and
+existing credential lifetime and redaction behavior. All 176 scoped offline tests
+pass. Ruff lint/format, Markdown links and whitespace checks pass. Pyright reports
+no changed-file errors; its seven existing errors remain in untouched files. The
+walkthrough identifies Kubernetes as downstream infrastructure, not a core dependency.
+No live Azure services, credentials or token files were accessed.
+
+## 5 November Authentication Selection Amendment (superseded)
+
 
 Azure `auto` now selects the existing credential-chain factory and never reads
 the SAS pair. Explicit `sas` retains its existing validation and registration.

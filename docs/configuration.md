@@ -347,20 +347,28 @@ The `auth` field selects a registered compatible authenticator:
 | Destination | Choice | Behavior |
 | --- | --- | --- |
 | Local/file | `auto` or `none` | No authentication or credential loading. |
-| Azure | `auto` | Use the validated environment credential chain; never read or select SAS credentials. |
+| Azure | `auto` | Select a complete environment credential chain first; otherwise select a complete SAS pair. |
 | Azure | `sas` | Require a complete valid SAS pair. |
 | Azure | `credential_chain` | Load and fingerprint supported environment inputs; require one complete method. |
 
-Unknown or incompatible choices fail when the destination is used. Registry
-instances are isolated per destination and reject duplicate registrations.
+Unknown or incompatible choices fail when the destination is used. Each strategy
+registration declares acceptable input combinations: every input in one combination
+is required, and any complete combination is sufficient. Automatic and explicit
+selection use the same presence check. An explicit choice with missing inputs
+fails with the required combinations; it never selects a different method. Once
+authentication is selected, a validation or authentication failure propagates
+without trying another strategy. Registry instances are isolated per destination
+and reject duplicate registrations.
 The destination's public fields remain `base_uri` and `auth`; the earlier
 `azure_chain` and `azure_account_name` settings are not retained. The chain is restricted to supported environment-based methods. Use a fully qualified URI for
 credential-chain authentication. SAS can supply the account for a short URI.
 
 ### SAS Credential Provider And Selection
 
-Only with explicit `auth="sas"`, `FileSystemDestination.resolve()` reads each
-required SAS value once for the operation, before cache lookup:
+`FileSystemDestination.resolve()` loads the provider once and reads each candidate
+input once before cache lookup. Azure `auto` considers the credential chain first,
+then SAS if no chain input combination is complete. Explicit `sas` reads only its
+own inputs:
 
 | Process variable | Value |
 | --- | --- |
@@ -400,7 +408,9 @@ Tenant ID and client ID are required alongside at least one of:
 When both environment and workload methods are configured, DuckDB receives
 `CHAIN 'env;workload_identity'`. Within `env`, the Azure SDK prefers a client
 secret over a certificate. Authority host is optional. Missing inputs raise a
-configuration error before export; CLI and managed-identity fallback are disabled.
+configuration error before export for explicit `credential_chain`; `auto` may
+select SAS instead when its pair is complete. CLI and managed-identity fallback
+are disabled.
 The deployment supplies these same settings to DuckDB's process environment.
 The provider snapshot identifies the configuration; DuckDB still reads its
 runtime environment and obtains tokens when executing the export. No process

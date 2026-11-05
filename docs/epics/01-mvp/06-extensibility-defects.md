@@ -1,7 +1,7 @@
 # MVP Extensibility Defects
 
 Status: **In Progress**
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 Epic: 01 MVP
 Phase: 06
 Related docs: [Scope journal](../../journal/2026-09-08-mvp-scope.md), [Roadmap](../../roadmap.md), [Export compatibility](04-export-compatibility.md)
@@ -166,9 +166,15 @@ The synthetic registered-authenticator regression exercises this without an
 [AuthenticationRegistry](../../../src/assquack/_exports/authentication/registry.py)
 selects factories by preparation kind and authentication name. Supplied choices
 are local `auto`/`none` and Azure `auto`/`sas`/`credential_chain`. Automatic Azure
-selection uses the credential chain and never reads SAS values (5 November
-amendment); SAS requires explicit `auth="sas"`. Native identity
-selection loads and validates the environment credential inputs. Unknown/incompatible names fail;
+selection prefers a complete credential-chain configuration, then a complete SAS
+pair (6 November amendment). Each registration declares its acceptable input
+combinations and optional inputs. Shared `has_required_inputs(available_inputs,
+acceptable_input_combinations)` checks every input in a combination and accepts
+any complete combination for both automatic and explicit selection. Inputs load
+once per resolution; explicit choices never switch strategies, and selected
+authentication failures do not fall through to another strategy. SAS syntax
+validation stays with its credentials. Native identity selection captures the
+supported environment inputs. Unknown/incompatible names fail;
 duplicate registration fails; each filesystem destination owns its registries.
 
 The authenticator context owns temporary-secret registration and cleanup.

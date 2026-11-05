@@ -10,7 +10,6 @@ from assquack._errors import ConfigurationError, ExportError
 from assquack._exports.authentication.azure import CredentialChainAuth, SasAuth
 from assquack._exports.authentication.credentials import (
     EnvironmentCredentialProvider,
-    load_credentials,
 )
 from assquack._exports.authentication.registry import default_authenticators
 from assquack._exports.preparation.azure import AzurePreparationStrategy
@@ -55,7 +54,7 @@ def environment(monkeypatch):
     ],
 )
 @pytest.mark.parametrize("method", ["auto", "credential_chain"])
-def test_chain_does_not_read_sas_values(token, account, method):
+def test_complete_chain_wins_over_any_sas_configuration(token, account, method):
     values = {
         "AZURE_STORAGE_SAS_TOKEN": token,
         "AZURE_STORAGE_ACCOUNT_NAME": account,
@@ -68,8 +67,10 @@ def test_chain_does_not_read_sas_values(token, account, method):
     assert isinstance(select_azure_auth(method, provider), CredentialChainAuth)
     provider.load.assert_awaited_once()
     requested = [call.args[0] for call in provider.get.call_args_list]
-    assert "AZURE_STORAGE_SAS_TOKEN" not in requested
-    assert "AZURE_STORAGE_ACCOUNT_NAME" not in requested
+    assert len(requested) == len(set(requested))
+    if method == "credential_chain":
+        assert "AZURE_STORAGE_SAS_TOKEN" not in requested
+        assert "AZURE_STORAGE_ACCOUNT_NAME" not in requested
 
 
 def test_explicit_chain_requires_environment_inputs():
@@ -101,7 +102,7 @@ def test_invalid_sas_is_rejected_without_disclosure(token, environment):
         AZURE_STORAGE_ACCOUNT_NAME="exampleaccount", AZURE_STORAGE_SAS_TOKEN=token
     )
     with pytest.raises(ConfigurationError) as error:
-        load_credentials(EnvironmentCredentialProvider())
+        select_azure_auth("sas", EnvironmentCredentialProvider())
     assert token not in str(error.value)
 
 
@@ -206,5 +207,5 @@ def test_invalid_account_is_rejected_without_disclosure(account, environment):
         AZURE_STORAGE_ACCOUNT_NAME=account, AZURE_STORAGE_SAS_TOKEN="sig=fake"
     )
     with pytest.raises(ConfigurationError) as error:
-        load_credentials(EnvironmentCredentialProvider())
+        select_azure_auth("sas", EnvironmentCredentialProvider())
     assert account not in str(error.value)
