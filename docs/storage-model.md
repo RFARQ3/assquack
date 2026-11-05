@@ -236,9 +236,9 @@ database location. Use object storage for:
 
 `assquack_meta.exports` records each exported artifact with its run, asset, logical
 URI, resolved URI, destination fingerprint, role, format, row count, optional byte count/hash, options,
-and creation timestamp. DuckDB's Azure extension should be the first choice for
-`abfss://` reads and writes when available. A filesystem fallback can be added
-only where DuckDB's native integration cannot satisfy the deployment target.
+and creation timestamp. DuckDB is the export writer, using its Azure extension
+for `abfss://` targets. A replacement filesystem writer is outside the current
+scope.
 
 ## Future Shared Storage
 

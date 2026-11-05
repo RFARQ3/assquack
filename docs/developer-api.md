@@ -160,10 +160,9 @@ and export base URI belong to Assquack configuration and deployment.
 
 ## Calling Assets
 
-Calling a decorated asset executes the materialization lifecycle. The call may
-be sync or async depending on the implementation and the wrapped function, but
-the expected result concept is the same: a successful call returns an
-`AssquackResult`.
+Calling a decorated asset executes the materialization lifecycle and must be
+awaited: `result = await orders()`. The wrapped producer may be synchronous or
+asynchronous; a successful awaited call returns an `AssquackResult`.
 
 `AssquackResult` represents the latest materialized table for that asset and
 should provide:

@@ -80,20 +80,26 @@ def largest_record_bytes(paths: Sequence[str]) -> int:
     """Count serialized bytes without retaining a whole record in memory."""
     largest = 0
     for path in paths:
-        pending = 0
+        record_bytes_so_far = 0
         previous_byte = b""
         with Path(path).open("rb") as fragment:
+            # A record can span buffers. Carry its byte count into the next
+            # buffer, and exclude a carriage return only just before a newline.
             while chunk := fragment.read(_SCAN_BUFFER_BYTES):
-                start = 0
-                while (end := chunk.find(b"\n", start)) >= 0:
-                    length = pending + end - start
-                    last_byte = chunk[end - 1 : end] if end > start else previous_byte
+                segment_start = 0
+                while (newline_index := chunk.find(b"\n", segment_start)) >= 0:
+                    length = record_bytes_so_far + newline_index - segment_start
+                    last_byte = (
+                        chunk[newline_index - 1 : newline_index]
+                        if newline_index > segment_start
+                        else previous_byte
+                    )
                     largest = max(largest, length - (last_byte == b"\r"))
-                    pending = 0
+                    record_bytes_so_far = 0
                     previous_byte = b""
-                    start = end + 1
-                pending += len(chunk) - start
-                if start < len(chunk):
+                    segment_start = newline_index + 1
+                record_bytes_so_far += len(chunk) - segment_start
+                if segment_start < len(chunk):
                     previous_byte = chunk[-1:]
-        largest = max(largest, pending)
+        largest = max(largest, record_bytes_so_far)
     return largest

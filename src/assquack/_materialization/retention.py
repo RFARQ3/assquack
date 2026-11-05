@@ -19,7 +19,7 @@ _FRAGMENT_FILE = re.compile(
 def prune_fragments(
     metadata: MetadataRepository, root: Path, asset_id: str, asset_name: str
 ) -> None:
-    """Best-effort retention under the writer lock; never change a run's outcome."""
+    """Prune under the shared connection lock without changing a run's outcome."""
 
     try:
         obsolete = metadata.find_obsolete_fragment_runs(asset_id)

@@ -76,7 +76,7 @@ class AssetTemplateFormatter:
         allow_partial: bool,
     ) -> str:
         if allow_partial:
-            return template.format_map(_SafeFormatDict(self._format_kwargs))
+            return template.format_map(_PartialFormatArguments(self._format_kwargs))
 
         try:
             return template.format(*self._format_args, **self._format_kwargs)
@@ -93,6 +93,8 @@ class AssetTemplateFormatter:
         bound_arguments: inspect.BoundArguments,
     ) -> dict[str, Any]:
         format_kwargs = dict(bound_arguments.arguments)
+        # Direct arguments take precedence. Nested assets fill missing names;
+        # the first nested value found for each name wins.
         nested_values: dict[str, Any] = {}
         seen_assets: set[int] = set()
 
@@ -131,7 +133,7 @@ class AssetTemplateFormatter:
             )
 
 
-class _SafeFormatDict(dict[str, Any]):
+class _PartialFormatArguments(dict[str, Any]):
     """Dictionary that leaves missing template keys unresolved."""
 
     def __missing__(self, key: str) -> str:

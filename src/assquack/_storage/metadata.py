@@ -85,7 +85,7 @@ class MetadataRepository:
     def recover_interrupted_runs(
         self, asset_id: str, active_run_ids: tuple[str, ...] = ()
     ) -> None:
-        """Mark abandoned attempts failed while holding the database writer lock."""
+        """Mark abandoned attempts failed while holding the shared connection lock."""
 
         self._connection.execute(
             f"""
@@ -100,6 +100,8 @@ class MetadataRepository:
     def find_obsolete_fragment_runs(self, asset_id: str) -> list[str]:
         """Select completed attempts outside retention using catalog chronology."""
 
+        # Keep the latest successful extraction and the latest three failures.
+        # Order successes by publication time and failures by start time.
         rows = self._connection.execute(
             f"""
             SELECT run_id FROM (

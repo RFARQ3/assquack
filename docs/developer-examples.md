@@ -36,7 +36,8 @@ DuckDB database at `./assquack.duckdb`. `ASSQUACK_HOME` or
 
 ## File Type Aliases
 
-The export target can be a path or a file type alias.
+The export target can be a path or a file type alias. In the sketches below,
+`rows` stands for records supplied by your source.
 
 ```python
 @asset(table="bronze.orders", export="bronze/orders.parquet")
@@ -62,6 +63,7 @@ provided.
 
 Table is required. Name, mode, and export are optional. In the MVP,
 `mode` defaults to `"replace"` and no other mode is part of the public contract.
+This sketch uses `rows` for records supplied by your source.
 
 ```python
 @asset(
@@ -91,6 +93,8 @@ rows = await acme_orders.query("SELECT * FROM data WHERE amount > 100")
 ```
 
 ## Semi-Structured Payloads
+
+This sketch uses `api_pages()` for your source-specific API reader.
 
 ```python
 @asset(table="raw.events", export="raw/vendor/events.parquet")

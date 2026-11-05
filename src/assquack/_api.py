@@ -211,7 +211,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
 
         formatter = AssetTemplateFormatter(bound.args, bound)
         asset_name = formatter.format(templates.name or templates.table)
-        table_override = formatter.format(templates.table)
+        resolved_table_name = formatter.format(templates.table)
         export = _format_export(templates.export, formatter)
 
         identity_payload = {
@@ -226,7 +226,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
             separators=(",", ":"),
         )
         asset_id = hashlib.sha256(canonical_identity.encode()).hexdigest()
-        table = _resolve_table(table_override, asset_name)
+        table = _resolve_table(resolved_table_name, asset_name)
 
         return MaterializationRequest(
             fn=self.fn,

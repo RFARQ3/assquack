@@ -29,11 +29,10 @@ Assquack is not a Prefect library, a Prefect fork, or a wrapper around Prefect
 blocks. The MAD.Prefect codebase is reference material for migration research
 only.
 
-Assquack is also not a filesystem-fragment asset runtime. It should not persist
-large raw JSON dumps, CSV shards, or intermediate file fragments merely so
-DuckDB can infer schema later. Files remain useful for source reads, Parquet
-exports, compatibility snapshots, backups, and lake integration, but the MVP
-stores asset state in DuckDB.
+Assquack uses bounded local NDJSON fragments for capture, current-run schema
+inference, and retained diagnostic evidence. These fragments are working files;
+the published DuckDB tables and metadata are the source of truth. Files also
+serve as source inputs, compatibility exports, and backups.
 
 Assquack is not a shared database server in the MVP. It starts with embedded
 DuckDB and a local writable `.duckdb` file, then evaluates shared-write options
@@ -65,9 +64,10 @@ the primary state model.
 ## MVP Stance
 
 The MVP uses embedded DuckDB, in process, with a configured local `.duckdb` file
-as the first write target. It enforces one writer per database path, allows
-readers after materialization completes, and implements `replace` materialization
-before adding incremental modes.
+as the first write target. Assquack operations share one process-lifetime DuckDB
+connection and its lock. Source capture runs outside that lock; publication and
+Assquack queries use it. The MVP implements `replace` materialization before
+adding incremental modes.
 
 Initial scope should focus on:
 
@@ -75,7 +75,7 @@ Initial scope should focus on:
 - DuckDB connection, locking, transactions, and metadata tables;
 - `@asset` with a table-first contract and optional keyword export aliases;
 - bounded local NDJSON evidence and shaped candidate tables;
-- conservative schema observation across runs;
+- schema inference from the current run, with `VARIANT` for heterogeneous fields;
 - transactional replacement of the current table;
 - `.query()`, `cache_first()`, and existence checks;
 - Parquet export compatibility.
@@ -90,8 +90,8 @@ Assquack, not the other way around.
   design philosophy.
 - [Materialization Lifecycle](materialization-lifecycle.md): how a decorated
   function becomes a DuckDB table.
-- [Schema Inference](schema-inference.md): why raw `VARIANT` evidence is core to
-  the asset model.
+- [Schema Inference](schema-inference.md): how current-run fragments become typed
+  columns, with `VARIANT` used selectively for heterogeneous fields.
 - [Storage Model](storage-model.md): where source-of-truth tables and metadata
   live.
 - [Configuration](configuration.md): how database paths, DuckDB settings, and
