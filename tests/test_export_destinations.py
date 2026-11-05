@@ -86,12 +86,12 @@ def test_injected_async_provider_used_by_both_paths(
     async def run():
         result = await orders(assquack_config=config)
         if explicit and running_loop:
-            result.export_parquet()
+            result.export(destination)
         return result
 
     result = asyncio.run(run())
     if explicit and not running_loop:
-        result.export_parquet()
+        result.export(destination)
     assert provider.loads == 1
     assert provider.requested == [
         "AZURE_STORAGE_SAS_TOKEN",
@@ -203,7 +203,7 @@ def test_registered_preparation_and_auth_use_shared_writer(tmp_path):
     )
     assert events == ["enter", "exit"]
     assert output.read_bytes().startswith(b"PAR1")
-    result.export_parquet()
+    result.export(destination)
     assert events == ["enter", "exit", "enter", "exit"]
 
 
@@ -227,7 +227,7 @@ class SyntheticDestination(ExportDestination):
     _written: list[str] = PrivateAttr(default_factory=list)
 
     def resolve(
-        self, export: str | Mapping[str, str], *, asset_name: str
+        self, export: str | Mapping[str, str] | None, *, asset_name: str
     ) -> tuple[ExportTarget, ...]:
         # A non-file destination is free to interpret the declaration itself.
         return (
@@ -258,22 +258,24 @@ def test_generic_destination_does_not_require_file_formats(tmp_path):
         return [{"id": 1}]
 
     config = AssquackConfig(home=tmp_path, exports=destination)
-    asyncio.run(orders(assquack_config=config))
+    result = asyncio.run(orders(assquack_config=config))
     assert destination._written == ["record:orders"]
+    assert result.export(destination) == "record:orders"
+    assert destination._written == ["record:orders", "record:orders"]
     assert asyncio.run(orders.cache_first()(assquack_config=config)).cached
     with inspect_database(config) as db:
         assert db.execute("SELECT format FROM assquack_meta.exports").fetchall() == [
-            ("record",)
+            ("record",),
+            ("record",),
         ]
 
 
-@pytest.mark.parametrize("explicit", [False, True])
 def test_partial_multi_destination_failure_records_only_completed_outputs(
-    tmp_path, monkeypatch, explicit
+    tmp_path, monkeypatch
 ):
     from assquack._exports.writer.file import DuckDBFileWriter
 
-    @asset(table="main.orders", export=None if explicit else "orders.parquet")
+    @asset(table="main.orders", export="orders.parquet")
     def orders():
         return [{"id": 1}]
 
@@ -293,10 +295,8 @@ def test_partial_multi_destination_failure_records_only_completed_outputs(
 
     monkeypatch.setattr(DuckDBFileWriter, "write", fail_second)
     with pytest.raises(ValueError, match="synthetic output failure"):
-        result = asyncio.run(orders(assquack_config=config))
-        if explicit:
-            result.export_parquet()
-    filename = "main.orders.parquet" if explicit else "orders.parquet"
+        asyncio.run(orders(assquack_config=config))
+    filename = "orders.parquet"
     with inspect_database(config) as db:
         assert db.execute(
             "SELECT resolved_uri FROM assquack_meta.exports"
@@ -304,9 +304,7 @@ def test_partial_multi_destination_failure_records_only_completed_outputs(
         assert db.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
     assert not (tmp_path / "c" / filename).exists()
     monkeypatch.setattr(DuckDBFileWriter, "write", original)
-    result = asyncio.run(orders(assquack_config=config))
-    if explicit:
-        result.export_parquet()
+    asyncio.run(orders(assquack_config=config))
     assert (tmp_path / "c" / filename).exists()
 
 
@@ -349,7 +347,7 @@ def test_each_destination_uses_its_own_provider(tmp_path, intercepted_connection
 def test_filesystem_mapping_is_present_in_json_schema():
     schema = AssquackConfig.model_json_schema()
     fields = schema["$defs"]["FileSystemDestination"]["properties"]
-    assert set(fields) == {"base_uri", "auth"}
+    assert set(fields) == {"base_uri", "auth", "path", "format"}
 
 
 @pytest.mark.parametrize(

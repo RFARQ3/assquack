@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-10-30
+Last updated: 2026-11-04
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -217,7 +217,8 @@ The local MAD.Prefect `data_artifact.py` reference establishes NDJSON for JSON a
 one CSV header without an index. Synthetic tests decode actual output bytes,
 exercise nulls, Unicode, quoted multiline text and empty tables, and intercept
 Azure COPY/secret setup without contacting Azure. Custom options are rejected;
-`export_parquet()` remains a single-format convenience API.
+The then-current `export_parquet()` convenience API is superseded by the
+[4 November redesign](#destination-driven-manual-exports-4-november-2026).
 
 The [27 October scope decision](../../journal/2026-09-08-mvp-scope.md#duckdb-only-export-boundaries-27-october-2026)
 drops writer/adapter replacement registration. Destination composition,
@@ -310,3 +311,40 @@ direct-value precedence and `exports=[]` remain supported. Regression tests in
 those existing forms. Focused config/export tests: **47 passed** on DuckDB 1.5.6.
 The configuration fix is complete; the overall phase remains In Progress for
 its unrelated outstanding work. See [configuration usage](../../configuration.md#exports).
+
+## Destination-driven manual exports — 4 November 2026
+
+Status: **In Progress**. Implements DF-005 and the approved result API redesign.
+The [manual contract](../../exports.md#manual-exports) defines deterministic
+path/format defaults before implementation. Add optional declaration resolution
+for destination-owned targets, and typed filesystem `path`/`format` fields.
+Automatic declarations remain authoritative; `None` still disables automatic
+exports at the pipeline boundary. Keep destination fingerprints tied to effective
+automatic configuration rather than unused manual defaults.
+
+Move ordered writes, cache skips and manifest recording into `_exports`, alongside
+manual coordination. Results delegate to that module. Remove only the redundant
+manual writer file lock; retain `database_operation` connection coordination.
+Do not add a compatibility shim or database exporter. Prove generic destinations,
+all local formats, synthetic Azure auth, partial failures, retries and cleanup.
+DF-002 publication/provenance and cache identity remain separate, unresolved work.
+
+Implementation and offline checks are complete; visible paired review is pending.
+The broader phase remains **In Progress** for its existing acceptance items.
+
+- Final export/publication/config/cache selection: **189 passed**.
+- Full offline suite before updating one moved-helper test: **448 passed,
+  8 skipped, 2 failed**. The moved-helper failure passes in the final selection.
+  The remaining unrelated failure requires missing NumPy; skips require missing
+  optional pandas/PyArrow dependencies.
+- Changed-file Pyright: **0 errors**. Full Pyright reports seven existing errors
+  in untouched `_api.py`, `_query/asset.py` and `_templates.py`.
+- Ruff lint/format, documentation links and `git diff --check`: passed.
+  Terminology scan retains only existing historical references.
+- Synthetic provenance probe confirms DF-002 is unchanged: two current rows are
+  exported while the older result records its original one-row manifest.
+- Azure auth/writes were intercepted with synthetic values. No live credentials,
+  customer systems, `.env`, branch changes, commits or pushes were used.
+- Windows sandbox pytest temp-directory permissions required an approved offline
+  escalated run. Evidence and commands are in the local review handoff under
+  `.tmp/result-export-implementation/`.

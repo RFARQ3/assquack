@@ -103,6 +103,22 @@ uses DuckDB's native JSON reader to infer the combined shape and build typed
 columns. Genuinely heterogeneous fields can remain `VARIANT`. Fragment placement
 and sizing are runtime configuration, not decorator arguments.
 
+## Manual Export Destinations
+
+```python
+from assquack import FileSystemDestination
+
+result = await orders()
+result.export("inspection/orders.csv|json")
+result.export(FileSystemDestination(base_uri="./reports", path="orders", format="csv"))
+result.export("abfss://account.dfs.core.windows.net/lake/orders.parquet")
+```
+
+Strings use automatic authentication; local paths need no credentials. Azure
+requires the configured environment inputs described in
+[ADLS credentials](configuration.md#adls-credentials). Objects supply their own
+settings. See [manual exports](exports.md#manual-exports) for defaults.
+
 ## Related Docs
 
 - [Developer API](developer-api.md): the full public API contract behind these

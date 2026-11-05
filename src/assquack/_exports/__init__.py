@@ -21,25 +21,24 @@ def resolve_exports(
     operation_destinations: list[ExportDestination] = []
     seen: dict[str, str] = {}
     try:
-        if export is not None:
-            for configured in destinations:
-                destination = configured.model_copy()
-                destination._release()  # pyright: ignore[reportPrivateUsage]
-                operation_destinations.append(destination)
-                for target in destination.resolve(export, asset_name=asset_name):
-                    path = target.resolved_uri
-                    fingerprint = target.destination_fingerprint
-                    if not fingerprint:
-                        raise ExportError(
-                            "Resolved destinations must supply a fingerprint."
-                        )
-                    if path in seen and seen[path] != fingerprint:
-                        raise ExportError(
-                            "Different destination configurations resolve "
-                            "to the same write path."
-                        )
-                    seen[path] = fingerprint
-                    resolved.append((destination, target))
+        for configured in destinations:
+            destination = configured.model_copy()
+            destination._release()  # pyright: ignore[reportPrivateUsage]
+            operation_destinations.append(destination)
+            for target in destination.resolve(export, asset_name=asset_name):
+                path = target.resolved_uri
+                fingerprint = target.destination_fingerprint
+                if not fingerprint:
+                    raise ExportError(
+                        "Resolved destinations must supply a fingerprint."
+                    )
+                if path in seen and seen[path] != fingerprint:
+                    raise ExportError(
+                        "Different destination configurations resolve "
+                        "to the same write path."
+                    )
+                seen[path] = fingerprint
+                resolved.append((destination, target))
         yield tuple(resolved)
     finally:
         for destination in operation_destinations:

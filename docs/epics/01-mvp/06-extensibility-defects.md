@@ -1,7 +1,7 @@
 # MVP Extensibility Defects
 
 Status: **In Progress**
-Last updated: 2026-10-29
+Last updated: 2026-11-04
 Epic: 01 MVP
 Phase: 06
 Related docs: [Scope journal](../../journal/2026-09-08-mvp-scope.md), [Roadmap](../../roadmap.md), [Export compatibility](04-export-compatibility.md)
@@ -230,9 +230,10 @@ the same write path only when fingerprints differ. No remote alias detection is
 performed. The fingerprint describes the destination, not each output format/path.
 
 Destinations execute in configuration order, each in format declaration order.
-`export_parquet()` keeps Parquet-only semantics, returning a string for one output
-or a list for multiple outputs. With no configured destinations it uses the
-default local base and automatic authentication. Unsupported old configuration
+The 4 November [manual export redesign](../../exports.md#manual-exports)
+replaces the earlier Parquet-only method with `result.export(destination)`.
+It returns a string for one output or a list for multiple outputs and uses the
+supplied destination independently of automatic export configuration. Unsupported old configuration
 fields are removed/rejected rather than silently accepted.
 
 ### Resolve/export follow-through — environment chain decision implemented

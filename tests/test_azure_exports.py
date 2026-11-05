@@ -72,7 +72,7 @@ def test_short_azure_uri_requires_sas_account(scheme) -> None:
 
 
 @pytest.mark.parametrize("explicit", [False, True])
-@pytest.mark.parametrize("auth", ["credential_chain", "sas"])
+@pytest.mark.parametrize("auth", ["credential_chain", "sas", "auto"])
 @pytest.mark.parametrize("failure", [None, "CREATE TEMPORARY", "COPY"])
 def test_actual_export_connection_lifecycle_and_manifest(
     tmp_path: Path,
@@ -122,7 +122,16 @@ def test_actual_export_connection_lifecycle_and_manifest(
     def run():
         result = asyncio.run(orders(assquack_config=config))
         if explicit:
-            assert result.export_parquet(URI) == URI
+            assert (
+                result.export(
+                    URI
+                    if auth == "auto"
+                    else FileSystemDestination(
+                        base_uri=URI.rsplit("/", 1)[0], path="orders.parquet", auth=auth
+                    )
+                )
+                == URI
+            )
 
     if failure is None:
         run()
@@ -183,7 +192,7 @@ def test_local_exports_do_not_register_azure_and_failed_refresh_preserves_file(
     with pytest.raises(ValueError, match="extraction failed"):
         asyncio.run(orders(assquack_config=config))
     assert output.read_bytes() == original
-    assert result.export_parquet(str(tmp_path / "O'Brien.parquet"))
+    assert result.export(str(tmp_path / "O'Brien.parquet"))
 
 
 def test_database_setup_failure_does_not_close_default_connection(

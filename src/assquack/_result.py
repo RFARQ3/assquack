@@ -8,11 +8,10 @@ import duckdb
 
 from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
-from assquack._exports import resolve_exports
-from assquack._exports.destinations import FileSystemDestination
+from assquack._exports.destinations import ExportDestination
+from assquack._exports.operations import export_result
 from assquack._query import execute_query, query_dataframe
 from assquack._storage.database import database_catalog, database_operation
-from assquack._storage.locking import writer_lock
 from assquack._storage.metadata import MetadataRepository
 from assquack._storage.tables import TableReference
 
@@ -48,39 +47,6 @@ class AssquackResult:
                 table=replace(self.table, catalog_name=database_catalog(self.config)),
             )
 
-    def export_parquet(self, path: str | None = None) -> str | list[str]:
-        """Export to configured destinations, or the default local base if disabled."""
-        destinations = self.config.export_destinations or [
-            FileSystemDestination(base_uri=str(self.config.home / "exports"))
-        ]
-        with resolve_exports(
-            {"uri": path or "parquet", "format": "parquet"},
-            self.asset_name,
-            destinations,
-        ) as exports:
-            with (
-                writer_lock(self.config.resolved_database_path),
-                database_operation(self.config) as connection,
-            ):
-                for destination, target in exports:
-                    destination.export(
-                        connection,
-                        replace(self.table, catalog_name=database_catalog(self.config)),
-                        target,
-                    )
-                    MetadataRepository(
-                        connection, database_catalog(self.config)
-                    ).record_export(
-                        run_id=self.run_id,
-                        asset_id=self.asset_id,
-                        alias=target.alias,
-                        uri=target.logical_uri,
-                        resolved_uri=target.resolved_uri,
-                        destination_fingerprint=target.destination_fingerprint,
-                        row_count=self.row_count,
-                        format_name=target.format,
-                        role=target.role,
-                        options=target.options,
-                    )
-            uris = [target.resolved_uri for _, target in exports]
-            return uris[0] if len(uris) == 1 else uris
+    def export(self, destination: str | ExportDestination) -> str | list[str]:
+        """Export the current table to a path or destination-owned target."""
+        return export_result(self, destination)

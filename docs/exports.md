@@ -34,6 +34,41 @@ flowchart LR
   Writer --> Manifest[Successful export metadata]
 ```
 
+## Manual Exports
+
+`result.export(destination: str | ExportDestination)` requires one destination.
+A string is filesystem shorthand with `auth="auto"`, independent of configured
+automatic destinations. Relative paths and `mad://` aliases resolve under
+`<home>/exports`; absolute local paths, file URIs and supported Azure URIs keep
+their own location. Local paths need no credentials; Azure uses the existing
+automatic authentication selection. No argument-free export is provided.
+
+Strings use the same parser as automatic declarations: a suffix selects Parquet,
+CSV or JSON, an extensionless path defaults to Parquet, and a format-only string
+uses the asset name. Pipes request ordered formats, for example `orders.csv|json`.
+
+`FileSystemDestination(base_uri="./out", path="orders", format="csv")` supplies
+its own manual target and authentication settings. `base_uri` is a directory/root;
+`path` is an optional declaration relative to it (absolute paths override it).
+Without `path`, the output is `<asset_name>.<format>`, defaulting to Parquet.
+Without `format`, the path parser infers the format, defaulting to Parquet.
+An explicit `format` must agree with a format alias or suffix and cannot accompany
+pipes. Supported format values are `parquet`, `csv` and `json`. For automatic
+exports the asset declaration takes precedence over these manual defaults.
+
+Destination implementations accept `resolve(None, asset_name=...)` to select
+their own manual target. A concrete automatic declaration is passed unchanged.
+The coordinator does not impose file formats on other destination types.
+Both entry points share ordered writing and successful-manifest recording.
+Manual exports always write; automatic cache retries skip completed outputs.
+The return value is one resolved URI string, or an ordered list for multiple
+outputs. An explicit export works when automatic exports are disabled.
+
+Results remain live table references. The existing DF-002 limitation remains:
+a retained result can export newer rows while recording its original run and row
+count. This redesign does not establish current-publication identity; see the
+[repository finding](reviews/2026-11-04-repository-review.md).
+
 ## Why Destinations Need Fingerprints
 
 Assquack keeps asset metadata and materialized tables in DuckDB, independently
@@ -238,8 +273,7 @@ duplicate formats, unsupported suffixes, multiple base paths, and conflicting
 structured `format`/suffix combinations before extraction. With `exports=[]`,
 automatic export declarations are not resolved or validated. A structured target supplies one format; it cannot also use pipes.
 An extensionless path uses Parquet unless its structured `format` selects CSV or
-JSON. `result.export_parquet()` requests one Parquet target per destination; it
-returns a URI for one output or a list for multiple outputs.
+JSON. Manual exports use the same parser; see [Manual Exports](#manual-exports).
 
 ## ADLS And ABFSS Exports
 
@@ -283,7 +317,7 @@ connection-string input remain outside this scope.
 
 The shared DuckDB file writer supports all three formats with local/file paths and `abfss://`, `az://`, and `azure://`
 URIs, including aliases resolved against an Azure destination base. Other remote
-schemes remain unsupported. Automatic exports and `result.export_parquet()`
+schemes remain unsupported. Automatic exports and `result.export(...)`
 register temporary credential-chain or SAS authentication on the actual COPY connection;
 see [ADLS credentials](configuration.md#adls-credentials) for all configuration.
 
@@ -358,8 +392,7 @@ CSV `header: true` and JSON `array: false`; Parquet uses native defaults.
 
 Destinations run in configuration order, with formats in declaration order within
 each destination. With `exports=[]`, no automatic output or export-manifest cache
-requirement is added. Explicit exports still use the configured destinations or
-the default local base as described in [Configuration](configuration.md#exports).
+requirement is added. Manual exports use the destination supplied to `result.export(...)`.
 
 Outputs are written in that order. If one fails, the call raises and
 stops exporting. Earlier completed outputs and their manifests remain; the failed

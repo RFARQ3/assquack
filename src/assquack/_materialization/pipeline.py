@@ -9,13 +9,10 @@ from decimal import Decimal
 from math import ceil
 from time import perf_counter
 
-import duckdb
-
 from assquack._cache import find_cached_run
 from assquack._config import AssquackConfig
 from assquack._exports import resolve_exports
-from assquack._exports.destinations import ExportDestination
-from assquack._exports.models import ExportTarget
+from assquack._exports.operations import write_exports
 from assquack._materialization.commit import commit_strategy
 from assquack._materialization.fragments import (
     NDJSONFragmentWriter,
@@ -54,7 +51,9 @@ async def materialize(
     started = perf_counter()
     strategy = commit_strategy(request.mode)
     with resolve_exports(
-        request.export, request.asset_name, config.export_destinations
+        request.export,
+        request.asset_name,
+        config.export_destinations if request.export is not None else [],
     ) as exports:
         with database_operation(config) as connection:
             catalog = database_catalog(config)
@@ -95,11 +94,12 @@ async def materialize(
                     expiration=request.cache_expiration,
                 )
                 if cached is not None:
-                    _write_exports(
+                    write_exports(
                         connection,
                         metadata,
-                        request,
+                        request.table,
                         exports,
+                        asset_id=request.asset_id,
                         run_id=cached.run_id,
                         row_count=cached.row_count,
                         skip_completed=True,
@@ -189,11 +189,12 @@ async def materialize(
                     request.asset_id,
                     request.asset_name,
                 )
-                _write_exports(
+                write_exports(
                     connection,
                     metadata,
-                    request,
+                    request.table,
                     exports,
+                    asset_id=request.asset_id,
                     run_id=run_id,
                     row_count=row_count,
                 )
@@ -231,35 +232,4 @@ async def materialize(
             run_id=run_id,
             table=request.table,
             row_count=row_count,
-        )
-
-
-def _write_exports(
-    connection: duckdb.DuckDBPyConnection,
-    metadata: MetadataRepository,
-    request: MaterializationRequest,
-    exports: tuple[tuple[ExportDestination, ExportTarget], ...],
-    *,
-    run_id: str,
-    row_count: int,
-    skip_completed: bool = False,
-) -> None:
-    """Record each successful output so retries preserve partial progress."""
-    for destination, target in exports:
-        if skip_completed and metadata.has_export(
-            run_id, target.resolved_uri, target.destination_fingerprint
-        ):
-            continue
-        destination.export(connection, request.table, target)
-        metadata.record_export(
-            run_id=run_id,
-            asset_id=request.asset_id,
-            alias=target.alias,
-            uri=target.logical_uri,
-            resolved_uri=target.resolved_uri,
-            destination_fingerprint=target.destination_fingerprint,
-            row_count=row_count,
-            format_name=target.format,
-            role=target.role,
-            options=target.options,
         )

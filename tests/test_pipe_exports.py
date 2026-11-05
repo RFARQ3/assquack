@@ -231,18 +231,18 @@ def test_all_formats_use_azure_auth_and_native_copy(
         assert calls[-1].args[0].startswith("DROP TEMPORARY SECRET")
 
 
-def test_file_uri_and_explicit_parquet_validation(tmp_path: Path) -> None:
+def test_file_uri_and_explicit_export_validation(tmp_path: Path) -> None:
     @asset(table="main.orders")
     def orders():
         return [{"id": 1}]
 
     result = asyncio.run(orders(assquack_config=AssquackConfig(home=tmp_path)))
     path = tmp_path / "space and quote's.parquet"
-    assert result.export_parquet(path.as_uri()) == str(path)
+    assert result.export(path.as_uri()) == str(path)
     assert path.read_bytes().startswith(b"PAR1")
-    for invalid in ("orders.csv", "parquet|csv"):
+    for invalid in ("orders.txt", "parquet|parquet"):
         with pytest.raises(ExportError):
-            result.export_parquet(invalid)
+            result.export(invalid)
 
 
 def test_empty_extraction_writes_all_formats(tmp_path: Path) -> None:

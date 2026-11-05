@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
+from typing import Literal
 
 import duckdb
 from pydantic import Field, PrivateAttr
@@ -38,6 +39,8 @@ class FileSystemDestination(ExportDestination):
 
     base_uri: str = Field(min_length=1)
     auth: str = "auto"
+    path: str | None = None
+    format: Literal["parquet", "csv", "json"] | None = None
     _preparations: PreparationRegistry = PrivateAttr(
         default_factory=default_preparations
     )
@@ -49,11 +52,17 @@ class FileSystemDestination(ExportDestination):
     )
 
     def resolve(
-        self, export: str | Mapping[str, str], *, asset_name: str
+        self, export: str | Mapping[str, str] | None, *, asset_name: str
     ) -> tuple[ExportTarget, ...]:
         self._release()
         authentication: Authenticator | None = None
         try:
+            if export is None:
+                export = (
+                    self.path if self.path is not None else self.format or "parquet"
+                )
+                if self.format is not None:
+                    export = {"uri": export, "format": self.format}
             targets = parse_export_targets(
                 export, asset_name=asset_name, base_uri=self.base_uri
             )
@@ -96,7 +105,9 @@ class FileSystemDestination(ExportDestination):
 
     def _resolved_configuration(self) -> dict[str, object]:
         """Normalize the destination base independently of individual output paths."""
-        configuration = self.model_dump()
+        # Output declarations are identified by their resolved URI, not by the
+        # destination fingerprint. Manual defaults do not affect automatic exports.
+        configuration = self.model_dump(exclude={"path", "format"})
         if "://" not in self.base_uri:
             configuration["base_uri"] = str(Path(self.base_uri).resolve())
         return configuration

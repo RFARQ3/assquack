@@ -318,13 +318,13 @@ variables are not interpreted. There are no `enabled`, `default_format`,
 `snapshot_runs`, `options`, writer or adapter selectors. Unknown destination
 fields fail validation. Snapshots and custom COPY options remain unsupported.
 
-`result.export_parquet(path=None)` explicitly exports even with `exports=[]`.
-It uses every configured destination, or a filesystem destination based at
-`<home>/exports` with automatic authentication when none is
-configured. It returns one URI string for one output and an ordered list of URI
-strings for multiple outputs. A concrete path with multiple destinations can
-collide and is rejected; use relative paths to address each base. The convenience
-method requests Parquet only and rejects pipe syntax or conflicting suffixes.
+`result.export(destination)` explicitly exports even with `exports=[]`.
+It uses the supplied string or destination object independently of automatic
+export configuration. Strings use `auth="auto"` and resolve relative to
+`<home>/exports`. Filesystem objects provide `base_uri`, `auth`, and optional
+manual `path`/`format` defaults. Automatic asset declarations override those
+manual defaults. See [manual exports](exports.md#manual-exports) for complete
+path, format and return-value semantics.
 
 ## ADLS Credentials
 

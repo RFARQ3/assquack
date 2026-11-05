@@ -21,7 +21,7 @@ def test_empty_destinations_skip_exports_and_allow_cache(tmp_path: Path) -> None
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             0,
         )
-    assert result.export_parquet() == str(tmp_path / "exports/main.groups.parquet")
+    assert result.export("parquet") == str(tmp_path / "exports/main.groups.parquet")
 
 
 def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) -> None:
@@ -59,9 +59,9 @@ def test_multi_destination_formats_manifests_cache_and_explicit(tmp_path: Path) 
         assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
             6,
         )
-    assert result.export_parquet("manual.parquet") == [
-        str(tmp_path / name / "manual.parquet") for name in ("a", "b")
-    ]
+    assert result.export("manual.parquet") == str(tmp_path / "exports/manual.parquet")
+    assert not (tmp_path / "a/manual.parquet").exists()
+    assert not (tmp_path / "b/manual.parquet").exists()
 
 
 @pytest.mark.parametrize("file_uri", [False, True])

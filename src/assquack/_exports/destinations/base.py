@@ -30,8 +30,10 @@ class ExportDestination(BaseModel, ABC):
 
     @abstractmethod
     def resolve(
-        self, export: str | Mapping[str, str], *, asset_name: str
-    ) -> tuple[ExportTarget, ...]: ...
+        self, export: str | Mapping[str, str] | None, *, asset_name: str
+    ) -> tuple[ExportTarget, ...]:
+        """Resolve an automatic declaration, or destination defaults when None."""
+        ...
 
     def _capture_resolution(
         self,
