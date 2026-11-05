@@ -70,6 +70,12 @@ the topic links that match the work in front of you.
 
 ## Implementation Tracking
 
+- [Repository review — 4 November 2026](reviews/2026-11-04-repository-review.md):
+  readability-first review, adjudicated correctness findings, minimal remedies,
+  and repository coverage.
+- [Design review remit](reviews/design-review-remit.md): review assignment for API
+  consistency, responsibility boundaries, simplicity and requirement preservation;
+  findings first, without implementation changes.
 - [Default connection and direct fragment writing](epics/01-mvp/07-default-connection.md):
   named database attachments on the shared DuckDB default connection, native
   query results, direct fragment capture and validation evidence.
