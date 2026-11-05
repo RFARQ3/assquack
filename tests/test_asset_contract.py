@@ -84,7 +84,7 @@ def test_positional_table_materializes_without_export(tmp_path: Path) -> None:
     orders = asset("sales.orders")(source)
     result = asyncio.run(orders(assquack_config=AssquackConfig(home=tmp_path)))
     assert orders.export is None
-    assert asyncio.run(result.query("SELECT region FROM data")).fetchall() == [("au",)]
+    assert asyncio.run(result.query("SELECT region")).fetchall() == [("au",)]
 
 
 def test_default_name_tracks_table_templates_and_execution(tmp_path: Path) -> None:

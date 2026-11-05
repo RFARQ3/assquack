@@ -115,7 +115,7 @@ caller's SQL fragment on top.
 
 Assquack should preserve the parts that make MAD.Prefect assets pleasant to use:
 
-- A path-first decorator where `@asset("bronze/orders.parquet")` is enough for a
+- A path-first decorator where `@asset("bronze.orders")` is enough for a
   simple asset.
 - A decorated object with direct execution and `.query(...)`.
 - `cache_first(...)` as a readable way to express "reuse the latest successful
@@ -188,16 +188,18 @@ The key changes are:
 - Keep ADLS, Parquet, CSV, and `mad://` style paths as export or compatibility
   concerns rather than the primary storage model.
 
-In practice, an Assquack asset should still feel familiar:
+In practice, an Assquack asset should still feel familiar. This sketch follows
+the [approved FROM-first contract](developer-api.md#from-first-result-queries),
+implemented by the asset and result query methods:
 
 ```python
 from assquack import asset
 
-@asset("bronze/orders.parquet")
+@asset("bronze.orders")
 async def orders():
     yield [{"id": 1, "status": "open"}]
 
-result = await orders.cache_first().query("SELECT * FROM data")
+result = await orders.cache_first().query("SELECT *")
 ```
 
 But the runtime should insert batches into DuckDB staging, update Assquack

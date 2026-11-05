@@ -79,18 +79,91 @@ locking belong to Assquack configuration and deployment.
 
 ## Querying
 
+Assquack supplies the result's fully qualified source table. See the
+[query contract](developer-api.md#from-first-result-queries).
+
 ```python
 artifact = await orders()
-relation = await orders.query("SELECT count(*) FROM data")
+# No prior orders() call is needed: query() materializes the asset using its cache policy.
+relation = await orders.query("SELECT count(*)")
 cached = orders.cache_first()
 ```
 
-Bound arguments keep path-template ergonomics:
+Bound arguments also resolve table templates. Each customer writes to its own
+table; this example writes to `sales.orders_acme`:
 
 ```python
-acme_orders = orders.with_arguments(customer="acme")
-rows = await acme_orders.query("SELECT * FROM data WHERE amount > 100")
+from assquack import asset
+
+
+@asset("sales.orders_{customer}")
+def customer_orders(customer: str):
+    return [{"customer": customer, "amount": 125.0}]
+
+
+acme_orders = customer_orders.with_arguments(customer="acme")
+rows = await acme_orders.query("SELECT * WHERE amount > 100")
 ```
+
+## Composing queries
+
+Both avenues below produce the same totals. Assume `orders` contains
+`order_date`, `customer_id` and `amount`. First select January's orders:
+
+```python
+january_orders = await orders.query("""
+    SELECT *
+    WHERE order_date >= DATE '2026-01-01'
+      AND order_date < DATE '2026-02-01'
+""")
+```
+
+### SQL references the Python variable
+
+```python
+import duckdb
+
+totals = duckdb.query("""
+    SELECT customer_id, sum(amount) AS total
+    FROM january_orders
+    GROUP BY customer_id
+""")
+print(totals.fetchall())
+```
+
+DuckDB looks up `january_orders` by its Python variable name; no alias argument
+is needed. A linter sees only a string, so if that is the variable's only use,
+it can report it as unused. Ruff's `F841` applies to local variables inside
+functions; it does not flag module-level assignments. Other tools may differ.
+Developers choosing this avenue can decide how to handle their lint warning.
+
+### Python calls the relation directly
+
+```python
+totals = january_orders.query(
+    "january_orders",
+    """
+    SELECT customer_id, sum(amount) AS total
+    FROM january_orders
+    GROUP BY customer_id
+    """,
+)
+print(totals.fetchall())
+```
+
+The method call visibly uses the Python variable, so that assignment does not
+trigger an unused-variable warning. DuckDB requires the extra alias argument;
+the SQL uses that alias. It need not match the Python variable name, but matching
+it here keeps the example easy to follow. This is native `DuckDBPyRelation.query`,
+not Assquack's asset/result method.
+
+Choosing between these avenues belongs to the downstream developer. Assquack
+requires neither lint suppression nor an extra wrapper. Both compose lazy
+relations; the `fetchall()` calls execute them. For a leading `WITH` statement,
+use either native avenue to build a complete SQL query over the initial relation.
+
+References: [DuckDB relations](https://duckdb.org/docs/1.5/clients/python/relational_api),
+[Ruff unused variables](https://docs.astral.sh/ruff/rules/unused-variable/).
 
 ## Semi-Structured Payloads
 
@@ -170,12 +243,12 @@ For an existing database without an asset invocation, attach explicitly:
 
 ```python
 people.attach()
-rows = await assquack.query("SELECT id FROM people.hr.employees WHERE id = ?", [1])
+rows = duckdb.query("SELECT id FROM people.hr.employees WHERE id = ?", params=[1])
 
-# Short names are allowed when people is the only attached user database.
-same_rows = await assquack.query("SELECT id FROM hr.employees WHERE id = ?", [1])
+# people was attached first, so it remains the default.
+same_rows = duckdb.query("SELECT id FROM hr.employees WHERE id = ?", params=[1])
 ```
 
-Both queries return native relations. With multiple user databases attached,
-use `people.hr.employees`; config scopes do not override that rule. See the
+Both queries return native relations. DuckDB resolves short names through its
+default database and search path, even with multiple attachments. See the
 [query contract](developer-api.md#general-database-queries) for lazy-result lifetime.

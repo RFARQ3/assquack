@@ -44,7 +44,8 @@ def test_export_json_environment_forms_remain_supported(monkeypatch, value, expe
     monkeypatch.setenv("ASSQUACK_EXPORTS", value)
     destinations = AssquackConfig().export_destinations
     assert [destination.model_dump() for destination in destinations] == [
-        {"base_uri": path, "auth": auth} for path, auth in expected
+        {"base_uri": path, "auth": auth, "path": None, "format": None}
+        for path, auth in expected
     ]
 
 
@@ -54,6 +55,8 @@ def test_export_path_override_and_destination_instances(monkeypatch):
     assert config.export_destinations[0].model_dump() == {
         "base_uri": "./direct",
         "auth": "auto",
+        "path": None,
+        "format": None,
     }
     destination = FileSystemDestination(base_uri="./instance", auth="none")
     assert AssquackConfig(exports=destination).export_destinations[0] is destination
@@ -97,6 +100,8 @@ def test_process_environment_populates_the_full_config_tree(
     assert config.export_destinations[0].model_dump() == {
         "base_uri": "./exports",
         "auth": "auto",
+        "path": None,
+        "format": None,
     }
 
 

@@ -70,20 +70,27 @@ for resets, chaining and dependency behavior.
 
 ## Core Paths
 
-General queries accept `table` and `schema.table` when exactly one user database
-is attached. Multiple user attachments require `database.schema.table`, regardless
-of config scope or asset write destination. System, temp and default memory
-catalogs do not count. Environment configuration still attaches its database when
-needed. No query switches the connection's current database.
+General queries use `duckdb.query` directly. DuckDB owns table and function-name
+resolution through its default database and search path, regardless of how many
+databases are attached. See the [query contract](developer-api.md#general-database-queries).
 
-```mermaid
-flowchart LR
-  Count[Attached user databases] --> Zero[Zero: native resolution]
-  Count --> One[One: table or schema.table allowed]
-  Count --> Many[Multiple: database.schema.table required]
+Setting `ASSQUACK_HOME` or `ASSQUACK_DATABASE_PATH` in the process environment
+before `import assquack` requests database initialization at import. Assquack
+opens or creates the file, initializes its metadata, and selects it as DuckDB's
+default so `duckdb.query` works immediately. Presence of either variable is the
+trigger, including an empty value; set a concrete path for predictable placement.
+`ASSQUACK_ATTACHMENT_NAME`, DuckDB resource settings, ingestion settings and
+exports alone do not trigger initialization. Without a placement variable,
+import leaves DuckDB's in-memory default and creates no Assquack disk database.
+No `.env` file is read.
+
+```python
+# Set ASSQUACK_HOME or ASSQUACK_DATABASE_PATH in the process before this import.
+import assquack
+import duckdb
+
+rows = duckdb.query("SELECT count(*) FROM assquack_meta.assets")
 ```
-
-See the [query contract](developer-api.md#general-database-queries).
 
 `ASSQUACK_HOME` is the base local directory for Assquack runtime state. When it
 is not set, Assquack uses the process's current working directory:
@@ -106,8 +113,8 @@ For example, with no environment overrides:
 
 `database_path` is configuration-level state. It is not an asset decorator
 argument, and asset authors should not choose database placement for the common
-case. Multiple database files can be introduced later through configuration, but
-the MVP should keep one resolved database path per configured Assquack runtime.
+case. Each config resolves one database path as its write destination. Multiple
+configs can attach their databases under distinct names on the shared engine.
 
 The default fragment directory is `<database-directory>/fragments`. It stays
 local and does not follow the asset's export destination.
@@ -220,17 +227,18 @@ people = AssquackConfig(home=Path("./people"), attachment_name="people")
 people.attach()  # synchronous; no-op when the same attachment already exists
 ```
 
-Constructing configs and decorating assets do not open databases or create paths.
-Materialization, asset queries and existence checks attach their effective config
-on first use. An environment-selected default attaches when first needed by
-Assquack. Other configs must call `.attach()` before general querying, including
-inside `use_config`. Manual attachment creates a missing database but does not
-create Assquack metadata; asset use bootstraps metadata in its own destination.
+Constructing configs and decorating assets are lazy. `config.attach()` initializes
+metadata and creates a missing database; materialization, result queries and
+existence checks also initialize their effective configuration on first use.
+The first successful attachment becomes DuckDB's default database. Later
+attachments never replace that selection, even if the application subsequently
+uses native `USE` or `SET search_path`. An asset's config still selects its write
+destination; it does not change the database used by general SQL inside its source.
 
-The automatic and manual routes share one registry on DuckDB's actual default
-connection. Afterwards `people.hr.employees` works in both `duckdb.query()` and
-`await assquack.query()`. Attachments and the connection persist for the process
-lifetime. Do not close, replace or detach them while Assquack is using them.
+The automatic import and explicit Python routes use the same shared DuckDB
+connection. Afterwards `people.hr.employees` works in `duckdb.query()`; short
+names follow DuckDB's current default/search path. Attachments persist for the
+process lifetime. Do not close, replace or detach them while Assquack uses them.
 
 ## DuckDB Settings
 

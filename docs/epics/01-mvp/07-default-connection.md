@@ -1,71 +1,110 @@
 # Default connection and direct fragment writing
 
 Status: **Complete**
-Last updated: 2026-11-03
+Last updated: 2026-11-05
 Epic: 01 MVP
 Phase: 07
 Related docs: [Developer API](../../developer-api.md), [Configuration](../../configuration.md), [Storage](../../storage-model.md)
 
-## Approved outcome
+## Native DuckDB query direction (5 November 2026)
 
-Final resolution rule approved 3 November 2026: one attached user database allows
-`table` or `schema.table`; multiple user databases require `database.schema.table`
-for physical references regardless of selected config. Internal/default memory
-catalogs do not count. CTEs, Python replacement scans and asset `data` remain
-statement-local. This supersedes the earlier scoped precedence and shorthand
-rules below. Recursive anchors must bind before the recursive name is visible.
+The approved simplification supersedes every earlier SQL qualification and
+function-value rule recorded below. Delete the custom qualifier, parser/serializer
+normalization, general `assquack.query` API and task-local `use_config` machinery.
+DuckDB resolves developer SQL and parameters unchanged, using its default catalog
+and search path. No special multi-database or function-value rules remain.
 
-Use DuckDB's actual default connection for native query results, direct JSON
-capture and publication. Preserve per-asset configuration and multiple database
-destinations. This approved direction supersedes the earlier single-database
-proposal in this file. Implementation is authorised; no commits or live tests.
+Import initializes and selects the configured database when `ASSQUACK_HOME` or
+`ASSQUACK_DATABASE_PATH` is present in the process environment. Attachment names,
+resource settings and export settings alone do not create a disk database.
+Python configs remain lazy until attach or asset use. The first Assquack setup
+selects the default once; later attachments preserve native USE/search_path choices.
+Manual attach and environment initialization bootstrap Assquack metadata.
 
-Both asset and general queries return `DuckDBPyRelation`. Two results, including
-results from different configured databases, compose through Python variables in
-`duckdb.query()`. Native methods keep their native signatures. No wrapper,
-temporary Parquet transport or task-specific default connection is involved.
+Result queries follow the FROM-first decision below, return native relations and
+accept bound parameters. Asset queries execute the asset's normal cache policy
+and then delegate to result queries. Do not reinstate SQL rewriting.
 
-## Implementation decisions
+Namely moves general reads to `duckdb.query` and retains its Python config and
+explicit attach demonstration. Its selection/publication business logic stays
+unchanged. No dependency publication or pin changes belong to this task.
 
-- Expose `attachment_name` (default `assquack`) and synchronous `config.attach()`.
-  Register matching names/paths idempotently; reject alias/path conflicts.
-  Config creation and decoration perform no I/O. First asset use auto-attaches;
-  otherwise attach explicitly before fully qualified SQL.
-  Fully qualify asset, staging and metadata tables with that destination.
-- Keep one process-lifetime default connection. Never close it after an operation.
-  External callers must not replace or close it while Assquack is active.
-- The first configuration establishes engine threads, memory and temporary
-  directory. Later conflicting explicit engine settings fail; omitted settings inherit
-  the established engine values. Preserve explicit field tracking. Destinations,
-  fragment sizing/locations, schema policy and exports remain per-config.
-- Serialize complete synchronous database operations and publication transactions.
-  Never await user code inside a transaction or hold a database lock across source
-  execution. Track active capture runs so nested/concurrent calls do not recover
-  live runs as abandoned. A transaction writes one destination database only.
-- Capture native relations with direct JSON COPY on the default connection.
-  Foreign-connection relations fail with an actionable error. pandas and Arrow
-  inputs create native relations on the default connection directly.
-- Empty input registers no data fragments. Empty COPY output is deleted during
-  capture; `_COMPLETE` is a control marker, not a data fragment.
-- General query SQL is trusted application SQL. SELECT validation is not a
-  security sandbox. No long-lived read-only transaction or snapshot is promised.
-- Arbitrary direct multi-threaded use of DuckDB's global connection is unsupported;
-  the Assquack lock cannot coordinate external calls that bypass it.
+## FROM-first decision (5 November 2026)
+
+Rowan explicitly chose to depart from Maitland's original MVP `FROM data` design.
+A shared alias introduces collisions and silent native name precedence. Instead,
+Assquack supplies `FROM "database"."schema"."table"` for the known result table,
+followed by the caller's SQL unchanged. This follows MAD.Prefect's omitted-FROM
+usage while replacing its Python source reference with a qualified physical table.
+No alias binding, registration, collision guard, SQL parser or qualification layer
+belongs in this implementation.
+
+The contract supports omitted SQL and native bound parameters. Full SQL, including
+a leading CTE, belongs in native DuckDB queries over the returned relation.
+Document both Python-name lookup through `duckdb.query` (possible unused-variable
+warnings) and `relation.query(alias, sql)` (explicit Python use, extra alias
+argument). The downstream developer chooses; lint suppression is not mandatory.
+
+Implementation resumed on 5 November in the visible worker/reviewer chats.
+Source, tests and downstream examples now omit `FROM data`.
+Earlier test evidence below does not validate this new contract. Fresh validation
+and review are recorded under `.tmp/from-first-query`.
+
+## FROM-first implementation validation (5 November 2026)
+
+The helper prefixes the quoted physical source and appends SQL unchanged, using
+native positional or named parameters. Omitted SQL returns a lazy native relation.
+No custom SQL qualification, serialization, general query or config scope remains.
+Namely's five affected asset/result query strings were updated in three files;
+business logic, lint policy, dependency pins and publication remain unchanged.
+
+- Full offline suite: **393 passed, no skips**, Python 3.11 / DuckDB 1.5.6.
+- Namely synthetic report history: **12 passed**.
+- Ruff lint/format, Markdown links and diff whitespace pass.
+- Pyright: **five baseline diagnostics**, freshly reproduced against HEAD.
+- Test-only runner uses ordinary scratch directories because pytest's temporary
+  directory ACLs fail in this Windows sandbox. Its Windows spawn guard was fixed
+  before the successful full run. No runtime workaround was introduced.
+- Independent review approved with no actionable findings or unresolved tradeoffs.
+  Its fresh full suite passed **393 tests** and Namely passed **12 tests**.
+- Shared evidence: `.tmp/from-first-query`, including `review.md` and
+  `decisions-needed.md`. Phase completed 5 November 2026.
+
+## Earlier validation checkpoint (before the FROM-first decision)
+
+Native-default/API/downstream changes are implemented. Result alias collision
+policy remains reserved for user mediation, so this phase is not complete.
+A scratch candidate using Python replacement binding plus a native lookup guard
+passed 383 offline tests with DuckDB 1.5.6, followed by 17 focused native-default
+and alias tests. The guarded collision policy is proposed, not approved or applied.
+The actual result query seam remains unfinished pending that decision.
+All 12 synthetic Namely history tests passed with the local scratch source;
+no live systems or dependency pin changes were used.
+
+Current lint/format, doc links and whitespace checks pass for Assquack. Candidate
+Pyright has the same seven diagnostics as the captured baseline in the same
+environment (five API/template issues and two existing url2pathname deprecation
+reports). Namely lint retains native-SQL variable false positives and its existing
+broad exception-handler warning; its two touched Python files pass formatting.
+
+## Implementation boundaries
+
+Keep named attachments, engine-setting conflict checks, canonical asset tables,
+publication transactions, direct fragment capture, exports and retention.
+Asset, staging and metadata SQL still uses generated qualified identifiers; this
+is internal storage SQL, not rewriting developer SQL.
+
+No hidden agents, live systems, credentials, branch/worktree changes or commits.
+The implementation and independent review are in the visible worker/reviewer pair.
 
 ## Validation
 
-Cover native replacement scans, cross-catalog joins, per-destination metadata,
-rollback, cancellation, nested async generators and child tasks, lazy lifetimes,
-settings conflicts, decimals, empty inputs, recombination, exports and retention.
-Run the full offline suite, lint, typing, doc links and whitespace checks.
-
-The [capture report](../../../benchmarks/capture-20261102-report.md) and
-[methodology](../../../benchmarks/capture-20261102-methodology.md) already contain
-the full benchmark matrix. Direct capture and historical parent
-`5ab0e2192422b3bce3df58fd860d5c6dd4ba5007` were effectively tied (median relative
-speed difference 0.4%); the Parquet bridge was worse and corrupted decimals.
-All 48 empty checks passed. Do not rerun the long matrix or claim the default
-connection is inherently faster than historical direct capture.
+Cover import-time synthetic environment setup and reopen, resource-only imports,
+first/default attachment behavior, native USE/search_path, native function values,
+qualified FROM-first sources and parameters, both native composition avenues,
+lazy results, cross-database composition, cache
+policy and the synthetic Namely report-history suite. Run offline tests, lint,
+format, type, doc links and whitespace checks. Keep baseline limitations explicit.
 
 ## Earlier review and completion
 

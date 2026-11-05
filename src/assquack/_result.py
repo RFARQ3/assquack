@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -31,7 +31,7 @@ class AssquackResult:
     async def query(
         self,
         sql: str | None = None,
-        params: Sequence[object] | None = None,
+        params: Sequence[object] | Mapping[str, object] | None = None,
     ) -> duckdb.DuckDBPyRelation:
         return execute_query(self.config, self.table, sql, params)
 

@@ -1,12 +1,41 @@
 # Query And Cache
 
 Status: **In Progress**
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 Epic: 01 MVP
 Phase: 03
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Storage Model](../../storage-model.md)
 
+## Current native-query direction
+
+The 5 November decision removes `assquack.query`, `use_config` and all custom
+SQL qualification. Native `duckdb.query` uses the selected default/search path.
+Result and asset queries omit the caller's source `FROM` clause. Assquack prefixes
+the result's fully qualified physical table and appends the supplied SQL unchanged,
+with native parameter binding and no `data` alias. Asset queries still execute
+their normal cache policy. The approved contract is implemented and independently reviewed: both full
+offline suites passed 393 tests and both Namely history runs passed 12 tests.
+No actionable findings or unresolved tradeoffs remain for this query change.
+The wider phase remains In Progress for unrelated work. This supersedes the historical
+query designs below. Implementation and validation are tracked in
+[default connection](07-default-connection.md#native-duckdb-query-direction-5-november-2026).
+
 ## Intent
+
+Readability follow-up, 4 November 2026: clarify query helper names and comments,
+argument formatting, JSON byte counting, retention descriptions, and current
+developer documentation. Preserve query resolution, compact expressions, source
+capture, publication and export behavior. This is the behavior-preserving portion
+of the [repository review](../../reviews/2026-11-04-repository-review.md); storage
+identity, structural deletions, public settings and export-worker overlaps remain
+separate assessments. The phase remains In Progress for its existing work.
+
+Readability validation: 449 offline tests passed, 8 optional-input cases skipped,
+and the existing NumPy-dependent capture test failed because NumPy is absent.
+The corrected customer-binding example passed with synthetic rows. Targeted
+Ruff lint/format, documentation links, normalized Python AST comparison and diff
+whitespace checks passed. Targeted Pyright retains the five reviewed API/template
+diagnostics. No dependencies or runtime behavior were changed.
 
 Follow-up, 4 November 2026: remove `validate_select` and all three call sites,
 including the pre-extraction check. Remove tests enforcing that restriction.

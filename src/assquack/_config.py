@@ -109,10 +109,10 @@ class AssquackConfig(_ProcessSettings):
         return value
 
     def attach(self) -> None:
-        """Attach this destination to DuckDB's default connection for SQL use."""
-        from assquack._storage.database import connect_database
+        """Initialize this destination; the first attachment becomes the default."""
+        from assquack._storage.database import open_database
 
-        connect_database(self)
+        open_database(self)
 
     @field_validator("exports", mode="before")
     @classmethod

@@ -118,15 +118,15 @@ def test_config_precedence_execution_query_exists_and_clear(
     asyncio.run(rows())
     assert rows.exists() and not rows.exists(assquack_config=override)
     asyncio.run(rows(assquack_config=override))
-    assert asyncio.run(rows.query("SELECT value FROM data")).fetchall() == [(1,)]
+    assert asyncio.run(rows.query("SELECT value")).fetchall() == [(1,)]
     assert asyncio.run(
-        rows.query("SELECT value FROM data", assquack_config=override)
+        rows.query("SELECT value", assquack_config=override)
     ).fetchall() == [(2,)]
     assert asyncio.run(rows()).cached
     cleared = rows.with_options(config=None)
     assert not cleared.exists()
     asyncio.run(cleared())
-    assert asyncio.run(cleared.query("SELECT value FROM data")).fetchall() == [(3,)]
+    assert asyncio.run(cleared.query("SELECT value")).fetchall() == [(3,)]
     assert rows.config is attached
     assert asyncio.run(rows.with_options(config=override)()).cached
     assert calls == 3
@@ -164,7 +164,7 @@ def test_nested_returned_assets_use_parent_override(tmp_path: Path):
         return child
 
     result = asyncio.run(parent(assquack_config=override))
-    assert asyncio.run(result.query("SELECT id FROM data")).fetchall() == [(7,)]
+    assert asyncio.run(result.query("SELECT id")).fetchall() == [(7,)]
     assert child.exists(assquack_config=override)
     assert not child_config.resolved_database_path.exists()
     assert not parent_config.resolved_database_path.exists()
@@ -182,5 +182,5 @@ def test_direct_nested_calls_use_their_attached_shared_config(tmp_path: Path):
         return await child.cache_first()()
 
     result = asyncio.run(parent())
-    assert asyncio.run(result.query("SELECT id FROM data")).fetchall() == [(9,)]
+    assert asyncio.run(result.query("SELECT id")).fetchall() == [(9,)]
     assert child.exists() and parent.exists()

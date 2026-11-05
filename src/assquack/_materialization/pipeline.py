@@ -30,7 +30,6 @@ from assquack._materialization.staging import (
     create_shaped_staging,
     drop_shaped_staging,
 )
-from assquack._query import query_context
 from assquack._result import AssquackResult
 from assquack._storage.database import database_catalog, database_operation
 from assquack._storage.metadata import MetadataRepository
@@ -142,11 +141,10 @@ async def materialize(
 
             # No transaction or lock spans user code, including async generators.
             # Nested assets can publish before this source resumes capture.
-            with query_context(config):
-                value = request.fn(*request.arguments, **request.keyword_arguments)
-                if inspect.isawaitable(value):
-                    value = await value
-                row_count = await write_fragments(value, fragment_writer, config)
+            value = request.fn(*request.arguments, **request.keyword_arguments)
+            if inspect.isawaitable(value):
+                value = await value
+            row_count = await write_fragments(value, fragment_writer, config)
             fragments = fragment_writer.finish()
 
             # Everything from inference through exports is synchronous. Other

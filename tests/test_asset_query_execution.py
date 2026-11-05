@@ -4,7 +4,6 @@ from datetime import timedelta
 import duckdb
 import pytest
 
-import assquack
 from assquack import AssquackConfig, asset
 from database_helpers import inspect_database
 
@@ -21,7 +20,7 @@ def test_first_query_runs_bound_asset_with_override_and_native_chaining(tmp_path
 
     bound = source.with_arguments(target="rows", value=7)
     rows = asyncio.run(
-        bound.query("SELECT id FROM data WHERE id = ?", [7], assquack_config=override)
+        bound.query("SELECT id WHERE id = ?", [7], assquack_config=override)
     )
     assert isinstance(rows, duckdb.DuckDBPyRelation)
     assert duckdb.sql("SELECT id + 1 FROM rows").fetchall() == [(8,)]
@@ -74,11 +73,11 @@ def test_snapshot_query_materializes_missing_base_then_publishes(tmp_path):
 
     @asset("main.snapshot", config=config)
     async def snapshot():
-        return await base.query("SELECT id FROM data WHERE id = ?", [2])
+        return await base.query("SELECT id WHERE id = ?", [2])
 
     assert not config.resolved_database_path.exists()
     result = asyncio.run(snapshot())
-    assert asyncio.run(result.query("SELECT id FROM data")).fetchall() == [(2,)]
+    assert asyncio.run(result.query("SELECT id")).fetchall() == [(2,)]
     assert calls == 1
     with inspect_database(config) as connection:
         assert connection.sql("SELECT id FROM main.base ORDER BY id").fetchall() == [
@@ -105,6 +104,6 @@ def test_source_failure_propagates_and_read_queries_do_not_extract(tmp_path):
     published = asyncio.run(source())
     with pytest.raises(RuntimeError, match="source failed"):
         asyncio.run(source.query())
-    assert asyncio.run(published.query("SELECT id FROM data")).fetchall() == [(7,)]
-    assert asyncio.run(assquack.query("SELECT id FROM main.rows")).fetchall() == [(7,)]
+    assert asyncio.run(published.query("SELECT id")).fetchall() == [(7,)]
+    assert duckdb.query("SELECT id FROM main.rows").fetchall() == [(7,)]
     assert calls == 2

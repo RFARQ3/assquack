@@ -48,7 +48,9 @@ assquack:
     base_uri: abfss://lake/exports/assquack
 ```
 
-The current-working-directory default requires no runtime configuration.
+Asset use or explicit `config.attach()` creates this default without extra
+configuration. Import alone creates no disk database unless `ASSQUACK_HOME` or
+`ASSQUACK_DATABASE_PATH` is present; see [initialization](configuration.md#core-paths).
 Deployments must provide writable paths for any configured database home and
 DuckDB temp directory. Database placement is not part of the asset identity API.
 

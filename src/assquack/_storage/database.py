@@ -29,6 +29,7 @@ _connection: duckdb.DuckDBPyConnection | None = None
 _settings: _EngineSettings | None = None
 _catalogs: dict[str, str] = {}
 _bootstrapped: set[str] = set()
+_default_selected = False
 
 
 def default_connection() -> duckdb.DuckDBPyConnection:
@@ -48,17 +49,9 @@ def database_catalog(config: AssquackConfig) -> str:
     return existing if existing and identifier_key(existing) == requested else requested
 
 
-def is_attached(config: AssquackConfig) -> bool:
-    path = os.path.normcase(str(config.resolved_database_path.resolve()))
-    with CONNECTION_LOCK:
-        return identifier_key(_catalogs.get(path, "")) == identifier_key(
-            config.attachment_name
-        )
-
-
 def connect_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
     """Attach a destination once. The caller must never close the shared connection."""
-    global _connection, _settings
+    global _connection, _settings, _default_selected
     with CONNECTION_LOCK:
         connection = default_connection()
         requested = _EngineSettings(
@@ -76,8 +69,6 @@ def connect_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
             connection.execute(
                 f"SET temp_directory TO {quote_literal(str(requested.temp_directory))}"
             )
-            # Native replacement scans must see the caller of our async query API.
-            connection.execute("SET python_scan_all_frames = true")
             for extension in requested.extensions:
                 connection.execute(f"LOAD {quote_identifier(extension)}")
             _settings = requested
@@ -122,18 +113,25 @@ def connect_database(config: AssquackConfig) -> duckdb.DuckDBPyConnection:
                         "by another database."
                     )
                 _catalogs[path] = name
-                return connection
+                break
             if same_path:
                 raise ValueError(
                     f"Database is already attached as {name!r}; "
                     "use that attachment_name."
                 )
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-        connection.execute(
-            f"ATTACH {quote_literal(path)} AS {quote_identifier(catalog)} "
-            f"(STORAGE_VERSION {quote_literal(ASSQUACK_STORAGE_VERSION)})"
-        )
-        _catalogs[path] = catalog
+        else:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            connection.execute(
+                f"ATTACH {quote_literal(path)} AS {quote_identifier(catalog)} "
+                f"(STORAGE_VERSION {quote_literal(ASSQUACK_STORAGE_VERSION)})"
+            )
+            _catalogs[path] = catalog
+
+        # Select only the first Assquack destination. Later calls must preserve
+        # the application's own USE or search_path choices.
+        if not _default_selected:
+            connection.execute(f"USE {quote_identifier(catalog)}")
+            _default_selected = True
         return connection
 
 

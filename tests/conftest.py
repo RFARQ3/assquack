@@ -13,6 +13,7 @@ def isolated_default_engine():
     duckdb.set_default_connection(connection)
     database._connection = None
     database._settings = None
+    database._default_selected = False
     database._catalogs.clear()
     database._bootstrapped.clear()
     pipeline._ACTIVE_RUNS.clear()
@@ -21,6 +22,7 @@ def isolated_default_engine():
     finally:
         database._connection = None
         database._settings = None
+        database._default_selected = False
         database._catalogs.clear()
         database._bootstrapped.clear()
         pipeline._ACTIVE_RUNS.clear()

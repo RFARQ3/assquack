@@ -148,7 +148,7 @@ def test_export_failure_preserves_successful_publication(
         raise RuntimeError("export failed")
 
     config = AssquackConfig(home=tmp_path)
-    monkeypatch.setattr(pipeline, "_write_exports", fail_export)
+    monkeypatch.setattr(pipeline, "write_exports", fail_export)
     with pytest.raises(RuntimeError, match="export failed"):
         asyncio.run(orders(assquack_config=config))
     dates = timestamps(config)

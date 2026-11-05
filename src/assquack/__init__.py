@@ -1,5 +1,7 @@
 """Public import surface for Assquack."""
 
+import os as _os
+
 from assquack._api import (
     AssetMode,
     AssquackAsset,
@@ -15,7 +17,6 @@ from assquack._config import (
 )
 from assquack._errors import MissingAssetSchemaWarning
 from assquack._exports.destinations import ExportDestination, FileSystemDestination
-from assquack._query import query, use_config
 from assquack._result import AssquackResult
 
 __all__ = [
@@ -32,6 +33,9 @@ __all__ = [
     "MissingAssetSchemaWarning",
     "SchemaConfig",
     "asset",
-    "query",
-    "use_config",
 ]
+
+# Placement settings opt into import-time initialization. Resource and export
+# settings alone do not request a disk database. No .env file is loaded.
+if any(name in _os.environ for name in ("ASSQUACK_HOME", "ASSQUACK_DATABASE_PATH")):
+    AssquackConfig().attach()

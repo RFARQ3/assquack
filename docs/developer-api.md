@@ -189,79 +189,78 @@ result. A first query materializes a missing asset; an uncached query runs the
 source again. Bound arguments and table templates apply exactly as for an asset
 call. Cache hits skip extraction; expired caches refresh through normal execution.
 
-`AssquackResult.query()` and `assquack.query()` read existing data without invoking
+`AssquackResult.query()` and `duckdb.query()` read existing data without invoking
 source extraction. Use a saved result or a general query to inspect publication
 after a failed run. Source/materialization failures propagate to the caller.
 Assquack does not pre-validate SQL statement counts or statement types; DuckDB
 parses the SQL used by the query implementation.
 
-Within SQL passed to `.query()`, Assquack should provide a stable relation alias
-for the current table. The examples use `data`:
+### FROM-first result queries
+
+The 5 November 2026 decision replaces the original MVP's `FROM data` contract.
+Callers omit the source `FROM` clause:
 
 ```python
-await orders.query("SELECT count(*) FROM data")
+await orders.query("SELECT count(*)")
 ```
 
-`params` should be passed through to DuckDB parameter binding rather than
-string-interpolated by Assquack.
+Assquack supplies `FROM "database"."schema"."table"` using the result's known
+physical table, then appends the caller's SQL unchanged. With no SQL argument,
+it returns a relation over that table. `params` passes to native DuckDB binding;
+values are never interpolated into SQL.
+
+This deliberately departs from Maitland's original MVP alias design. A shared
+`data` name can collide with existing tables or Python variables, allowing native
+name precedence to select an unintended source. Supplying the fully qualified
+source directly avoids that ambiguity for the asset/result query without an
+alias, registration, collision guard or SQL parsing/rewriting layer.
+
+The supplied SQL is a continuation of DuckDB's FROM-first syntax, for example
+`SELECT ... WHERE ... GROUP BY ... ORDER BY ...`. For a complete query beginning
+with `WITH`, save the returned relation in a Python variable and compose it using
+native DuckDB. See [both query avenues](developer-examples.md#composing-queries).
+
+Asset materialization may execute before the relation is returned. The returned
+SELECT relation is lazy; composing another query does not require fetching its
+rows first. Fetching or displaying results triggers execution.
+
+See the [decision and implementation status](epics/01-mvp/07-default-connection.md#from-first-decision-5-november-2026).
 
 ## General database queries
 
-`await assquack.query(sql, params=None)`, `await asset.query(...)` and
-`await result.query(...)` return actual `duckdb.DuckDBPyRelation` objects on
-DuckDB's default connection. Query calls accept SQL and optional
-bound parameters. SELECT validation is a convenience, not a security sandbox:
-functions invoked by trusted application SQL can have side effects.
+Use synchronous `duckdb.query(sql, params=...)` for general SQL. It and
+`await asset.query(...)` / `await result.query(...)` return native
+`duckdb.DuckDBPyRelation` objects on the default connection. There is no public
+`assquack.query` or `assquack.use_config` API.
 
-### Explicit config context
+Assquack does not parse, qualify, normalize or rebuild developer SQL. DuckDB owns
+name resolution, including CTEs, Python replacement scans, table functions,
+macros and table-name strings or parameters. Its default database and search path
+apply with one or several attachments; use explicit catalog names when useful.
+Functions invoked by application SQL can have side effects. Malformed or
+unsupported statements receive native DuckDB errors.
 
-Give each database a public catalog name in configuration. Constructing configs
-or decorating assets performs no database I/O. Assets attach their effective
-config on first materialization/query/existence check. Attach other configs
-explicitly before using them:
+### Database initialization
+
+Set `ASSQUACK_HOME` or `ASSQUACK_DATABASE_PATH` before `import assquack` to open or
+create that database, bootstrap metadata and select it as DuckDB's default at
+import. Resource-only settings do not trigger creation. Without placement settings,
+import creates no Assquack disk database. See
+[configuration](configuration.md#core-paths) for the exact trigger.
+
+Alternatively, initialize a Python config explicitly:
 
 ```python
 people = AssquackConfig(home=Path("./people"), attachment_name="people")
-people.attach()  # synchronous, idempotent for the same name and path
-rows = await assquack.query("SELECT * FROM people.hr.employees")
+people.attach()
+rows = duckdb.query("SELECT * FROM hr.employees WHERE id = ?", params=[42])
 ```
 
-The default attachment name is `assquack`. Different database files need different
-names. Reusing a name for another path, or another name for an already attached
-path, raises an error. See [configuration](configuration.md#database-attachments)
-for environment settings and shared-engine controls.
-
-With exactly one attached user database, Assquack queries accept `table` and
-`schema.table` and bind them to that database. With multiple user databases,
-physical references require `database.schema.table`, even if a short name is
-unique. DuckDB's system, temp and default memory catalogs do not count as user
-attachments. With no user attachments, native DuckDB resolution applies.
-Two-part names mean `schema.table`; use all three parts to name a database.
-
-```python
-rows = await assquack.query("SELECT * FROM people.hr.employees WHERE id = ?", [42])
-```
-
-`assquack.use_config(config)` requires an already attached config, but does not
-override this naming rule or select asset write destinations. Asset configuration
-still selects writes. Scopes restore after exceptions and cancellation; child
-tasks inherit their context. No query changes the connection's current database.
-
-Query-local CTEs, the asset query's `data` alias and Python replacement scans are
-exempt from physical qualification. A name colliding with a physical table/view
-must follow the physical rule; it cannot silently fall back to a memory table.
-Recursive CTE anchors resolve physical names before the recursive name is visible.
-Unqualified `query_table` follows the same rule for literal or parameterized table
-names and lists, including snapshot lists with `union_by_name`.
-Caller parameters remain unchanged, including when reused elsewhere in the query.
-Computed table-name expressions must instead be supplied as string/list parameters.
-Qualified `query_table` function/macro calls (such as `main.query_table`) fail
-clearly; use unqualified `query_table` with fully qualified table-name arguments.
-Other function/macro names and object names inside strings are not rewritten:
-qualify those explicitly, for
-example `nextval('people.hr.employee_id')`. Assquack SQL must be supported by
-DuckDB's JSON SQL serializer; unsupported forms fail clearly. Fully qualified
-`duckdb.query()` bypasses Assquack's naming checks.
+Configs and decorators remain lazy. The first Assquack attachment selects the
+default; later attachments leave it unchanged. Native `USE` and `SET search_path`
+choices remain in effect across subsequent Assquack calls. Asset configuration
+selects its write destination, independently of general SQL name resolution.
+Different files need distinct attachment names; name/path conflicts fail clearly.
 
 ### Chaining queries by Python variable name
 
@@ -274,23 +273,27 @@ joined = duckdb.query(
     "SELECT e.id, d.name FROM employees e "
     "JOIN departments d ON e.department_id = d.id"
 )
-summary = await assquack.query("SELECT count(*) FROM joined")
+summary = duckdb.query("SELECT count(*) FROM joined")
 ```
 
 The assets may publish to different registered databases. Use native methods such
 as `.filter()`, `.project()`, `.fetchall()` and `.df()` directly. Native
 `relation.query(alias, sql)` keeps DuckDB's own signature; there is no result
-wrapper or `.relation` property. The initial asset query retains its statement-local
-`data` alias. DuckDB's normal CTE/table precedence over Python variables applies;
-use distinct variable names to avoid ambiguity. Assquack enables DuckDB's native
-caller-stack replacement scans; it does not convert results or modify caller locals.
+wrapper or `.relation` property. The initial asset query uses its fully qualified
+physical source, with no `data` alias. In subsequent native SQL, DuckDB's normal
+CTE/table precedence over Python variables still applies; use distinct names.
+Assquack does not convert results or modify caller locals. Referencing variables
+only inside SQL can trigger unused-variable lint warnings; calling the relation's
+`.query(alias, sql)` references it in Python but requires an explicit alias.
+The [examples](developer-examples.md#composing-queries) show both choices. Neither
+requires an Assquack-specific wrapper or mandatory lint configuration.
 
 ### Results and lifetime
 
 Results are lazy, not frozen snapshots. After a table replacement a retained
 relation can read new rows or fail if its bound schema is no longer compatible.
 No root query refresh or explicit cleanup is required. Results remain usable
-after leaving a config scope and after subsequent asset executions.
+after subsequent queries and asset executions.
 
 Assquack retains attachments for the process lifetime and never closes the default
 connection after an operation. Do not close, replace, detach, or manually manage

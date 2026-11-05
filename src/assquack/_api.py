@@ -114,7 +114,7 @@ class AssquackAsset(Generic[P, AssetReturn]):
     async def query(
         self,
         sql: str | None = None,
-        params: Sequence[object] | None = None,
+        params: Sequence[object] | Mapping[str, object] | None = None,
         *,
         assquack_config: AssquackConfig | None = None,
     ) -> duckdb.DuckDBPyRelation:

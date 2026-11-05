@@ -122,12 +122,11 @@ while the parent captures. No transaction or connection lock spans user source
 execution. Each run has independent metadata and active-run tracking; publication
 transactions are synchronous, serialized and confined to one database.
 
-During capture the asset's effective config is available to general queries,
-including deferred generator consumption. Nested execution restores the parent
-query context; failure and cancellation reset it. Explicit `assquack.use_config`
-scopes take precedence without changing publication config. Failed sync/async
-generators close in the consuming task so their scopes unwind before the asset
-context exits. A failed or cancelled capture records failure without replacing
+The asset's effective config selects its publication destination. General SQL
+inside sources and generators uses DuckDB's current default and search path;
+nested asset execution does not switch them. Failed sync/async generators close
+in the consuming task so their cleanup runs before capture exits.
+A failed or cancelled capture records failure without replacing
 the previous table. Publication failure rolls back both table replacement and
 successful metadata updates. Exports start after commit.
 

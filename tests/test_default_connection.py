@@ -5,7 +5,6 @@ import duckdb
 import pytest
 from pydantic import ValidationError
 
-import assquack
 from assquack import AssquackConfig, DuckDBConfig, asset
 from assquack._storage.database import database_catalog
 from assquack._storage.metadata import MetadataRepository
@@ -29,10 +28,10 @@ def test_manual_attachment_is_lazy_named_and_idempotent(tmp_path, monkeypatch):
     )
     equivalent.attach()
     duckdb.execute("CREATE TABLE people.main.manual AS SELECT 42 AS id")
-    rows = asyncio.run(assquack.query("SELECT * FROM people.main.manual"))
+    rows = duckdb.query("SELECT * FROM people.main.manual")
     assert isinstance(rows, duckdb.DuckDBPyRelation)
     assert duckdb.query("SELECT * FROM rows").fetchone() == (42,)
-    assert duckdb.sql("SELECT current_database()").fetchone() == ("memory",)
+    assert duckdb.sql("SELECT current_database()").fetchone() == ("people",)
     asyncio.run(employees())
     assert employees.exists(assquack_config=equivalent)
     assert asyncio.run(employees.query(assquack_config=equivalent)).project(
@@ -97,31 +96,6 @@ def test_engine_settings_preserve_omission_and_reject_explicit_conflicts(tmp_pat
     assert duckdb.sql("SELECT current_setting('threads')").fetchone() == (2,)
 
 
-def test_environment_default_attaches_at_first_query(tmp_path, monkeypatch):
-    monkeypatch.setenv("ASSQUACK_HOME", str(tmp_path / "environment"))
-    monkeypatch.setenv("ASSQUACK_ATTACHMENT_NAME", "people")
-    monkeypatch.setenv("ASSQUACK_DUCKDB__THREADS", "2")
-    config = AssquackConfig()
-    assert "threads" in config.duckdb.model_fields_set
-    assert not config.home.exists()
-    assert asyncio.run(assquack.query("SELECT 7")).fetchone() == (7,)
-    assert config.resolved_database_path.exists()
-    assert duckdb.sql("SELECT current_setting('threads')").fetchone() == (2,)
-    assert duckdb.sql(
-        "SELECT database_name FROM duckdb_databases() WHERE database_name='people'"
-    ).fetchone() == ("people",)
-
-
-def test_unused_config_requires_explicit_attach_for_general_scope(tmp_path):
-    config = AssquackConfig(home=tmp_path / "unused", attachment_name="unused")
-    with (
-        assquack.use_config(config),
-        pytest.raises(ValueError, match=r"config\.attach"),
-    ):
-        asyncio.run(assquack.query("SELECT 1"))
-    assert not config.home.exists()
-
-
 def test_nested_child_task_and_cross_database_native_join(tmp_path):
     people = AssquackConfig(home=tmp_path / "people", attachment_name="people")
     work = AssquackConfig(home=tmp_path / "work", attachment_name="work")
@@ -146,7 +120,7 @@ def test_nested_child_task_and_cross_database_native_join(tmp_path):
 
     result = asyncio.run(asyncio.wait_for(joined(), 5))
     assert result.row_count == 1
-    assert asyncio.run(result.query("SELECT id, label FROM data")).fetchall() == [
+    assert asyncio.run(result.query("SELECT id, label")).fetchall() == [
         (1, "Engineering")
     ]
     assert duckdb.sql(
@@ -184,8 +158,8 @@ def test_cancelled_capture_preserves_other_publication_and_previous_table(tmp_pa
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        assert (await published.query("SELECT id FROM data")).fetchone() == (1,)
-        assert (await other_published.query("SELECT id FROM data")).fetchone() == (2,)
+        assert (await published.query("SELECT id")).fetchone() == (1,)
+        assert (await other_published.query("SELECT id")).fetchone() == (2,)
 
     asyncio.run(asyncio.wait_for(run(), 5))
     assert duckdb.sql(
@@ -228,8 +202,7 @@ def test_scoped_quoted_table_wins_over_default_and_file_scans(tmp_path, name):
     quoted = quote_identifier(name)
     duckdb.execute(f"CREATE TABLE people.main.{quoted} AS SELECT 9 AS id")
     duckdb.execute(f"CREATE TABLE memory.main.{quoted} AS SELECT 999 AS id")
-    with assquack.use_config(config):
-        result = asyncio.run(assquack.query(f"SELECT * FROM {quoted}"))
+    result = duckdb.query(f"SELECT * FROM {quoted}")
     assert result.fetchone() == (9,)
 
 
@@ -241,9 +214,7 @@ def test_attachment_names_preserve_quoted_unicode(tmp_path, name):
     config.attach()
     quoted = quote_identifier(name)
     duckdb.execute(f"CREATE TABLE {quoted}.main.items AS SELECT 4 id")
-    assert asyncio.run(
-        assquack.query(f"SELECT * FROM {quoted}.main.items")
-    ).fetchone() == (4,)
+    assert duckdb.query(f"SELECT * FROM {quoted}.main.items").fetchone() == (4,)
 
 
 def test_existing_native_attachment_preserves_actual_catalog_spelling(tmp_path):
@@ -262,9 +233,8 @@ def test_existing_native_attachment_preserves_actual_catalog_spelling(tmp_path):
     asyncio.run(items())
     assert database_catalog(config) == "People"
     assert items.exists()
-    assert asyncio.run(items.query("SELECT id FROM data")).fetchone() == (4,)
-    with assquack.use_config(config):
-        assert asyncio.run(assquack.query("SELECT id FROM items")).fetchone() == (4,)
+    assert asyncio.run(items.query("SELECT id")).fetchone() == (4,)
+    assert duckdb.query("SELECT id FROM items").fetchone() == (4,)
 
 
 def test_explicit_none_temp_directory_means_inherit(tmp_path):
