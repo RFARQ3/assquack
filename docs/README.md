@@ -9,6 +9,8 @@ the architecture into focused zones so each topic has one owner.
   philosophy.
 - [Developer API](developer-api.md): the public Python contract for assets,
   queries, caching, arguments, and accepted inputs.
+- [Programmatic Patterns](programmatic-patterns.md): concrete instances of
+  commands, strategies, repositories, adapters, and other patterns in the code.
 - [Materialization Lifecycle](materialization-lifecycle.md): what happens when
   an asset runs.
 - [Schema Inference](schema-inference.md): current-run deep inference for

@@ -138,7 +138,11 @@ the default database. [tables.py](../src/assquack/_storage/tables.py) initialize
 the `assquack_meta` schema and metadata tables.
 
 The decorators create `AssquackAsset` definitions. `.with_arguments(...)` creates
-bound definitions at module level. Neither definition nor binding fetches API data.
+bound definitions at module level. Both steps format table, name and export
+templates using available arguments and function defaults, preserving unresolved
+placeholders. Binding `endpoint="orders"` already exposes `bronze.orders` and
+`bronze/orders.parquet|json` before import finishes. Neither definition nor binding
+fetches API data.
 
 ## 4. Calling an asset creates a MaterializationRequest
 
@@ -147,7 +151,8 @@ Prefect executes the flow, which calls the globally defined assets.
 and calls `self._request(args, kwargs)`.
 
 `_request()` combines bound and supplied arguments, applies function defaults,
-and uses `AssetTemplateFormatter` to resolve table, name and export templates.
+and uses `AssetTemplateFormatter` to fully resolve the original table, name and
+export templates again, so call-time overrides can replace previously bound values.
 For `orders`, the table is `bronze.orders` and the export declaration is
 `bronze/orders.parquet|json`. It also calculates the asset ID from the function,
 resolved name and arguments.
@@ -273,6 +278,8 @@ depends on that mount's persistence.
 
 ## Related Docs
 
+- [Programmatic patterns](programmatic-patterns.md): why definitions, requests,
+  pipelines and their collaborators have separate responsibilities.
 - [Developer API](developer-api.md): asset, result and query contracts.
 - [Materialization lifecycle](materialization-lifecycle.md): detailed execution rules.
 - [Configuration](configuration.md): environment variables and Azure authentication.
