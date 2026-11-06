@@ -79,12 +79,12 @@ def test_fragment_path_uses_safe_hive_partition_values(tmp_path: Path) -> None:
     assert directory == tmp_path / "asset=sales_orders_daily" / "run_id=run-123"
 
 
-def test_reader_preserves_heterogeneous_values_as_variant(tmp_path: Path) -> None:
+def test_publication_preserves_inferred_json_and_native_values(tmp_path: Path) -> None:
     @asset(table="main.mixed_values")
     async def values() -> list[dict[str, object]]:
         return [
-            {"id": 1, "value": {"nested": True}},
-            {"id": 2, "value": "plain"},
+            {"id": 1, "value": {"nested": True}, "items": [1], "active": True},
+            {"id": 2, "value": "plain", "items": [2, 3], "active": False},
         ]
 
     config = AssquackConfig(home=tmp_path)
@@ -92,15 +92,24 @@ def test_reader_preserves_heterogeneous_values_as_variant(tmp_path: Path) -> Non
 
     with inspect_database(config) as connection:
         schema = connection.execute(
-            "DESCRIBE SELECT value FROM main.mixed_values"
-        ).fetchone()
-        value_types = connection.execute(
-            "SELECT variant_typeof(value) FROM main.mixed_values ORDER BY id"
+            "DESCRIBE SELECT id, value, items, active FROM main.mixed_values"
+        ).fetchall()
+        rows = connection.execute(
+            "SELECT id, value, items, active FROM main.mixed_values ORDER BY id"
         ).fetchall()
 
-    assert schema is not None and schema[1] == "VARIANT"
-    assert value_types[0][0].startswith("OBJECT(")
-    assert value_types[1] == ("VARCHAR",)
+    assert {column[0]: column[1] for column in schema} == {
+        "id": "BIGINT",
+        "value": "JSON",
+        "items": "BIGINT[]",
+        "active": "BOOLEAN",
+    }
+    assert [
+        (id_, json.loads(value), items, active) for id_, value, items, active in rows
+    ] == [
+        (1, {"nested": True}, [1], True),
+        (2, "plain", [2, 3], False),
+    ]
 
 
 @pytest.mark.parametrize("previous_success", [False, True])

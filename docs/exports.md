@@ -369,8 +369,8 @@ The additional formats serve existing consumers:
 - CSV is useful for simple tools, audits, and manual transfer.
 - Neither JSON nor CSV should drive Assquack schema inference or cache state.
 
-Dynamic payloads should be stored in DuckDB as `VARIANT` when appropriate, then
-exported to Parquet according to DuckDB's Parquet support. JSON text retention
+Dynamic payload columns retain their DuckDB-inferred types, including `JSON`,
+and are exported according to DuckDB's format support. JSON text retention
 through `_qa_raw_json` remains an explicit audit choice, not the default export
 or storage model.
 

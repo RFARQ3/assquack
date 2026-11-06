@@ -108,8 +108,8 @@ This track is outside the first release. It must not block the replace MVP.
 - `cache_first()` returns the existing materialization when TTL rules allow it.
 - Local NDJSON fragments provide bounded working and replay evidence without
   following the export destination into object storage.
-- Unknown or changing nested payloads can be retained as `VARIANT` while stable
-  fields are promoted into typed columns.
+- Current-run columns retain DuckDB-inferred types, including `JSON` for
+  heterogeneous values. Explicit `VARIANT` payload retention remains future work.
 - The project can export current-state Parquet, CSV and JSON locally and to Azure for legacy
   lake consumers. Verify the agreed MAD.Prefect compatibility baseline.
 - Tests cover temporary local DuckDB files, metadata bootstrap, replace

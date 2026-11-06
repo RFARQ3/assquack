@@ -11,6 +11,7 @@ from assquack._materialization.schema import (
     CurrentRunSchemaStrategy,
     replace_schema_strategy,
 )
+from assquack._materialization.staging import describe_fragments
 
 
 def test_strategy_infers_fragments_and_preserves_native_types(tmp_path: Path) -> None:
@@ -22,11 +23,15 @@ def test_strategy_infers_fragments_and_preserves_native_types(tmp_path: Path) ->
         ]
     )
     with duckdb.connect() as connection:
+        inferred_types = dict(describe_fragments(connection, writer.finish()))
         strategy = replace_schema_strategy(SchemaConfig(), connection, writer.finish)
         assert isinstance(strategy, CurrentRunSchemaStrategy)
         projections = {item.column_name: item for item in strategy.resolve()}
 
-    assert projections["value"].duckdb_type == "VARIANT"
+    assert inferred_types["value"] == "JSON"
+    assert {
+        name: item.duckdb_type for name, item in projections.items()
+    } == inferred_types
     assert projections["items"].duckdb_type == "BIGINT[]"
     assert projections["late"].duckdb_type == "BOOLEAN"
     assert projections["odd.name"].source_field == '$."odd.name"'

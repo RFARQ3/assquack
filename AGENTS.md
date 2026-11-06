@@ -37,7 +37,7 @@ Use focused skills instead of expanding this file with task-specific detail.
 
 - Keep Assquack standalone and framework-agnostic.
 - Do not reintroduce `database_scope` as a public asset API argument.
-- Use `VARIANT` for durable dynamic payload storage.
+- Preserve DuckDB-inferred column types, including `JSON`; do not force them to `VARIANT`.
 - Treat DuckDB tables and Assquack metadata as the source of truth.
 - Treat exports as compatibility artifacts.
 - Keep docs connected through relevant links, like a small knowledge graph.

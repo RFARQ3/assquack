@@ -1,7 +1,7 @@
 # Replace Materialization
 
 Status: **Complete**
-Last updated: 2026-11-03
+Last updated: 2026-11-06
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
@@ -166,8 +166,8 @@ Native `read_json` scans all completed files
 with full sampling and field union before the shaped candidate is built.
 
 Shaped staging starts with reserved run metadata and adds the effective typed
-asset columns. Genuinely heterogeneous columns use `VARIANT`; a whole-row
-`_qa_payload` is not mandatory.
+asset columns. DuckDB-inferred types, including heterogeneous `JSON`, are retained;
+a whole-row `_qa_payload` is not mandatory.
 
 ### Oversized-record reader recovery (28 October 2026)
 
@@ -236,8 +236,8 @@ historical schema continuity and detailed observations for MVP.
 `schema.replace="current_run"` selects a fresh `CurrentRunSchemaStrategy` from
 an immutable internal registry. Each instance binds its run connection and
 fragment supplier. Its argument-free `resolve()` obtains completed fragments,
-performs native DuckDB inference and maps heterogeneous `JSON` columns to
-`VARIANT`. The pipeline neither supplies an inferred schema nor branches on
+performs native DuckDB inference and preserves the inferred column types,
+including `JSON`. The pipeline neither supplies an inferred schema nor branches on
 strategy behavior. There is no public custom-strategy registration API.
 
 Schema-history persistence, readers and observation helpers are removed.
@@ -420,3 +420,19 @@ and observation machinery. See [EXT-05 validation](06-extensibility-defects.md#e
 for the 173-test full-suite result, subsequent five-test inference run, lint,
 format, documentation checks and unrelated Pyright limitations. This phase
 remains In Progress for its other outstanding work.
+
+## Native inferred types — 6 November 2026
+
+The earlier JSON-to-VARIANT conversion is superseded: current-run inference now
+retains every DuckDB-inferred type, including `JSON`. Reader settings, reserved
+columns, staging and publication are unchanged. Synthetic regressions compare
+projections with DuckDB's inferred schema and verify the published JSON type and
+decoded values alongside native scalar and list types.
+
+Independent review passed 83 focused offline tests covering schema inference,
+fragments, replacement, reader recovery, native inputs, exports, timestamps and
+mode handling. Targeted Pyright, Ruff lint/format, Markdown links and diff
+whitespace checks passed. Full configured Pyright retains five pre-existing
+diagnostics in `_api.py` and `_templates.py`. The initial Poetry pytest attempt
+hit the known Windows temporary-directory ACL issue; independent tests used
+ordinary UUID scratch directories under `.tmp/native-inference/`.

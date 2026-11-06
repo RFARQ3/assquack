@@ -43,7 +43,7 @@ class CurrentRunSchemaStrategy:
                     else f"$.{json.dumps(name)}"
                 ),
                 column_name=name,
-                duckdb_type="VARIANT" if duckdb_type == "JSON" else duckdb_type,
+                duckdb_type=duckdb_type,
             )
             for name, duckdb_type in sorted(observed_schema)
             # Publication supplies provenance for this run, including when the

@@ -54,8 +54,8 @@ configuration-level. See the [developer contract](developer-api.md#asset).
 merge step over temporary files. Asset state lives in DuckDB tables, run history
 and manifest data live in Assquack system tables, and materialization should use
 DuckDB transactions where possible. Semi-structured source payloads should use
-DuckDB-native types, especially `VARIANT` for volatile nested data, instead of
-defaulting to durable raw JSON text.
+DuckDB-inferred types, including `JSON` for heterogeneous values, without
+forcing a conversion to `VARIANT`.
 
 **Export compatibility without storage leakage.** Parquet and ADLS exports are
 important compatibility surfaces, but they are outputs of materialization, not
@@ -75,7 +75,7 @@ Initial scope should focus on:
 - DuckDB connection, locking, transactions, and metadata tables;
 - `@asset` with a table-first contract and optional keyword export aliases;
 - bounded local NDJSON evidence and shaped candidate tables;
-- schema inference from the current run, with `VARIANT` for heterogeneous fields;
+- schema inference from the current run, preserving DuckDB-native inferred types;
 - transactional replacement of the current table;
 - `.query()`, `cache_first()`, and existence checks;
 - Parquet export compatibility.
@@ -91,7 +91,7 @@ Assquack, not the other way around.
 - [Materialization Lifecycle](materialization-lifecycle.md): how a decorated
   function becomes a DuckDB table.
 - [Schema Inference](schema-inference.md): how current-run fragments become typed
-  columns, with `VARIANT` used selectively for heterogeneous fields.
+  columns, preserving inferred types including heterogeneous `JSON`.
 - [Storage Model](storage-model.md): where source-of-truth tables and metadata
   live.
 - [Configuration](configuration.md): how database paths, DuckDB settings, and

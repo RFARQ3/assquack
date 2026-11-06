@@ -18,8 +18,8 @@ across agent sessions.
   can appear in any order; preserve explicit table templates.
 - Do not reintroduce `database_scope` or database placement as public asset
   decorator arguments.
-- Use DuckDB 1.5+ as the likely baseline because `VARIANT` is central to the
-  design.
+- Keep the DuckDB 1.5+ baseline. Preserve its inferred column types, including
+  `JSON`, without forcing heterogeneous columns to `VARIANT`.
 - Treat exports as compatibility artifacts, not canonical storage.
 - Use DuckDB as the export filesystem adapter and writer; do not add replacement
   registries or injection for other engines. Keep destination types and

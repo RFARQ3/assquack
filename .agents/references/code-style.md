@@ -85,8 +85,8 @@ def materialize_asset(run: AssetRun) -> MaterializationResult:
   and parameters.
 - Use DuckDB parameter binding for values. Do not interpolate user values into
   SQL strings.
-- Use `VARIANT` for durable dynamic payloads and explain JSON as ingestion or
-  inference tooling where relevant.
+- Preserve DuckDB-inferred column types, including `JSON`; do not force them to
+  `VARIANT`.
 
 ## Tests
 

@@ -44,7 +44,7 @@ should help implementors build it.
 - `docs/developer-api.md`: public Python API contract.
 - `docs/developer-examples.md`: concise examples only.
 - `docs/materialization-lifecycle.md`: asset execution flow and table swaps.
-- `docs/schema-inference.md`: `VARIANT`, continuous inference, drift handling.
+- `docs/schema-inference.md`: current-run native inference and drift handling.
 - `docs/storage-model.md`: DuckDB file, locks, tables, staging, future storage.
 - `docs/exports.md`: export aliases, formats, ADLS/ABFSS compatibility.
 - `docs/configuration.md`: Pydantic config, env vars, DuckDB settings.
@@ -140,8 +140,8 @@ storage to configuration and exports, roadmap to the major work tracks.
 - Make DuckDB the source of truth; exports are compatibility artifacts.
 - Prefer concrete table names, method names, and file paths over vague prose.
 - Keep examples short and move extended examples to `docs/developer-examples.md`.
-- Use `VARIANT` for durable dynamic payloads and explain `JSON` as ingestion or
-  inference tooling where relevant.
+- Preserve DuckDB-inferred types, including durable `JSON` columns. Keep future
+  explicit `VARIANT` payload proposals separate from current inference behavior.
 
 ## Validation
 

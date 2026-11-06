@@ -50,7 +50,7 @@ follow-through from a direction the user has already approved.
 - Keep database placement in configuration, not in asset decorators.
 - Treat DuckDB tables and Assquack metadata as the source of truth.
 - Use exports for compatibility, not canonical storage.
-- Use `VARIANT` for durable dynamic payloads.
+- Preserve DuckDB-inferred column types, including `JSON`; do not force them to `VARIANT`.
 - Prefer explicit models and interfaces for assets, results, runs, manifests,
   and configuration.
 - Treat code as liability. Prefer the smallest clear implementation, but use

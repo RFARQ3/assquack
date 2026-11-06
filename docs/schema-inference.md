@@ -51,11 +51,11 @@ longer creates or writes schema-history or observation tables. Obsolete history
 readers and observation helpers are removed. Existing database tables and records
 are not deleted by bootstrap; no compatibility shim or migration is introduced.
 
-## VARIANT Policy
+## Native Type Policy
 
-A column inferred as heterogeneous `JSON` becomes durable `VARIANT`. Other
-DuckDB-inferred types, including nested structures and lists, are retained.
-`VARIANT` is not a mandatory whole-row landing column. NDJSON fragments are local
+DuckDB-inferred column types are retained, including heterogeneous `JSON`,
+nested structures and lists. Assquack does not convert inferred `JSON` to
+`VARIANT`. NDJSON fragments are local
 ingestion evidence; the published DuckDB table remains canonical.
 
 ## Related Docs

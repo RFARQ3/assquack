@@ -191,9 +191,9 @@ DuckDB's native JSON reader scans the complete fragment set and builds a typed
 candidate table in `assquack_stage`. The current asset table is updated only
 after the candidate is ready to commit.
 
-`VARIANT` remains available for columns whose values are genuinely
-heterogeneous; it is not a mandatory whole-row staging format. The target
-fragment retention policy keeps the latest successful run and the latest three
+Inferred types are preserved, including `JSON` for heterogeneous columns.
+Future explicit `VARIANT` payload retention is separate from this inference policy.
+The target fragment retention policy keeps the latest successful run and the latest three
 failed runs per asset. Candidate tables are dropped after successful
 publication.
 
@@ -217,7 +217,7 @@ Column meanings:
 - `_qa_loaded_at`: timestamp when Assquack loaded the row;
 - `_qa_source_uri`: optional source URI or export/source reference;
 - `_qa_source_hash`: optional hash for source or row provenance;
-- `_qa_payload`: optional semi-structured payload, `VARIANT` by default;
+- `_qa_payload`: future optional semi-structured payload retention using `VARIANT`;
 - `_qa_raw_json`: optional lossless text retention for explicit audit needs.
 
 `_qa_payload` is an optional durable representation for unknown or volatile

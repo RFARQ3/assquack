@@ -216,7 +216,7 @@ supplies the reads; for the relevant oversized-record failure, `JsonReadRecovery
 measures the required record size and retries with an adjusted reader limit.
 
 [staging.py](../src/assquack/_materialization/staging.py) builds the candidate
-table in `assquack_stage`, using `VARIANT` for fields inferred as JSON and adding
+table in `assquack_stage`, preserving DuckDB's inferred column types and adding
 `_qa_run_id` and `_qa_loaded_at`. The existing published table is still unchanged.
 
 ## 8. Assquack publishes the table

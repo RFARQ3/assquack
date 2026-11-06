@@ -2,8 +2,10 @@
 
 Status: Working MVP requirement observation
 
-This document records prototype behaviour and does not change the contracts in
-the canonical documentation.
+This document records historical prototype behaviour and does not change the
+contracts in the canonical documentation. As of 6 November 2026, inferred `JSON`
+columns remain `JSON`; the earlier required conversion to `VARIANT` is superseded.
+The DuckDB baseline and storage compatibility setting remain unchanged.
 
 ## Observed Problem
 
