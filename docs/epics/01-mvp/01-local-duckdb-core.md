@@ -40,7 +40,12 @@ maintainers.
 
 ## Metadata Table Contracts
 
-Bootstrap creates the `assquack_meta` schema and the MVP system tables:
+The DDL below records the original local-core schema. The
+[request/run phase](08-request-and-run-pipeline.md) adds stage columns and the
+current-publication table; [catalog.py](../../../src/assquack/_storage/catalog.py)
+is the authoritative fresh-database DDL.
+
+Original local-core system tables:
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS assquack_meta;

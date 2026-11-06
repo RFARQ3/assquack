@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 
 from assquack import AssquackConfig, FileSystemDestination, asset
-from assquack._cache import _is_expired
-from assquack._exports.writer.file import DuckDBFileWriter
-from assquack._storage.models import SuccessfulRun
+from assquack._exports.writer import DuckDBFileWriter
+from assquack._storage.cache import _is_expired
+from assquack._storage.records import PublicationRecord
 from database_helpers import inspect_database
 
 
@@ -21,11 +21,11 @@ def test_cache_expires_at_ttl_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
         def now(cls, tz=None):
             return now
 
-    monkeypatch.setattr("assquack._cache.datetime", FixedDatetime)
-    run = SuccessfulRun("run", now - timedelta(hours=2), 1)
+    monkeypatch.setattr("assquack._storage.cache.datetime", FixedDatetime)
+    run = PublicationRecord("run", now - timedelta(hours=2), 1)
     assert _is_expired(run, timedelta(hours=2))
     assert not _is_expired(run, timedelta(hours=2, microseconds=1))
-    future_run = SuccessfulRun("future", now + timedelta(hours=1), 1)
+    future_run = PublicationRecord("future", now + timedelta(hours=1), 1)
     assert _is_expired(future_run, timedelta(0))
 
 

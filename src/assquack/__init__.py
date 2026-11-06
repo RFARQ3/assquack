@@ -2,21 +2,17 @@
 
 import os as _os
 
-from assquack._api import (
-    AssetMode,
-    AssquackAsset,
-    ExportFormat,
-    ExportSpec,
-    asset,
-)
+from assquack._asset import AssquackAsset
 from assquack._config import (
     AssquackConfig,
     DuckDBConfig,
     IngestionConfig,
     SchemaConfig,
 )
+from assquack._decorator import asset
 from assquack._errors import MissingAssetSchemaWarning
 from assquack._exports.destinations import ExportDestination, FileSystemDestination
+from assquack._options import AssetMode, ExportFormat, ExportSpec
 from assquack._result import AssquackResult
 
 __all__ = [

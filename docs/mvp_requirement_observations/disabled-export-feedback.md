@@ -42,7 +42,7 @@ target continue to materialize normally while exports are disabled.
 ## Current Prototype Location
 
 ```text
-src/assquack/_materialization/pipeline.py
+src/assquack/_pipeline/__init__.py
 tests/test_exports.py
 ```
 

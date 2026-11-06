@@ -25,10 +25,10 @@ locking.
 ## Current Prototype Locations
 
 ```text
-src/assquack/_api.py
-src/assquack/_cache.py
-src/assquack/_materialization/pipeline.py
-src/assquack/_storage/locking.py
+src/assquack/_asset.py
+src/assquack/_storage/cache.py
+src/assquack/_pipeline/__init__.py
+src/assquack/_storage/database.py
 tests/test_cache.py
 tests/test_writer_lock.py
 ```

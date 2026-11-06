@@ -15,7 +15,8 @@ class AssetRecord:
 
 
 @dataclass(frozen=True, slots=True)
-class SuccessfulRun:
+class PublicationRecord:
     run_id: str
     materialized_at: datetime
     row_count: int
+    asset_id: str = ""

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import importlib
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -11,37 +12,43 @@ import duckdb
 import pytest
 
 from assquack import AssquackConfig, asset
-from assquack._materialization import pipeline
-from assquack._materialization.fragments import fragment_run_directory
-from assquack._materialization.models import MaterializationRequest
+from assquack._storage.fragment_writer import fragment_run_directory
 from assquack._storage.tables import TableReference
 from database_helpers import inspect_database
+
+run_module = importlib.import_module("assquack._run")
 
 
 @pytest.fixture
 def run_clock(monkeypatch: pytest.MonkeyPatch) -> Mock:
     clock = Mock()
     clock.now.return_value = datetime(2026, 10, 22, 1, 2, 3, 456789, tzinfo=UTC)
-    monkeypatch.setattr(pipeline, "datetime", clock)
+    monkeypatch.setattr(run_module, "datetime", clock)
     return clock
 
 
 def test_run_identity_matches_known_md5_digest(tmp_path: Path, run_clock: Mock) -> None:
-    request = MaterializationRequest(
-        fn=lambda: [{"id": 1}],
-        arguments=(),
-        keyword_arguments={},
-        asset_id="asset-123",
-        asset_name="orders",
-        asset_signature="orders()",
-        table=TableReference("main", "orders"),
-        export=None,
-        mode="replace",
-    )
-    result = asyncio.run(pipeline.materialize(request, AssquackConfig(home=tmp_path)))
+    from assquack._pipeline.resolve import ResolvedAsset
+    from assquack._run import AssquackRun
 
+    @asset("main.orders")
+    def orders():
+        return [{"id": 1}]
+
+    run = AssquackRun(orders._request((), {}, config=AssquackConfig(home=tmp_path)))
+    run.asset = ResolvedAsset(
+        "asset-123",
+        "orders",
+        "orders()",
+        TableReference("main", "orders"),
+        None,
+        "replace",
+        False,
+        None,
+    )
+    run.identify()
     # MD5 of UTF-8 "asset-123:2026-10-22T01:02:03.456789+00:00".
-    assert result.run_id == "2b812ea6c821142e72d6945037880048"
+    assert run.id == "2b812ea6c821142e72d6945037880048"
 
 
 def test_run_identity_matches_persisted_runtime_and_fragments(

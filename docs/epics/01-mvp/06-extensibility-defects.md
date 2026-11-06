@@ -227,7 +227,7 @@ remain supplied scope. Database output and remote staged publication are deferre
 ## EXT-04: Export writers and manifest data
 
 **Complete — 27 October 2026.**
-[DuckDBFileWriter](../../../src/assquack/_exports/writer/file.py) owns shared COPY
+[DuckDBFileWriter](../../../src/assquack/_exports/writer.py) owns shared COPY
 with fixed Parquet, CSV and NDJSON options. Formats expand per destination before
 execution. Both export paths record successful output format, role, options and
 resolved URI and destination fingerprint; failures stop remaining writes without
@@ -333,10 +333,10 @@ mode through the request, select publication through a framework-owned registry,
 and persist that same mode. Only replace ships. No public registration/injection,
 mode-specific options, append/merge algorithms or compatibility layer is added.
 
-**Original finding:** [asset API](../../../src/assquack/_api.py) stores `mode`, but
-[MaterializationRequest](../../../src/assquack/_materialization/models.py) omits
-it. [pipeline.py](../../../src/assquack/_materialization/pipeline.py) defaults
-directly to `ReplaceCommitStrategy`; [AssetRecord](../../../src/assquack/_storage/models.py)
+**Original finding:** [asset API](../../../src/assquack/_asset.py) stores `mode`, but
+[MaterializationRequest](../../../src/assquack/_request.py) omits
+it. [pipeline.py](../../../src/assquack/_pipeline/__init__.py) defaults
+directly to `ReplaceCommitStrategy`; [AssetRecord](../../../src/assquack/_storage/records.py)
 independently defaults its stored mode to `replace`.
 
 **Consequence:** adding another commit strategy is insufficient to select it
@@ -373,7 +373,7 @@ proposed normalization refactor. It is not evidence that all normalization is
 missing or that the existing implementation cannot be extended. Editing a type
 dispatcher is not, by itself, an extensibility defect.
 
-**Implemented direction, 29 October:** [fragments.py](../../../src/assquack/_materialization/fragments.py)
+**Implemented direction, 29 October:** [fragments.py](../../../src/assquack/_storage/fragment_writer.py)
 owns input dispatch and two shared writers. Python mappings use buffered bytes;
 relations use native COPY. Pandas DataFrames and Arrow Tables/RecordBatches become
 relations. Sync/async yields dispatch each item, including mixed input types.

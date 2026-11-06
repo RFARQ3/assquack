@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 from pathlib import Path
 
 import duckdb
 import pytest
 
 from assquack import AssquackConfig, asset
-from assquack._materialization import pipeline
+from assquack._storage.catalog import bootstrap_database
 from assquack._storage.metadata import MetadataRepository
-from assquack._storage.tables import bootstrap_database
 from database_helpers import inspect_database
+
+export_module = importlib.import_module("assquack._pipeline.export")
 
 
 def test_fresh_schema_defines_nullable_publication_dates(tmp_path: Path) -> None:
@@ -140,15 +142,15 @@ def test_publication_rollback_reverts_table_and_dates(
 def test_export_failure_preserves_successful_publication(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    @asset("main.orders")
+    @asset("main.orders", export="orders.parquet")
     def orders():
         return [{"id": 1}]
 
     def fail_export(*args, **kwargs):
         raise RuntimeError("export failed")
 
-    config = AssquackConfig(home=tmp_path)
-    monkeypatch.setattr(pipeline, "write_exports", fail_export)
+    config = AssquackConfig(home=tmp_path, exports=str(tmp_path / "exports"))
+    monkeypatch.setattr(export_module, "write_exports", fail_export)
     with pytest.raises(RuntimeError, match="export failed"):
         asyncio.run(orders(assquack_config=config))
     dates = timestamps(config)

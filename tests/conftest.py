@@ -1,7 +1,7 @@
 import duckdb
 import pytest
 
-from assquack._materialization import pipeline
+import assquack._pipeline as pipeline
 from assquack._storage import database
 
 
@@ -16,7 +16,7 @@ def isolated_default_engine():
     database._default_selected = False
     database._catalogs.clear()
     database._bootstrapped.clear()
-    pipeline._ACTIVE_RUNS.clear()
+    pipeline.ACTIVE_RUNS.clear()
     try:
         yield connection
     finally:
@@ -25,6 +25,6 @@ def isolated_default_engine():
         database._default_selected = False
         database._catalogs.clear()
         database._bootstrapped.clear()
-        pipeline._ACTIVE_RUNS.clear()
+        pipeline.ACTIVE_RUNS.clear()
         duckdb.set_default_connection(original)
         connection.close()

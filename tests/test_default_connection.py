@@ -250,3 +250,32 @@ def test_explicit_none_temp_directory_means_inherit(tmp_path):
     configured = duckdb.sql("SELECT current_setting('temp_directory')").fetchone()
     assert configured is not None
     assert Path(configured[0]).resolve() == first.resolved_temp_directory.resolve()
+
+
+def test_async_capture_can_overlap_before_synchronous_publication(
+    tmp_path: Path,
+) -> None:
+    active_calls = 0
+    maximum_active_calls = 0
+
+    async def source(value: int) -> list[dict[str, int]]:
+        nonlocal active_calls, maximum_active_calls
+        active_calls += 1
+        maximum_active_calls = max(maximum_active_calls, active_calls)
+        await asyncio.sleep(0.05)
+        active_calls -= 1
+        return [{"id": value}]
+
+    first = asset(table="main.first")(source)
+    second = asset(table="main.second")(source)
+    config = AssquackConfig(home=tmp_path)
+
+    async def materialize_both() -> None:
+        await asyncio.gather(
+            first(1, assquack_config=config),
+            second(2, assquack_config=config),
+        )
+
+    asyncio.run(materialize_both())
+
+    assert maximum_active_calls == 2

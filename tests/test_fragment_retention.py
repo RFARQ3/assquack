@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import importlib
 import sys
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
@@ -11,12 +12,15 @@ from unittest.mock import Mock
 import duckdb
 import pytest
 
+import assquack._pipeline as pipeline
 from assquack import AssquackConfig, IngestionConfig, asset
-from assquack._materialization import pipeline
-from assquack._materialization.fragments import fragment_run_directory
-from assquack._materialization.retention import prune_fragments
+from assquack._storage.fragment_writer import fragment_run_directory
 from assquack._storage.metadata import MetadataRepository
+from assquack._storage.retention import prune_fragments
 from database_helpers import inspect_database
+
+materialize_module = importlib.import_module("assquack._pipeline.materialize")
+run_module = importlib.import_module("assquack._run")
 
 
 def test_retention_preserves_success_and_three_failures_then_retries_fresh(
@@ -172,7 +176,7 @@ def test_colliding_orphan_is_not_claimed_by_failed_run_and_later_deleted(
 ) -> None:
     clock = Mock()
     clock.now.return_value = datetime(2026, 10, 22, tzinfo=UTC)
-    monkeypatch.setattr(pipeline, "datetime", clock)
+    monkeypatch.setattr(run_module, "datetime", clock)
     fail = False
 
     @asset(table="main.orders", name="orders")
@@ -497,7 +501,7 @@ def test_abort_cleanup_failure_does_not_mask_extraction_error(
         raise RuntimeError("original extraction error")
 
     monkeypatch.setattr(
-        pipeline.NDJSONFragmentWriter,
+        materialize_module.NDJSONFragmentWriter,
         "abort",
         Mock(side_effect=OSError("abort cleanup failed")),
     )

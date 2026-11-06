@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from assquack import AssquackAsset, AssquackConfig, MissingAssetSchemaWarning, asset
+from assquack._pipeline.resolve import resolve_request
 from database_helpers import inspect_database
 
 
@@ -23,7 +24,9 @@ def test_positional_and_keyword_tables_are_equivalent(export: Any) -> None:
         source
     )
     assert positional == keyword
-    assert positional._request((), {}) == keyword._request((), {})
+    assert resolve_request(positional._request((), {})) == resolve_request(
+        keyword._request((), {})
+    )
 
 
 def test_missing_table_and_extra_positional_arguments_fail() -> None:
@@ -58,8 +61,8 @@ def test_table_templates_preserve_binding_and_identity() -> None:
     assert nz.name == "orders_nz"
     assert nz.export == "nz/orders.parquet"
     assert (
-        nz._request((), {}).asset_id
-        == definition._request((), {"region": "nz"}).asset_id
+        resolve_request(nz._request((), {})).asset_id
+        == resolve_request(definition._request((), {"region": "nz"})).asset_id
     )
 
 
@@ -92,7 +95,10 @@ def test_default_name_tracks_table_templates_and_execution(tmp_path: Path) -> No
     assert definition.name == "sales.orders_au"
     bound = definition.with_arguments(region="nz")
     assert bound.name == "sales.orders_nz"
-    assert bound._request((), {}).asset_id == definition._request(("nz",), {}).asset_id
+    assert (
+        resolve_request(bound._request((), {})).asset_id
+        == resolve_request(definition._request(("nz",), {})).asset_id
+    )
 
     config = AssquackConfig(home=tmp_path)
     result = asyncio.run(bound(region="uk", assquack_config=config))
@@ -111,8 +117,8 @@ def test_default_name_is_independent_of_export() -> None:
     definition = asset("sales.orders", export="elsewhere/custom.parquet")(source)
     assert definition.name == "sales.orders"
     assert (
-        definition._request((), {}).asset_id
-        == asset("sales.orders")(source)._request((), {}).asset_id
+        resolve_request(definition._request((), {})).asset_id
+        == resolve_request(asset("sales.orders")(source)._request((), {})).asset_id
     )
 
 
@@ -123,7 +129,7 @@ def test_empty_default_table_can_be_rebound(template: str) -> None:
         return [{"id": 1}]
 
     with pytest.raises(ValueError, match="table"):
-        rows._request((), {})
+        resolve_request(rows._request((), {}))
 
     ready = rows.cache_first().with_arguments(target="orders")
     assert ready.table == template.format(target="orders")
@@ -132,6 +138,6 @@ def test_empty_default_table_can_be_rebound(template: str) -> None:
     )
     if template == "{target}":
         with pytest.warns(MissingAssetSchemaWarning):
-            assert ready._request((), {}).table.table_name == "orders"
+            assert resolve_request(ready._request((), {})).table.table_name == "orders"
     else:
-        assert ready._request((), {}).table.table_name == "orders"
+        assert resolve_request(ready._request((), {})).table.table_name == "orders"

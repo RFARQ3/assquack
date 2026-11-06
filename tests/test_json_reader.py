@@ -7,8 +7,8 @@ import duckdb
 import pytest
 
 from assquack import AssquackConfig, asset
-from assquack._materialization import json_reader
-from assquack._materialization.json_reader import (
+from assquack._storage import json_reader
+from assquack._storage.json_reader import (
     DEFAULT_MAXIMUM_OBJECT_SIZE,
     JsonReadRecovery,
     largest_record_bytes,

@@ -636,8 +636,8 @@ Reconciled with Git: no missing paths and no duplicate rows.
 | `poetry.lock` | DF-009 — Reproducible test dependencies |
 | `pyproject.toml` | DF-009 — Reproducible test dependencies |
 | `src/assquack/__init__.py` |  |
-| `src/assquack/_api.py` | DF-002 — Current publication identity; DF-007 — Reserved schema boundary; DF-008 — Honest type contracts |
-| `src/assquack/_cache.py` | DF-002 — Current publication identity |
+| `src/assquack/_asset.py` | DF-002 — Current publication identity; DF-007 — Reserved schema boundary; DF-008 — Honest type contracts |
+| `src/assquack/_storage/cache.py` | DF-002 — Current publication identity |
 | `src/assquack/_config.py` | DF-004 — Unused data shapes and setting |
 | `src/assquack/_errors.py` |  |
 | `src/assquack/_exports/__init__.py` | DF-005 — Shared export recording |
@@ -657,27 +657,27 @@ Reconciled with Git: no missing paths and no duplicate rows.
 | `src/assquack/_exports/preparation/local.py` |  |
 | `src/assquack/_exports/preparation/registry.py` |  |
 | `src/assquack/_exports/targets.py` |  |
-| `src/assquack/_exports/writer/__init__.py` |  |
-| `src/assquack/_exports/writer/file.py` |  |
+| `src/assquack/_exports/writer.py` |  |
+| `src/assquack/_exports/writer.py` |  |
 | `src/assquack/_materialization/__init__.py` |  |
-| `src/assquack/_materialization/commit.py` | DF-002 — Current publication identity; DF-004 — Unused data shapes and setting |
-| `src/assquack/_materialization/fragments.py` |  |
-| `src/assquack/_materialization/json_reader.py` |  |
-| `src/assquack/_materialization/models.py` | DF-004 — Unused data shapes and setting; DF-008 — Honest type contracts |
-| `src/assquack/_materialization/pipeline.py` | DF-002 — Current publication identity; DF-004 — Unused data shapes and setting; DF-005 — Shared export recording |
-| `src/assquack/_materialization/retention.py` | DF-003 — Obsolete file locking |
-| `src/assquack/_materialization/schema.py` | DF-004 — Unused data shapes and setting |
-| `src/assquack/_materialization/staging.py` |  |
-| `src/assquack/_query/__init__.py` |  |
-| `src/assquack/_query/asset.py` | DF-008 — Honest type contracts |
+| `src/assquack/_pipeline/publish.py` | DF-002 — Current publication identity; DF-004 — Unused data shapes and setting |
+| `src/assquack/_storage/fragment_writer.py` |  |
+| `src/assquack/_storage/json_reader.py` |  |
+| `src/assquack/_request.py` | DF-004 — Unused data shapes and setting; DF-008 — Honest type contracts |
+| `src/assquack/_pipeline/__init__.py` | DF-002 — Current publication identity; DF-004 — Unused data shapes and setting; DF-005 — Shared export recording |
+| `src/assquack/_storage/retention.py` | DF-003 — Obsolete file locking |
+| `src/assquack/_storage/schemas.py` | DF-004 — Unused data shapes and setting |
+| `src/assquack/_pipeline/stage.py` |  |
+| `src/assquack/_query.py` |  |
+| `src/assquack/_query.py` | DF-008 — Honest type contracts |
 | `src/assquack/_query/context.py` |  |
 | `src/assquack/_query/general.py` | DF-001 — Readable query qualification |
 | `src/assquack/_result.py` | DF-002 — Current publication identity; DF-003 — Obsolete file locking; DF-005 — Shared export recording |
 | `src/assquack/_storage/__init__.py` |  |
 | `src/assquack/_storage/database.py` |  |
-| `src/assquack/_storage/locking.py` | DF-003 — Obsolete file locking |
+| `src/assquack/_storage/database.py` | DF-003 — Obsolete file locking |
 | `src/assquack/_storage/metadata.py` | DF-002 — Current publication identity; DF-003 — Obsolete file locking |
-| `src/assquack/_storage/models.py` | DF-002 — Current publication identity |
+| `src/assquack/_storage/records.py` | DF-002 — Current publication identity |
 | `src/assquack/_storage/sql.py` |  |
 | `src/assquack/_storage/tables.py` | DF-002 — Current publication identity |
 | `src/assquack/_templates.py` | DF-008 — Honest type contracts |

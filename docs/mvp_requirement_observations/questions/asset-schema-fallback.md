@@ -30,7 +30,7 @@ materialization fail when an asset has no explicitly defined schema?
 ## Current Prototype Location
 
 ```text
-src/assquack/_api.py
+src/assquack/_asset.py
 src/assquack/_errors.py
 src/assquack/_storage/tables.py
 tests/test_table_resolution.py

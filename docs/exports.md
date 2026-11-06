@@ -400,8 +400,8 @@ requirement is added. Manual exports use the destination supplied to `result.exp
 
 Outputs are written in that order. If one fails, the call raises and
 stops exporting. Earlier completed outputs and their manifests remain; the failed
-and unattempted outputs receive no success manifest. The committed table and its
-successful run remain queryable. Within its TTL, a cache-first call reuses that
+and unattempted outputs receive no success manifest. The committed table and its publication success remain queryable. The run also
+records a failed invocation outcome and Export stage, with error details. Within its TTL, a cache-first call reuses that
 materialization and writes only outputs lacking a manifest for its run ID,
 resolved URI and destination fingerprint. Successful partial outputs are skipped;
 retry failures still raise. The original run ID and publication timestamp remain
@@ -428,8 +428,7 @@ Exports are not the primary storage source of truth for these reasons:
 - File exports can be deleted, compacted, overwritten, delayed, or disabled
   without invalidating the current DuckDB table.
 - Export schemas are compatibility contracts for consumers, while internal
-  tables can retain richer metadata columns and semi-structured `VARIANT`
-  payloads.
+  tables retain richer metadata columns and DuckDB-inferred types.
 
 The durable recovery target is the DuckDB database and Assquack metadata. Parquet
 exports are a compatibility and interoperability surface, not the mechanism that
@@ -446,3 +445,7 @@ defines whether an asset exists or whether its cache is valid.
 - [Configuration](configuration.md): default export bases and ADLS credentials.
 - [Materialization Lifecycle](materialization-lifecycle.md): when exports are
   written during an asset run.
+
+Manual exports read the current table. If another run has replaced it since the
+result was returned, the export manifest uses that current publication's run,
+asset identity and count. The retained result's own historical fields do not change.

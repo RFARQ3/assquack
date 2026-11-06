@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING
 
 import duckdb
 
-from assquack._exports import resolve_exports
+from assquack._errors import ExportError
 from assquack._exports.destinations import ExportDestination, FileSystemDestination
 from assquack._exports.models import ExportTarget
+from assquack._exports.resolution import resolve_exports
 from assquack._storage.database import database_catalog, database_operation
 from assquack._storage.metadata import MetadataRepository
 from assquack._storage.tables import TableReference
@@ -29,14 +30,21 @@ def export_result(
     with resolve_exports(declaration, result.asset_name, [configured]) as exports:
         with database_operation(result.config) as connection:
             catalog = database_catalog(result.config)
+            metadata = MetadataRepository(connection, catalog)
+            table = replace(result.table, catalog_name=catalog)
+            publication = metadata.find_current_publication(table)
+            if publication is None:
+                raise ExportError(
+                    "The table has no current Assquack publication to export."
+                )
             write_exports(
                 connection,
-                MetadataRepository(connection, catalog),
-                replace(result.table, catalog_name=catalog),
+                metadata,
+                table,
                 exports,
-                asset_id=result.asset_id,
-                run_id=result.run_id,
-                row_count=result.row_count,
+                asset_id=publication.asset_id,
+                run_id=publication.run_id,
+                row_count=publication.row_count,
             )
         uris = [target.resolved_uri for _, target in exports]
         return uris[0] if len(uris) == 1 else uris

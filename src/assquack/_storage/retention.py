@@ -5,7 +5,7 @@ import re
 import stat
 from pathlib import Path
 
-from assquack._materialization.fragments import fragment_run_directory
+from assquack._storage.fragment_writer import fragment_run_directory
 from assquack._storage.metadata import MetadataRepository
 
 _LOGGER = logging.getLogger(__name__)

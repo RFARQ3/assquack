@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from assquack._run import AssquackRun
 
 import duckdb
 
-from assquack._storage.models import AssetRecord, SuccessfulRun
+from assquack._storage.records import AssetRecord, PublicationRecord
 from assquack._storage.sql import quote_identifier
+from assquack._storage.tables import TableReference
 
 
 class MetadataRepository:
@@ -49,10 +54,35 @@ class MetadataRepository:
         self._connection.execute(
             f"""
             INSERT INTO {self._schema}.runs (
-                run_id, asset_id, status, runtime, fragments_owned
-            ) VALUES (?, ?, 'running', ?, false)
+                run_id, asset_id, status, runtime, fragments_owned, resolve_status
+            ) VALUES (?, ?, 'running', ?, false, 'running')
             """,
             [run_id, asset_id, runtime],
+        )
+
+    def save_run_state(self, run: AssquackRun) -> None:
+        """Save stage outcomes without changing the committed publication status."""
+        self._connection.execute(
+            f"""
+            UPDATE {self._schema}.runs SET
+                resolve_status = ?, materialize_status = ?, stage_status = ?,
+                publish_status = ?, export_status = ?, outcome = ?,
+                failed_stage = ?, error_type = ?, error_message = ?, duration_ms = ?
+            WHERE run_id = ?
+            """,
+            [
+                run.resolve_status,
+                run.materialize_status,
+                run.stage_status,
+                run.publish_status,
+                run.export_status,
+                run.outcome,
+                run.failed_stage,
+                run.error_type,
+                run.error_message,
+                run.duration_ms,
+                run.id,
+            ],
         )
 
     def claim_run_fragments(self, run_id: str) -> None:
@@ -63,23 +93,33 @@ class MetadataRepository:
             [run_id],
         )
 
-    def find_latest_successful_run(self, asset_id: str) -> SuccessfulRun | None:
+    def find_current_publication(
+        self, table: TableReference
+    ) -> PublicationRecord | None:
+        """Find the run whose rows currently occupy this physical table."""
         row = self._connection.execute(
             f"""
-            SELECT run_id, CAST(materialized_at AS VARCHAR), coalesce(row_count, 0)
-            FROM {self._schema}.runs
-            WHERE asset_id = ? AND status = 'success'
-            ORDER BY materialized_at DESC
-            LIMIT 1
+            SELECT r.run_id, CAST(r.materialized_at AS VARCHAR),
+                   coalesce(r.row_count, 0), r.asset_id
+            FROM {self._schema}.current_publications p
+            JOIN {self._schema}.runs r ON r.run_id = p.run_id
+            WHERE lower(p.schema_name) = lower(?) AND lower(p.table_name) = lower(?)
+                  AND r.publish_status = 'success'
             """,
-            [asset_id],
+            [table.schema_name, table.table_name],
         ).fetchone()
         if row is None:
             return None
-        return SuccessfulRun(
-            run_id=row[0],
-            materialized_at=datetime.fromisoformat(row[1]),
-            row_count=row[2],
+        return PublicationRecord(row[0], datetime.fromisoformat(row[1]), row[2], row[3])
+
+    def record_publication(self, table: TableReference, run_id: str) -> None:
+        self._connection.execute(
+            f"""
+            INSERT INTO {self._schema}.current_publications
+            VALUES (lower(?), lower(?), ?)
+            ON CONFLICT (schema_name, table_name) DO UPDATE SET run_id = excluded.run_id
+            """,
+            [table.schema_name, table.table_name, run_id],
         )
 
     def recover_interrupted_runs(
@@ -90,8 +130,30 @@ class MetadataRepository:
         self._connection.execute(
             f"""
             UPDATE {self._schema}.runs
-            SET status = 'failed', error = 'Interrupted before publication completed'
-            WHERE asset_id = ? AND status = 'running'
+            SET status = CASE WHEN publish_status = 'success'
+                                  THEN 'success' ELSE 'failed' END,
+                outcome = 'failed',
+                resolve_status = CASE WHEN resolve_status = 'running'
+                    THEN 'failed' ELSE resolve_status END,
+                materialize_status = CASE WHEN materialize_status = 'running'
+                    THEN 'failed' ELSE materialize_status END,
+                stage_status = CASE WHEN stage_status = 'running'
+                    THEN 'failed' ELSE stage_status END,
+                publish_status = CASE WHEN publish_status = 'running'
+                    THEN 'failed' ELSE publish_status END,
+                export_status = CASE WHEN export_status = 'running'
+                    THEN 'failed' ELSE export_status END,
+                failed_stage = CASE
+                    WHEN resolve_status = 'running' THEN 'resolve'
+                    WHEN materialize_status = 'running' THEN 'materialize'
+                    WHEN stage_status = 'running' THEN 'stage'
+                    WHEN publish_status = 'running' THEN 'publish'
+                    WHEN export_status = 'running' THEN 'export' END,
+                error_type = 'InterruptedRun',
+                error_message = 'Interrupted before completion',
+                error = 'Interrupted before publication completed'
+            WHERE asset_id = ? AND (status = 'running'
+                OR (outcome = 'running' AND publish_status = 'success'))
                 AND run_id NOT IN (SELECT unnest(?::VARCHAR[]))
             """,
             [asset_id, list(active_run_ids)],
@@ -112,6 +174,7 @@ class MetadataRepository:
                 ) AS position
                 FROM {self._schema}.runs
                 WHERE asset_id = ? AND status IN ('success', 'failed')
+                    AND fragments_owned
             )
             WHERE fragments_owned AND (
                 (status = 'success' AND position > 1)
@@ -145,7 +208,7 @@ class MetadataRepository:
         self._connection.execute(
             f"""
             UPDATE {self._schema}.runs
-            SET status = 'success',
+            SET status = 'success', publish_status = 'success',
                 materialized_at = current_timestamp,
                 duration_ms = ?,
                 row_count = ?,
@@ -155,7 +218,7 @@ class MetadataRepository:
             [duration_ms, row_count, run_id],
         )
 
-        # The publication strategy owns the transaction containing the table
+        # The main pipeline owns the transaction containing the table
         # replacement and both metadata updates. Use the run's exact timestamp.
         self._connection.execute(
             f"""

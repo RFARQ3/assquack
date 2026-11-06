@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import json
-import re
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Protocol
 
 import duckdb
 
 from assquack._config import SchemaConfig
-from assquack._materialization.json_reader import JsonReadRecovery
-from assquack._materialization.models import FragmentFile, ProjectionSpec
-from assquack._materialization.staging import describe_fragments
+from assquack._storage.fragment_writer import FragmentFile
+from assquack._storage.json_reader import JsonReadRecovery, read_json_sql
 
 
 class SchemaStrategy(Protocol):
@@ -37,11 +35,6 @@ class CurrentRunSchemaStrategy:
         )
         return [
             ProjectionSpec(
-                source_field=(
-                    f"$.{name}"
-                    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name)
-                    else f"$.{json.dumps(name)}"
-                ),
                 column_name=name,
                 duckdb_type=duckdb_type,
             )
@@ -79,3 +72,28 @@ def replace_schema_strategy(
             f"Unsupported replacement schema strategy: {config.replace!r}"
         ) from None
     return factory(connection, fragments, reader)
+
+
+def describe_fragments(
+    connection: duckdb.DuckDBPyConnection,
+    fragments: list[FragmentFile],
+    reader: JsonReadRecovery | None = None,
+) -> list[tuple[str, str]]:
+    if not fragments:
+        return []
+
+    paths = [fragment.path for fragment in fragments]
+    reader = reader or JsonReadRecovery()
+    rows = reader.read(
+        paths,
+        lambda limit: connection.execute(
+            f"DESCRIBE SELECT * FROM {read_json_sql(paths, limit)}"
+        ).fetchall(),
+    )
+    return [(row[0], row[1]) for row in rows]
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectionSpec:
+    column_name: str
+    duckdb_type: str

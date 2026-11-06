@@ -134,7 +134,7 @@ loads the settings and calls `.attach()`.
 [database.py](../src/assquack/_storage/database.py) opens or creates
 `/data/sales/sales.duckdb` on DuckDB's shared default connection, attaches it as
 `sales`, applies engine settings and selects the first Assquack attachment as
-the default database. [tables.py](../src/assquack/_storage/tables.py) initializes
+the default database. [catalog.py](../src/assquack/_storage/catalog.py) initializes
 the `assquack_meta` schema and metadata tables.
 
 The decorators create `AssquackAsset` definitions. `.with_arguments(...)` creates
@@ -144,50 +144,46 @@ placeholders. Binding `endpoint="orders"` already exposes `bronze.orders` and
 `bronze/orders.parquet|json` before import finishes. Neither definition nor binding
 fetches API data.
 
-## 4. Calling an asset creates a MaterializationRequest
+## 4. Calling an asset creates an AssquackRequest
 
 Prefect executes the flow, which calls the globally defined assets.
-[AssquackAsset.__call__()](../src/assquack/_api.py) selects the execution config
-and calls `self._request(args, kwargs)`.
+[`AssquackAsset.__call__()`](../src/assquack/_asset.py) captures the arguments and
+options in an [`AssquackRequest`](../src/assquack/_request.py) immediately, then
+returns the pipeline coroutine. `_request()` combines bound and supplied arguments
+and applies defaults. Ordinary nested data containers are copied so another call
+cannot rewrite these values. Producer execution receives its own containers too.
 
-`_request()` combines bound and supplied arguments, applies function defaults,
-and uses `AssetTemplateFormatter` to fully resolve the original table, name and
-export templates again, so call-time overrides can replace previously bound values.
-For `orders`, the table is `bronze.orders` and the export declaration is
-`bronze/orders.parquet|json`. It also calculates the asset ID from the function,
-resolved name and arguments.
-
-It creates a [MaterializationRequest](../src/assquack/_materialization/models.py)
-containing the producer function, arguments, asset identity, table reference,
-export declaration, materialization mode and cache policy. `__call__()` passes
-that request and the config to `materialize()` in
-[pipeline.py](../src/assquack/_materialization/pipeline.py).
+The awaited coroutine enters [`run_pipeline()`](../src/assquack/_pipeline/__init__.py),
+which creates [`AssquackRun`](../src/assquack/_run.py) to track the stages. Resolve
+formats the request's captured templates and calculates identity from those same
+arguments. For `orders`, the table is `bronze.orders` and the export declaration is
+`bronze/orders.parquet|json`.
 
 ## 5. The pipeline checks whether extraction is needed
 
-The pipeline resolves export destinations and qualifies the request's table with
-its configured database. During resolution, the authentication registry loads
-credential inputs once and checks each strategy's registered input combinations.
-The complete pod workload-identity inputs select the credential chain. Assquack
-fingerprints the selected authentication configuration without storing raw
-credentials in metadata; DuckDB obtains the runtime token when exporting.
+Resolve qualifies the table with the configured database, registers the asset
+and recovers interrupted run metadata. The cache lookup checks that the requested
+asset still occupies that physical table and that the publication has not expired.
+On a miss, a new run row records Resolve progress before export resolution.
 
-`MetadataRepository` records the asset definition in
-`assquack_meta.assets`, recovers interrupted run records and prunes obsolete
-fragments.
+Export destinations resolve their paths and authentication inputs once. The pod's
+workload-identity inputs select the credential chain. Assquack fingerprints the
+selected configuration without storing raw credentials in metadata; DuckDB obtains
+the runtime token when exporting.
 
-If caching is enabled, [_cache.py](../src/assquack/_cache.py) checks the latest
-successful run's age and whether its table exists. With a valid two-hour cache,
-the pipeline skips extraction, attempts any exports not already recorded as
-complete for that run and destination, and returns an `AssquackResult`.
+With a valid two-hour cache, Materialize, Stage and Publish are skipped. Export
+writes only files not already recorded for the existing publication and destination.
+The returned result retains that publication's run ID, count and timestamp. A cache
+hit has an in-memory run object but adds no new database run row.
 
-Otherwise it records a new run in `assquack_meta.runs` and invokes the producer.
-Follow a fresh orders extraction through the next steps.
+Otherwise the pipeline invokes the producer. Each numbered block in the main
+pipeline records its stage's start and outcome and catches its failures. Fragment
+retention happens once at the end, after the outcome is known.
 
 ## 6. The producer's output becomes local NDJSON fragments
 
 `paginate_api("orders")` fetches pages internally and yields lists of dictionaries.
-[write_fragments()](../src/assquack/_materialization/fragments.py) consumes each
+[write_fragments()](../src/assquack/_storage/fragment_writer.py) consumes each
 yielded value and selects the matching write path:
 
 | Asset output | How it is written |
@@ -215,23 +211,23 @@ the asset's export declaration independently chooses its Azure output formats.
 
 ## 7. Assquack builds the staging table
 
-[schema.py](../src/assquack/_materialization/schema.py) uses DuckDB to infer the
-current extraction's columns and types. [json_reader.py](../src/assquack/_materialization/json_reader.py)
+[schemas.py](../src/assquack/_storage/schemas.py) uses DuckDB to infer the
+current extraction's columns and types. [json_reader.py](../src/assquack/_storage/json_reader.py)
 supplies the reads; for the relevant oversized-record failure, `JsonReadRecovery`
 measures the required record size and retries with an adjusted reader limit.
 
-[staging.py](../src/assquack/_materialization/staging.py) builds the candidate
+[stage.py](../src/assquack/_pipeline/stage.py) builds the candidate
 table in `assquack_stage`, preserving DuckDB's inferred column types and adding
 `_qa_run_id` and `_qa_loaded_at`. The existing published table is still unchanged.
 
 ## 8. Assquack publishes the table
 
-[commit.py](../src/assquack/_materialization/commit.py) replaces
+[publish.py](../src/assquack/_pipeline/publish.py) replaces
 `sales.bronze.orders` from the staging table and updates successful publication
 metadata in one transaction. Failure rolls back that transaction.
 
-After publication, the pipeline drops staging and
-[retention.py](../src/assquack/_materialization/retention.py) prunes older diagnostic
+At pipeline exit, after exports succeed or any stage fails, cleanup drops staging
+and [retention.py](../src/assquack/_storage/retention.py) prunes older diagnostic
 fragments according to its retention rules. Selected fragments remain available
 for diagnosis.
 

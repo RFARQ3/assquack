@@ -30,7 +30,7 @@ from assquack._exports.preparation.registry import (
     default_preparations,
 )
 from assquack._exports.targets import parse_export_targets
-from assquack._exports.writer.file import DuckDBFileWriter
+from assquack._exports.writer import DuckDBFileWriter
 from assquack._storage.tables import TableReference
 
 

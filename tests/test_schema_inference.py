@@ -6,12 +6,12 @@ import duckdb
 import pytest
 
 from assquack import SchemaConfig
-from assquack._materialization.fragments import NDJSONFragmentWriter
-from assquack._materialization.schema import (
+from assquack._storage.fragment_writer import NDJSONFragmentWriter
+from assquack._storage.schemas import (
     CurrentRunSchemaStrategy,
+    describe_fragments,
     replace_schema_strategy,
 )
-from assquack._materialization.staging import describe_fragments
 
 
 def test_strategy_infers_fragments_and_preserves_native_types(tmp_path: Path) -> None:
@@ -34,7 +34,7 @@ def test_strategy_infers_fragments_and_preserves_native_types(tmp_path: Path) ->
     } == inferred_types
     assert projections["items"].duckdb_type == "BIGINT[]"
     assert projections["late"].duckdb_type == "BOOLEAN"
-    assert projections["odd.name"].source_field == '$."odd.name"'
+    assert projections["odd.name"].column_name == "odd.name"
     assert (tmp_path / "fragments" / "_COMPLETE").exists()
 
 
@@ -73,8 +73,8 @@ def test_unknown_internal_strategy_is_rejected(tmp_path: Path) -> None:
 
 
 def test_candidate_failed_cast_becomes_null(tmp_path: Path) -> None:
-    from assquack._materialization.models import ProjectionSpec
-    from assquack._materialization.staging import create_shaped_staging
+    from assquack._pipeline.stage import create_shaped_staging
+    from assquack._storage.schemas import ProjectionSpec
     from assquack._storage.tables import TableReference
 
     writer = NDJSONFragmentWriter(tmp_path / "casts", target_bytes=1)
@@ -84,7 +84,7 @@ def test_candidate_failed_cast_becomes_null(tmp_path: Path) -> None:
             connection,
             TableReference("main", "candidate"),
             writer.finish(),
-            [ProjectionSpec("$.value", "value", "BIGINT")],
+            [ProjectionSpec("value", "BIGINT")],
             "synthetic-run",
         )
         assert connection.execute(

@@ -86,7 +86,14 @@ def test_duplicate_outputs_fail_before_extraction(
     )
     with pytest.raises(ExportError, match="same write path"):
         asyncio.run(orders(assquack_config=config))
-    assert not config.resolved_database_path.exists()
+    with inspect_database(config) as db:
+        assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
+            0,
+        )
+        assert db.execute(
+            "SELECT resolve_status, materialize_status, outcome, failed_stage, "
+            "error_type FROM assquack_meta.runs"
+        ).fetchone() == ("failed", "unstarted", "failed", "resolve", "ExportError")
 
 
 def test_config_normalizes_one_or_many_destinations_and_rejects_old_fields() -> None:

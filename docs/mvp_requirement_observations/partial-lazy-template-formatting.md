@@ -156,7 +156,7 @@ The behaviour is split between:
 
 ```text
 src/assquack/_templates.py
-src/assquack/_api.py
+src/assquack/_asset.py
 ```
 
 `AssetTemplateFormatter` owns recursive formatting, missing-placeholder

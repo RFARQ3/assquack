@@ -11,10 +11,10 @@ from pydantic import SecretStr
 
 from assquack import AssquackConfig, FileSystemDestination, asset
 from assquack._errors import ExportError
-from assquack._exports import resolve_exports
 from assquack._exports.authentication.local import LocalAuthenticator
 from assquack._exports.destinations.fingerprint import hash_configuration
 from assquack._exports.preparation.azure import AzurePreparationStrategy
+from assquack._exports.resolution import resolve_exports
 from assquack._storage.tables import TableReference
 from database_helpers import inspect_database
 

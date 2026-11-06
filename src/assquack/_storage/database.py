@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -10,8 +11,8 @@ from threading import RLock
 import duckdb
 
 from assquack._config import AssquackConfig
+from assquack._storage.catalog import bootstrap_database
 from assquack._storage.sql import identifier_key, quote_identifier, quote_literal
-from assquack._storage.tables import bootstrap_database
 
 ASSQUACK_STORAGE_VERSION = "v1.5.0"
 CONNECTION_LOCK = RLock()
@@ -164,5 +165,10 @@ def transaction(
             yield connection
             connection.execute("COMMIT")
         except BaseException:
-            connection.execute("ROLLBACK")
+            try:
+                connection.execute("ROLLBACK")
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Could not roll back transaction", exc_info=True
+                )
             raise

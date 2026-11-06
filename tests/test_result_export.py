@@ -7,8 +7,8 @@ import pytest
 
 from assquack import AssquackConfig, FileSystemDestination, asset
 from assquack._errors import ExportError
-from assquack._exports import resolve_exports
-from assquack._exports.writer.file import DuckDBFileWriter
+from assquack._exports.resolution import resolve_exports
+from assquack._exports.writer import DuckDBFileWriter
 from database_helpers import inspect_database
 
 

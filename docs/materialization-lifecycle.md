@@ -5,39 +5,55 @@ combined schema across the completed fragment set, builds a typed candidate
 table, and transactionally publishes that table as the current asset. Optional
 exports happen afterwards.
 
+The implementation follows the five stages below. The
+[architecture review](reviews/2026-11-06-architecture-and-run-flow.md) records the
+design discussion; the [implementation phase](epics/01-mvp/08-request-and-run-pipeline.md)
+tracks validation and final choices.
+
 ## Lifecycle At A Glance
 
 ```mermaid
 flowchart LR
-  Resolve[Resolve identity and config] --> Cache[Check cache metadata]
-  Cache -->|Miss or expired| Run[Create run record]
-  Cache -->|Valid table| Retry[Write missing exports]
-  Retry --> Result
-  Run --> Capture[Write local NDJSON fragments]
-  Capture --> Infer[Infer current-run schema]
-  Infer --> Candidate[Build candidate table]
-  Candidate --> Commit[Swap current table]
-  Commit --> Export[Write compatibility exports]
-  Export --> Result[Return AssquackResult]
+  Request[Capture AssquackRequest] --> Resolve
+  Resolve -->|Fresh extraction| Materialize
+  Materialize --> Stage
+  Stage --> Publish
+  Publish --> Export
+  Resolve -->|Cached publication| Export
+  Export --> Result[AssquackResult]
 ```
 
-1. Resolve the asset identity, table, export target, and runtime configuration;
-   select the commit strategy using the declared mode.
-2. When decorator `cache_expiration` or `cache_first()` finds a valid run, write
-   only missing exports for that run/path/fingerprint, then return the cached
-   table without renewing its TTL.
-3. Create a `running` metadata record.
-4. Release the shared connection lock before user source execution and dispatch
-   returned or yielded values to the Python or native relation writer.
-5. Write rows into size-controlled local NDJSON fragments.
-6. Complete each fragment through an atomic rename, then mark the run directory
-   complete after capture succeeds.
-7. Acquire the shared connection lock and infer the current run schema from
-   completed fragments on the default connection.
-8. Build the typed candidate table directly from the completed fragments.
-9. Transactionally replace the current table, mark the run successful, and update
-   the asset's first/last publication dates using the run's publication timestamp.
-10. Write configured exports from the committed table.
+Calling an asset immediately creates an `AssquackRequest`. It binds supplied and
+previously bound arguments, applies defaults, and copies ordinary data containers
+and configured options. Every request includes its effective configuration:
+call override, attached asset config or defaults. The pipeline accepts only this
+request, and the run reads its configuration from the request. The returned
+coroutine performs the pipeline when awaited.
+Changing the caller's dictionaries or settings before awaiting cannot change that
+call. Producer code receives separate containers, preserving the request's originals.
+
+`AssquackRun` exists before cache lookup and holds changing progress separately:
+
+| Stage | Work | State saved |
+| --- | --- | --- |
+| Resolve | Format captured templates, derive identity, use captured configuration, register the asset, recover interrupted runs, check the current publication and resolve exports. | Start and outcome once a new attempt's database row exists. |
+| Materialize | Call the producer and pass its output to the fragment writer. | Start before capture and success after fragments finish. |
+| Stage | Ask DuckDB to describe completed fragments, then load the candidate table. | Start before inference and success after loading. |
+| Publish | Replace the asset table and update publication metadata atomically. | Start before the transaction; success inside it. |
+| Export | Write requested files and record each completed export. | Start and outcome, or skipped if no exports were requested. |
+
+The coordinator is `_pipeline/__init__.py`. Its five numbered sections visibly
+assign the running and success states, save progress, call the underlying work,
+and catch that stage's failure. Each stage has a corresponding work module; those
+helpers do not record stage outcomes. Publish's transaction is visible in the main
+function and includes the success-state save. Cleanup drops the candidate table and runs retention once at exit, after
+the outcome is known. Cleanup errors cannot hide the original execution error.
+
+A cache hit still has an `AssquackRun`, but creates no new database run row.
+Materialize, Stage and Publish are skipped. Missing exports use the existing
+publication's run ID and timestamp, without renewing its TTL. The connection lock
+keeps the selected table stable through cache-hit exports. Fresh producer execution
+holds no database lock across an await.
 
 ## Storage Boundaries
 
@@ -48,9 +64,8 @@ table and both dates. Capture failures and cache hits leave them unchanged;
 export failure after commit leaves the successful publication recorded. See
 [asset metadata](storage-model.md#asset-tables).
 
-The request carries the asset's declared mode into execution. A framework-owned
-registry selects its commit strategy before opening the database, and the asset
-metadata records that same mode without a separate default. Only `replace` is
+The request carries the asset's declared mode into execution. The mode is validated before opening the database, and the asset metadata records
+that same mode. Publish selects the framework-owned publication strategy. Only `replace` is
 supported; unknown modes fail before cache lookup or source capture.
 
 New run IDs follow the MAD.Prefect hash-based identifier pattern:
@@ -168,15 +183,15 @@ no extra scan; recovery neither repeats extraction nor rewrites fragments. Other
 read errors and a failed retry follow the usual failure behavior below.
 
 The candidate table contains `_qa_run_id`, `_qa_loaded_at`, and the effective
-typed columns. Source columns absent from the current extraction disappear. A whole-row `VARIANT` payload is optional rather than a
-mandatory staging column.
+typed columns. Source columns absent from the current extraction disappear. DuckDB-inferred types are preserved, including `JSON`. No schema history is stored
+as part of this refactor.
 
 ## Transaction And Failure Behavior
 
 Source capture and JSON scanning do not run inside the final publication
 transaction. The short transaction replaces the stable current table and marks
-the run successful together, so readers see either the previous asset or the
-new one.
+the run published together, including the physical table's current-publication
+record, so readers see either the previous asset or the new one.
 
 On capture or inference failure, the previous current table remains valid and
 the run is marked failed. Completed fragments and any partial fragment remain
@@ -197,7 +212,10 @@ Metadata, published tables, and export artifacts are not deleted by this policy.
 
 At the next call for an asset, recovery excludes all process-local active runs
 for its destination, including nested and concurrent captures. Remaining earlier
-`running` attempts are marked failed before cache lookup and retention. The
+`running` attempts are marked failed before cache lookup. Completed stage outcomes
+are retained; a stage left running is marked failed. A committed publication stays
+successful if interruption happened during Export. File pruning happens at exit,
+not during recovery. The
 connection lock protects this check; DuckDB's attachment ownership excludes other
 process writers. Cleanup ignores live and unknown runs. No fragment reuse is
 introduced.
@@ -220,6 +238,10 @@ columns. It does not reuse historical schema.
 
 Exports read from the committed current table. An export failure can fail the
 public call, but it does not roll back the successful table materialization.
+The metadata retains `status=success` for publication and records `outcome=failed`,
+`export_status=failed`, the failed stage and error details for the call. A failure
+while saving the final outcome leaves completed stage statuses unchanged and uses
+`failed_stage=NULL`, because no stage operation failed.
 Cache state is based on DuckDB metadata and the current table, not fragment or
 export existence alone.
 

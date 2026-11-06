@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import string
-from typing import Any, overload
+from typing import Any, cast, overload
 
 
 class AssetTemplateFormatter:
@@ -112,17 +112,18 @@ class AssetTemplateFormatter:
         accumulator: dict[str, Any],
         seen_assets: set[int],
     ) -> None:
-        from assquack._api import AssquackAsset
+        from assquack._asset import AssquackAsset
 
         if not isinstance(value, AssquackAsset):
             return
 
-        asset_object_id = id(value)
+        asset = cast(AssquackAsset[Any, Any], value)
+        asset_object_id = id(asset)
         if asset_object_id in seen_assets:
             return
 
         seen_assets.add(asset_object_id)
-        nested_arguments = value._get_bound_arguments()
+        nested_arguments = asset.get_bound_arguments()
 
         for key, nested_value in nested_arguments.arguments.items():
             accumulator.setdefault(key, nested_value)

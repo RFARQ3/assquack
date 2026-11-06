@@ -2,29 +2,13 @@ from __future__ import annotations
 
 import duckdb
 
-from assquack._materialization.json_reader import JsonReadRecovery, read_json_sql
-from assquack._materialization.models import FragmentFile, ProjectionSpec
+from assquack._run import AssquackRun
+from assquack._storage.database import database_operation
+from assquack._storage.fragment_writer import FragmentFile
+from assquack._storage.json_reader import JsonReadRecovery, read_json_sql
+from assquack._storage.schemas import ProjectionSpec, replace_schema_strategy
 from assquack._storage.sql import quote_identifier
 from assquack._storage.tables import TableReference
-
-
-def describe_fragments(
-    connection: duckdb.DuckDBPyConnection,
-    fragments: list[FragmentFile],
-    reader: JsonReadRecovery | None = None,
-) -> list[tuple[str, str]]:
-    if not fragments:
-        return []
-
-    paths = [fragment.path for fragment in fragments]
-    reader = reader or JsonReadRecovery()
-    rows = reader.read(
-        paths,
-        lambda limit: connection.execute(
-            f"DESCRIBE SELECT * FROM {read_json_sql(paths, limit)}"
-        ).fetchall(),
-    )
-    return [(row[0], row[1]) for row in rows]
 
 
 def create_shaped_staging(
@@ -80,4 +64,22 @@ def drop_shaped_staging(
     connection: duckdb.DuckDBPyConnection,
     shaped: TableReference,
 ) -> None:
-    connection.execute(f"DROP TABLE {shaped.sql}")
+    connection.execute(f"DROP TABLE IF EXISTS {shaped.sql}")
+
+
+def stage(run: AssquackRun) -> None:
+    """Infer this run's columns and load its fragments into a candidate table."""
+    assert run.candidate_table is not None
+    reader = JsonReadRecovery()
+    with database_operation(run.config) as connection:
+        projections = replace_schema_strategy(
+            run.config.schema, connection, lambda: run.fragments, reader
+        ).resolve()
+        create_shaped_staging(
+            connection,
+            run.candidate_table,
+            run.fragments,
+            projections,
+            run.id,
+            reader,
+        )

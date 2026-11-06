@@ -75,6 +75,12 @@ the topic links that match the work in front of you.
 
 ## Implementation Tracking
 
+- [Request snapshots and run stages](epics/01-mvp/08-request-and-run-pipeline.md):
+  implementation and validation of the five-stage pipeline and request guarantees.
+
+- [Architecture and run flow proposal — 6 November 2026](reviews/2026-11-06-architecture-and-run-flow.md):
+  review-only source layout, core object ownership, five-stage execution and
+  proposed invocation/publication metadata; decisions for discussion before implementation.
 - [Repository review — 4 November 2026](reviews/2026-11-04-repository-review.md):
   readability-first review, adjudicated correctness findings, minimal remedies,
   and repository coverage.

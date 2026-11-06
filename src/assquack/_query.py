@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any
+from typing import Any, cast
 
 import duckdb
 
@@ -33,4 +33,4 @@ def query_dataframe(
     params: Sequence[object] | Mapping[str, object] | None = None,
 ) -> Any:
     with database_operation(config):
-        return execute_query(config, table, sql, params).fetchdf()
+        return cast(Any, execute_query(config, table, sql, params)).fetchdf()

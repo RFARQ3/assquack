@@ -9,8 +9,7 @@ import duckdb
 import pytest
 
 from assquack import AssquackConfig, IngestionConfig, asset
-from assquack._materialization.fragments import NDJSONFragmentWriter
-from assquack._storage.locking import writer_lock
+from assquack._storage.fragment_writer import NDJSONFragmentWriter
 from database_helpers import inspect_database
 
 
@@ -197,26 +196,6 @@ def test_nested_failure_releases_lock_and_preserves_outer_table(tmp_path: Path) 
         ).fetchone() == (2,)
 
 
-def test_nested_lock_does_not_release_outer_or_admit_child_task(tmp_path: Path) -> None:
-    entered = asyncio.Event()
-
-    async def child():
-        async with writer_lock(tmp_path / "db"):
-            entered.set()
-
-    async def exercise():
-        async with writer_lock(tmp_path / "db"):
-            async with writer_lock(tmp_path / "db"):
-                pass
-            task = asyncio.create_task(child())
-            await asyncio.sleep(0.1)
-            assert not entered.is_set()
-        await asyncio.wait_for(task, 2)
-        assert entered.is_set()
-
-    asyncio.run(exercise())
-
-
 @pytest.mark.parametrize("rows", [[], [{}], [{}, {}], [{"_QA_RUN_ID": "old"}]])
 def test_metadata_only_asset_and_result_preserve_rows(tmp_path: Path, rows) -> None:
     @asset("main.inner")
@@ -286,7 +265,7 @@ def test_same_asset_nested_run_does_not_recover_live_outer(tmp_path: Path) -> No
 def test_native_partial_files_follow_retention_allowlist(
     tmp_path: Path, filename
 ) -> None:
-    from assquack._materialization.retention import _remove_run_directory
+    from assquack._storage.retention import _remove_run_directory
 
     run_id = "a" * 32
     directory = tmp_path / "asset=source" / f"run_id={run_id}"
@@ -299,7 +278,7 @@ def test_native_partial_files_follow_retention_allowlist(
 def test_native_evaluation_failure_cleans_intermediate(
     tmp_path: Path,
 ) -> None:
-    from assquack._materialization.retention import _remove_run_directory
+    from assquack._storage.retention import _remove_run_directory
 
     run_id = "b" * 32
     directory = tmp_path / "asset=source" / f"run_id={run_id}"
@@ -384,7 +363,7 @@ def test_copy_uses_replacement_scan_without_views_or_preexecution(
 ):
     from types import SimpleNamespace
 
-    from assquack._materialization import fragments as module
+    from assquack._storage import fragment_writer as module
 
     connection = duckdb.default_connection()
     connection.execute("SET python_scan_all_frames = true")

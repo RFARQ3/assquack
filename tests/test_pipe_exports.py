@@ -10,7 +10,7 @@ import pytest
 from assquack import AssquackConfig, FileSystemDestination, asset
 from assquack._errors import ExportError
 from assquack._exports.targets import parse_export_targets
-from assquack._exports.writer.file import DuckDBFileWriter
+from assquack._exports.writer import DuckDBFileWriter
 from assquack._storage.tables import TableReference
 from database_helpers import inspect_database
 
@@ -73,7 +73,14 @@ def test_invalid_declarations_fail_before_extraction(
     with pytest.raises(ExportError):
         asyncio.run(orders(assquack_config=config))
     assert not called
-    assert not (tmp_path / "assquack.duckdb").exists()
+    with inspect_database(config) as db:
+        assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
+            0,
+        )
+        assert db.execute(
+            "SELECT resolve_status, materialize_status, outcome, failed_stage, "
+            "error_type FROM assquack_meta.runs"
+        ).fetchone() == ("failed", "unstarted", "failed", "resolve", "ExportError")
 
 
 @pytest.mark.parametrize("format_name", ["csv", "json", "parquet"])

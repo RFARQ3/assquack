@@ -6,6 +6,7 @@ import json
 import os
 import re
 from collections.abc import AsyncIterable, Iterable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, cast
 from uuid import uuid4
@@ -14,10 +15,17 @@ import duckdb
 
 from assquack._config import AssquackConfig
 from assquack._errors import MaterializationError
-from assquack._materialization.models import FragmentFile
 from assquack._result import AssquackResult
 from assquack._storage.database import CONNECTION_LOCK, default_connection
 from assquack._storage.sql import identifier_key, quote_identifier, quote_literal
+
+
+@dataclass(frozen=True, slots=True)
+class FragmentFile:
+    index: int
+    path: str
+    row_count: int
+
 
 _UNSAFE_PARTITION_VALUE = re.compile(r"[^A-Za-z0-9_.-]+")
 
@@ -212,7 +220,7 @@ async def write_fragments(
 ) -> int:
     """Dispatch each yielded value before considering generic iteration."""
     # Import here because asset execution itself imports the capture pipeline.
-    from assquack._api import AssquackAsset
+    from assquack._asset import AssquackAsset
 
     if value is None:
         return 0

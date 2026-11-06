@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 from collections.abc import Callable
 from pathlib import Path
 
@@ -8,15 +9,17 @@ import duckdb
 import pytest
 
 from assquack import AssquackConfig, IngestionConfig, SchemaConfig, asset
-from assquack._materialization import pipeline
-from assquack._materialization.json_reader import JsonReadRecovery
-from assquack._materialization.models import FragmentFile, ProjectionSpec
-from assquack._materialization.schema import (
+from assquack._storage.fragment_writer import FragmentFile
+from assquack._storage.json_reader import JsonReadRecovery
+from assquack._storage.metadata import MetadataRepository
+from assquack._storage.schemas import (
+    ProjectionSpec,
     SchemaStrategy,
     replace_schema_strategy,
 )
-from assquack._storage.metadata import MetadataRepository
 from database_helpers import inspect_database
+
+stage_module = importlib.import_module("assquack._pipeline.stage")
 
 
 def test_replacement_uses_only_current_fragments(
@@ -81,14 +84,17 @@ def test_replacement_uses_only_current_fragments(
 def test_per_asset_config_selects_the_strategy_used_for_publication(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    class SelectedSchemaConfig(SchemaConfig):
+        pass
+
     native_config = AssquackConfig(home=tmp_path)
     selected_config = AssquackConfig(
-        home=tmp_path, schema=SchemaConfig(replace="current_run")
+        home=tmp_path, schema=SelectedSchemaConfig(replace="current_run")
     )
 
     class TextIdStrategy:
         def resolve(self) -> list[ProjectionSpec]:
-            return [ProjectionSpec("$.id", "id", "VARCHAR")]
+            return [ProjectionSpec("id", "VARCHAR")]
 
     def select_strategy(
         config: SchemaConfig,
@@ -96,13 +102,13 @@ def test_per_asset_config_selects_the_strategy_used_for_publication(
         fragments: Callable[[], list[FragmentFile]],
         reader: JsonReadRecovery | None = None,
     ) -> SchemaStrategy:
-        if config is selected_config.schema:
+        if isinstance(config, SelectedSchemaConfig):
             return TextIdStrategy()
         return replace_schema_strategy(config, connection, fragments, reader)
 
     # Substitute a policy at the internal extension point without adding an
     # unsupported public setting. Its output must reach the published table.
-    monkeypatch.setattr(pipeline, "replace_schema_strategy", select_strategy)
+    monkeypatch.setattr(stage_module, "replace_schema_strategy", select_strategy)
 
     @asset(table="main.native_asset")
     async def native_asset() -> list[dict[str, int]]:
@@ -190,7 +196,7 @@ def test_failed_publication_rolls_back_table_and_success_status(
 def test_schema_failure_preserves_published_table_and_allows_retry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from assquack._materialization.schema import CurrentRunSchemaStrategy
+    from assquack._storage.schemas import CurrentRunSchemaStrategy
 
     rows = [{"id": 1}]
 
@@ -236,4 +242,9 @@ def test_new_catalog_has_only_active_metadata_tables(tmp_path: Path) -> None:
         assert connection.execute(
             "SELECT table_name FROM information_schema.tables "
             "WHERE table_schema = 'assquack_meta' ORDER BY table_name"
-        ).fetchall() == [("assets",), ("exports",), ("runs",)]
+        ).fetchall() == [
+            ("assets",),
+            ("current_publications",),
+            ("exports",),
+            ("runs",),
+        ]

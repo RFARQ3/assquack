@@ -112,6 +112,7 @@ tables.
 erDiagram
   ASSETS ||--o{ RUNS : materializes
   RUNS ||--o{ EXPORTS : writes
+  RUNS ||--o{ CURRENT_PUBLICATIONS : occupies
 ```
 
 `assquack_meta.assets` is the asset manifest. `assquack_meta.runs` records
@@ -135,6 +136,28 @@ for the distinction between materialization validity and export completion.
 Developer-facing docs describe the purpose of these tables. The concrete MVP
 DDL belongs to the implementor-facing
 [Local DuckDB Core epic](epics/01-mvp/01-local-duckdb-core.md#metadata-table-contracts).
+
+### Run stages and current publications
+
+`assquack_meta.runs` includes `resolve_status`, `materialize_status`, `stage_status`,
+`publish_status` and `export_status`. Values are `unstarted`, `running`, `success`,
+`failed` or `skipped`. `outcome` describes the complete invocation, while existing
+`status` retains publication success for cache and retention. `failed_stage`,
+`error_type` and a bounded `error_message` identify failures. A final-state save
+failure can have no failed stage; completed stage outcomes stay unchanged.
+
+`assquack_meta.current_publications` maps each physical schema/table to its current
+run. Publish updates this row in the same transaction as table replacement and
+success metadata. Cache lookup requires that publication to belong to the requested
+asset identity. This also works for empty tables and argument variants sharing a
+table. Manual exports from an older result record the current publication actually
+read, rather than incorrectly attaching new rows to the old result's run.
+
+Cache-hit calls create an in-memory run but no new database row. New attempts retain
+the existing MD5 asset/runtime run ID. This refactor does not add invocation IDs to
+public results or persist schema history. Existing prerelease databases with an
+incompatible runs schema fail clearly; use a new database path. No automatic
+migration or deletion of existing data is performed.
 
 ## Asset Tables
 
@@ -174,7 +197,7 @@ Near-term modes can reuse the same table model:
 
 ## Local Fragments And Candidate Tables
 
-Every run writes JSON-shaped source rows to:
+Every fresh materialization writes JSON-shaped source rows to:
 
 ```text
 <fragment-directory>/asset=<asset-name>/run_id=<run-id>/fragment=<number>.ndjson

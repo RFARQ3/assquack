@@ -23,9 +23,9 @@ Start with these objects and functions. Each owns a different responsibility:
 | --- | --- | --- |
 | `asset()` and `AssquackAsset` | Describe a reusable producer and its options. | Decorator factory, callable object, fluent copies |
 | `AssetTemplateFormatter` | Resolve declarations using currently available arguments. | Partial evaluation, deferred resolution |
-| `MaterializationRequest` | Describe one invocation after binding its arguments. | Command message, data transfer object |
-| `materialize()` | Coordinate capture, inference, publication, and exports. | Command handler, transaction script, pipeline |
-| Commit and schema strategies | Own individual policy decisions within that pipeline. | Strategy |
+| `AssquackRequest` | Describe one invocation after binding its arguments. | Command message, data transfer object |
+| `run_pipeline()` | Coordinate capture, inference, publication, and exports. | Command handler, transaction script, pipeline |
+| Publication and schema strategies | Own individual policy decisions within that pipeline. | Strategy |
 | `MetadataRepository` | Read and write asset, run, and export records. | Repository |
 | `ExportDestination` | Resolve and write outputs through a common contract. | Strategy, polymorphism |
 | `AssquackResult` | Provide access to a published table. | Facade, result handle |
@@ -40,14 +40,16 @@ database transaction has succeeded.
 **Meaning:** package a specific operation into an object, then give it to a
 component that knows how to perform it.
 
-**Instance:** [`AssquackAsset._request()`](../src/assquack/_api.py) constructs a
-[`MaterializationRequest`](../src/assquack/_materialization/models.py) containing
-the producer, bound arguments, asset identity, table, export declaration, mode,
-and cache policy.
+**Instance:** [`AssquackAsset._request()`](../src/assquack/_asset.py) constructs a
+[`AssquackRequest`](../src/assquack/_request.py) containing
+the producer, copied bound arguments, original templates, mode and cache policy.
+The effective configuration is captured alongside those inputs. Resolve derives
+identity and destinations from the captured values.
 
 The asset then passes that request to the standalone
-[`materialize()` function](../src/assquack/_materialization/pipeline.py), which
-executes the work. Configuration is passed as a separate argument.
+[`run_pipeline()` function](../src/assquack/_pipeline/__init__.py), which
+executes the work. `AssquackRun` holds changing stage progress separately from the
+request's original values.
 
 For example, the reusable `paginated_asset` definition becomes a request to run
 that producer with `endpoint="orders"` and publish to `bronze.orders`.
@@ -65,7 +67,7 @@ ready-made serializable job message.
 **Meaning:** a coordinator expresses a use case as an ordered sequence of work,
 delegating individual steps to focused components.
 
-**Instances:** [`materialize()`](../src/assquack/_materialization/pipeline.py)
+**Instances:** [`run_pipeline()`](../src/assquack/_pipeline/__init__.py)
 coordinates destination resolution, cache lookup, capture, schema inference,
 staging, publication, cleanup, and exports.
 [`export_result()` and `write_exports()`](../src/assquack/_exports/operations.py)
@@ -89,8 +91,8 @@ There are five distinct strategy boundaries:
 
 | Policy | Contract and concrete implementations | Where it is used |
 | --- | --- | --- |
-| Publication | [`CommitStrategy`, `ReplaceCommitStrategy`](../src/assquack/_materialization/commit.py) | The pipeline calls `publish()` for the selected materialization mode. |
-| Schema inference | [`SchemaStrategy`, `CurrentRunSchemaStrategy`](../src/assquack/_materialization/schema.py) | The pipeline calls `resolve()` to obtain column projections. |
+| Publication | [`PublicationStrategy`, `ReplacePublicationStrategy`](../src/assquack/_pipeline/publish.py) | The pipeline calls `publish()` for the selected materialization mode. |
+| Schema inference | [`SchemaStrategy`, `CurrentRunSchemaStrategy`](../src/assquack/_storage/schemas.py) | The pipeline calls `resolve()` to obtain column projections. |
 | Destination behavior | [`ExportDestination`](../src/assquack/_exports/destinations/base.py), [`FileSystemDestination`](../src/assquack/_exports/destinations/filesystem.py) | Export coordination calls `resolve()` and `export()` through the destination contract. |
 | Filesystem preparation | [`PreparationStrategy`](../src/assquack/_exports/preparation/registry.py), [`LocalPreparationStrategy`](../src/assquack/_exports/preparation/local.py), [`AzurePreparationStrategy`](../src/assquack/_exports/preparation/azure.py) | A filesystem destination resolves a URI and prepares the environment for writing. |
 | Authentication | [`Authenticator`](../src/assquack/_exports/authentication/base.py), [`LocalAuthenticator`](../src/assquack/_exports/authentication/local.py), [`SasAuth`, `CredentialChainAuth`](../src/assquack/_exports/authentication/azure.py) | Preparation enters the selected authentication scope. |
@@ -113,8 +115,8 @@ from the behavior itself.
 
 | Instance | Selection and construction |
 | --- | --- |
-| [`commit_strategy()`](../src/assquack/_materialization/commit.py) | Looks up `replace` in a fixed mapping and constructs a commit strategy. |
-| [`replace_schema_strategy()`](../src/assquack/_materialization/schema.py) | Looks up `config.schema.replace` and constructs a strategy with this run's resources. |
+| [`publication_strategy()`](../src/assquack/_pipeline/publish.py) | Looks up `replace` in a fixed mapping and constructs a commit strategy. |
+| [`replace_schema_strategy()`](../src/assquack/_storage/schemas.py) | Looks up `config.schema.replace` and constructs a strategy with this run's resources. |
 | [`PreparationRegistry`](../src/assquack/_exports/preparation/registry.py) | Maps URI schemes to existing preparation objects. |
 | [`AuthenticationRegistry`](../src/assquack/_exports/authentication/registry.py) | Maps destination kind plus auth method to a factory receiving a credential provider. |
 
@@ -179,7 +181,7 @@ configuration option; the shared DuckDB engine is also not an injected backend.
 making callers construct persistence queries themselves.
 
 **Instance:** [`MetadataRepository`](../src/assquack/_storage/metadata.py) offers
-methods such as `save_asset()`, `start_run()`, `find_latest_successful_run()`,
+methods such as `save_asset()`, `start_run()`, `find_current_publication()`,
 `mark_run_successful()`, and `record_export()`.
 
 The pipeline can say “mark this run successful” without knowing which metadata
@@ -190,12 +192,15 @@ table. It uses explicit SQL and small record dataclasses, not an ORM.
 ## 9. Transaction boundary and staged publication
 
 **Meaning:** prepare a candidate result separately, then make the authoritative
-change and its bookkeeping succeed or fail together.
+change and its metadata updates succeed or fail together.
 
-**Instance:** [`create_shaped_staging()`](../src/assquack/_materialization/staging.py)
-builds a candidate table. [`ReplaceCommitStrategy.publish()`](../src/assquack/_materialization/commit.py)
-uses [`transaction()`](../src/assquack/_storage/database.py) to replace the target
-and record successful publication together. An exception rolls back both.
+**Instance:** [`create_shaped_staging()`](../src/assquack/_pipeline/stage.py)
+builds a candidate table. The Publish block in
+[`run_pipeline()`](../src/assquack/_pipeline/__init__.py) opens
+[`transaction()`](../src/assquack/_storage/database.py), calls
+[`ReplacePublicationStrategy.publish()`](../src/assquack/_pipeline/publish.py) through
+the work helper, and saves Publish success. An exception rolls back the table,
+publication metadata and stage success together.
 
 This provides the atomic grouping associated with a **Unit of Work**, but there
 is no ORM-style unit-of-work object tracking pending entities. It is a direct
@@ -215,14 +220,12 @@ exceptional exits. Python expresses this with `with` and `async with`.
 | --- | --- |
 | [`database_operation()`](../src/assquack/_storage/database.py) | Holds the shared connection's reentrant lock for a synchronous operation. |
 | [`transaction()`](../src/assquack/_storage/database.py) | Commits or rolls back a database transaction. |
-| [`resolve_exports()`](../src/assquack/_exports/__init__.py) | Copies configured destinations for an operation and releases their captured resolution state on exit. |
+| [`resolve_exports()`](../src/assquack/_exports/resolution.py) | Copies configured destinations for an operation and releases their captured resolution state on exit. |
 | Local/Azure `prepare()` and `authenticate()` | Prepare writing and delimit temporary authentication resources. |
-| [`WriterLock`](../src/assquack/_storage/locking.py) | Acquires and releases a file lock, with synchronous and asynchronous entry points. |
 
-`WriterLock` exists and has direct tests, but the current materialization pipeline
-does **not** call it. The active pipeline uses `database_operation()` and
-`CONNECTION_LOCK`. Its protection should not be mistaken for automatic
-cross-process serialization supplied by `WriterLock`.
+The pipeline uses `database_operation()` and `CONNECTION_LOCK`. DuckDB retains
+its database attachments for the process lifetime; the removed standalone file
+lock is not part of the execution model.
 
 Fragment writers use a related explicit lifecycle: `finish()` completes capture
 and `abort()` closes an open file on failure. Failed generators are explicitly
@@ -233,9 +236,10 @@ closed by `write_fragments()` so their cleanup runs in the consuming task.
 **Meaning:** Python decoration transforms a function definition into an object
 with additional behavior.
 
-**Instance:** [`asset()`](../src/assquack/_api.py) returns a `decorate()` closure,
+**Instance:** [`asset()`](../src/assquack/_decorator.py) returns a `decorate()` closure,
 which constructs `AssquackAsset` around the producer function. The resulting
-object is callable through its asynchronous `__call__()` method and also offers
+object is callable through `__call__()`, which captures the request immediately
+and returns the pipeline coroutine to await. It also offers
 binding, caching, query, and existence operations.
 
 This is a Python decorator factory and a callable wrapper. It is not a textbook
@@ -248,7 +252,7 @@ producer might return rows, whereas calling the asset returns an
 **Meaning:** derive a specialized definition from an existing one, keeping the
 original available for reuse. Fluent methods return objects that can be chained.
 
-**Instances:** [`with_arguments()`, `with_options()`, and `cache_first()`](../src/assquack/_api.py)
+**Instances:** [`with_arguments()`, `with_options()`, and `cache_first()`](../src/assquack/_asset.py)
 use `dataclasses.replace()` to construct new asset definitions.
 
 ```python
@@ -259,19 +263,21 @@ customers = paginated_asset.with_arguments(endpoint="customers")
 Binding resembles `functools.partial`: it records arguments for a future call.
 These methods also resemble a fluent builder, but there is no separate builder
 object or final `build()` step. Each returned object is already an asset.
-Execution likewise copies the request and table reference when adding the
-configured catalog, rather than changing the original request.
+Resolve builds a separate resolved asset description and qualifies its table
+reference; it does not alter the request's original templates.
 
-The dataclasses are frozen at the attribute level. Nested dictionaries,
-argument objects, and configuration objects are not necessarily immutable or
-deep-copied. “New definition” should not be read as “deeply isolated object graph.”
+Asset definitions remain shallow fluent copies. At invocation, `AssquackRequest`
+copies ordinary built-in argument containers and returns fresh execution containers.
+This protects the captured call from caller and producer mutations while retaining
+live objects such as assets, generators and relations. Configuration settings are
+copied without duplicating credential providers or other runtime resources.
 
 ## 13. Partial evaluation and deferred template resolution
 
 **Meaning:** resolve what is known now, preserve expressions that need more
 information, then require a concrete answer at execution time.
 
-**Instances:** [`AssquackAsset.__post_init__()`](../src/assquack/_api.py) formats
+**Instances:** [`AssquackAsset.__post_init__()`](../src/assquack/_asset.py) formats
 table, name, and export templates using bound arguments and function defaults
 with `allow_partial=True`. Module-level decoration and `.with_arguments()` both
 run this step. [`AssetTemplateFormatter`](../src/assquack/_templates.py) preserves
@@ -283,8 +289,9 @@ before the producer runs. If a replacement contains another placeholder, the
 formatter makes further passes; repeated unresolved forms stop partial
 formatting or fail strict formatting.
 
-At execution, `_request()` binds the actual call and formats the **original**
-templates retained in `_templates`. It does not merely fill remaining holes in
+At invocation, `_request()` binds and captures the actual call and **original**
+templates retained in `_templates`. Resolve then strictly formats those captured
+templates. It does not merely fill remaining holes in
 the previously rendered strings. A call-time keyword can therefore override a
 previously bound value. Missing arguments or unresolved fields fail before
 materialization. Nested asset arguments can contribute template values without
@@ -298,7 +305,7 @@ different from lazy DuckDB query execution, described below.
 **Meaning:** accept different input representations and translate them into a
 common form for the next stage.
 
-**Instance:** [`write_fragments()`](../src/assquack/_materialization/fragments.py)
+**Instance:** [`write_fragments()`](../src/assquack/_storage/fragment_writer.py)
 dispatches on producer output types. Mappings use the Python NDJSON writer;
 DataFrames and Arrow inputs become DuckDB relations; existing relations use
 native DuckDB `COPY`; returned assets/results are materialized or queried.
@@ -325,7 +332,7 @@ It uses a worker thread when the caller already has an event loop.
 **Meaning:** expose a small interface that delegates to the components needed to
 perform a task.
 
-**Instances:** [`AssquackAsset`](../src/assquack/_api.py) is the facade for asset
+**Instances:** [`AssquackAsset`](../src/assquack/_asset.py) is the facade for asset
 execution. [`AssquackResult`](../src/assquack/_result.py) provides `query()`,
 `to_df()`, `exists()`, and `export()` over a published table. The package's
 [`__init__.py`](../src/assquack/__init__.py) collects the supported public imports.
@@ -334,7 +341,7 @@ The result is a handle containing table and run information, not a container
 holding every row. Its table reference is not a historical snapshot: later
 replacement of that table can change what a query reads.
 
-[`execute_query()`](../src/assquack/_query/asset.py) returns a native lazy
+[`execute_query()`](../src/assquack/_query.py) returns a native lazy
 `DuckDBPyRelation`. DuckDB owns query planning and chaining; Assquack supplies
 the quoted source table. Fetching results or capturing the relation with `COPY`
 executes it. `asset.query()` first runs the asset/cache path, while
@@ -346,14 +353,12 @@ executes it. `asset.query()` first runs the asset/cache path, while
 related strings, tuples, or dictionaries everywhere.
 
 **Instances:** [`TableReference`](../src/assquack/_storage/tables.py) groups
-catalog, schema, and table names and supplies quoted SQL. Materialization
-[`models.py`](../src/assquack/_materialization/models.py) defines `FragmentFile`,
-`ProjectionSpec`, and `StagingTables` alongside the request. Storage
-[`models.py`](../src/assquack/_storage/models.py) defines `AssetRecord` and
-`SuccessfulRun`; [`ExportTarget`](../src/assquack/_exports/models.py) describes
-a resolved output.
-
-`TableReference` is a clear value-object example. The other classes are mostly
+catalog, schema, and table names and supplies quoted SQL. `FragmentFile` lives
+with the fragment writer; `ProjectionSpec` lives with schema inference.
+[`records.py`](../src/assquack/_storage/records.py) defines `AssetRecord` and
+`PublicationRecord`; [`ExportTarget`](../src/assquack/_exports/models.py) describes
+one resolved output. `AssquackRequest` holds the captured call, while `AssquackRun`
+holds changing execution state. These are
 typed records/DTOs; their existence does not imply a full domain-driven design.
 [`AssquackConfig`](../src/assquack/_config.py) and its nested settings models
 provide a related boundary for validation and normalization. For example, a
@@ -365,8 +370,9 @@ with a consistent list of destination objects.
 **Meaning:** reuse an acceptable existing result, and record completed side
 effects so a retry can avoid repeating known work.
 
-**Instances:** [`find_cached_run()`](../src/assquack/_cache.py) checks successful
-run metadata, table existence, and optional expiry. The pipeline bypasses
+**Instances:** [`find_cached_run()`](../src/assquack/_storage/cache.py) checks successful
+publication metadata, matching asset identity, table existence and optional expiry.
+The current-publication table identifies which run occupies the physical table. The pipeline bypasses
 extraction on a cache hit. This resembles cache-aside control flow, but the
 reused data is the authoritative DuckDB table, not a separate cache service.
 
@@ -387,18 +393,22 @@ drained by an independent worker.
 **Meaning:** record which phase work has reached and recover only within defined
 boundaries.
 
-**Instances:** run metadata moves from `running` to `success` or `failed`.
+**Instances:** `AssquackRun` records five explicit stage columns and an invocation
+outcome. Publication success remains recorded independently of a later Export
+failure. The main pipeline has an explicit try/except block for each stage,
+with visible status assignments and state saves. Helpers perform the operations;
+the main function owns Publish's transaction and its success save.
 [`recover_interrupted_runs()`](../src/assquack/_storage/metadata.py) marks
 abandoned runs failed while excluding known active runs. Fragment files progress
 from `.partial` to `.ndjson`, with `_COMPLETE` marking completed capture.
-[`prune_fragments()`](../src/assquack/_materialization/retention.py) uses catalog
+[`prune_fragments()`](../src/assquack/_storage/retention.py) uses catalog
 ownership and chronology to remove eligible old evidence.
 
 These are explicit state transitions, not the GoF State pattern with a separate
 class per state. Retained fragments support diagnosis; a retry starts fresh
 extraction rather than resuming a partially consumed producer.
 
-[`JsonReadRecovery`](../src/assquack/_materialization/json_reader.py) is a
+[`JsonReadRecovery`](../src/assquack/_storage/json_reader.py) is a
 specific bounded-retry mechanism: on the recognized oversized-record error, it
 measures fragment records, adjusts the reader limit, and retries once. The
 run-local object shares that measured limit between inference and staging.
@@ -426,9 +436,9 @@ when production code owns process-wide state.
 
 ## Where to start reading the code
 
-Follow [`_api.py`](../src/assquack/_api.py) into the
-[request model](../src/assquack/_materialization/models.py), then read
-[`pipeline.py`](../src/assquack/_materialization/pipeline.py). Once the sequence
+Follow [`_api.py`](../src/assquack/_asset.py) into the
+[request model](../src/assquack/_request.py), then read
+[`pipeline.py`](../src/assquack/_pipeline/__init__.py). Once the sequence
 is clear, inspect the strategy and repository calls it delegates to. For exports,
 follow [`FileSystemDestination`](../src/assquack/_exports/destinations/filesystem.py)
 through preparation, authentication, and the fixed DuckDB writer.

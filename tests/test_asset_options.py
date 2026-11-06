@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from assquack import AssquackConfig, asset
+from assquack._pipeline.resolve import resolve_request
 
 
 def test_default_names_follow_option_and_argument_copies():
@@ -24,7 +25,7 @@ def test_default_names_follow_option_and_argument_copies():
     assert changed == opposite
     rebound = changed.with_options().with_arguments(endpoint="items")
     assert rebound.name == "silver.items"
-    assert rebound._request((), {}).asset_name == "silver.items"
+    assert resolve_request(rebound._request((), {})).asset_name == "silver.items"
     assert source.name == "bronze.{endpoint}" and bound.name == "bronze.orders"
 
 

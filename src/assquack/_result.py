@@ -6,11 +6,11 @@ from typing import Any
 
 import duckdb
 
-from assquack._cache import asset_exists
 from assquack._config import AssquackConfig
 from assquack._exports.destinations import ExportDestination
 from assquack._exports.operations import export_result
 from assquack._query import execute_query, query_dataframe
+from assquack._storage.cache import asset_exists
 from assquack._storage.database import database_catalog, database_operation
 from assquack._storage.metadata import MetadataRepository
 from assquack._storage.tables import TableReference

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 from dataclasses import replace
 from pathlib import Path
 from typing import cast
@@ -8,10 +9,12 @@ from unittest.mock import Mock
 
 import pytest
 
+import assquack._pipeline as pipeline
 from assquack import AssquackConfig, asset
-from assquack._materialization import commit, pipeline
-from assquack._materialization.models import AssetMode
+from assquack._options import AssetMode
 from database_helpers import inspect_database
+
+commit = importlib.import_module("assquack._pipeline.publish")
 
 
 @pytest.mark.parametrize("explicit_mode", [False, True])
@@ -32,7 +35,7 @@ def test_declared_mode_selects_publication_and_persists_metadata(
     orders_asset = declaration(orders).with_arguments()
     assert orders_asset._request((), {}).mode == orders_asset.mode
 
-    strategy = Mock(wraps=commit.ReplaceCommitStrategy())
+    strategy = Mock(wraps=commit.ReplacePublicationStrategy())
     factory = Mock(return_value=strategy)
     monkeypatch.setattr(commit, "_STRATEGIES", {"replace": factory})
     config = AssquackConfig(home=tmp_path)
@@ -41,7 +44,7 @@ def test_declared_mode_selects_publication_and_persists_metadata(
     second = asyncio.run(orders_asset(assquack_config=config))
     cached = asyncio.run(orders_asset.cache_first()(assquack_config=config))
 
-    assert factory.call_count == 3
+    assert factory.call_count == 2
     assert strategy.publish.call_count == 2
     assert source.call_count == 2
     assert cached.cached and cached.run_id == second.run_id
@@ -66,8 +69,10 @@ def test_unsupported_mode_is_rejected_before_source_or_storage(
         pytest.fail("Unsupported modes must not execute the source")
 
     config = AssquackConfig(home=tmp_path)
-    request = replace(orders._request((), {}), mode=invalid_mode, use_cache=True)
-    with pytest.raises(ValueError, match="Unsupported materialization mode"):
-        asyncio.run(pipeline.materialize(request, config))
+    request = replace(
+        orders._request((), {}, config=config), mode=invalid_mode, use_cache=True
+    )
+    with pytest.raises(ValueError, match="only supports mode='replace'"):
+        asyncio.run(pipeline.run_pipeline(request))
     assert not config.resolved_database_path.exists()
     assert not config.resolved_fragment_directory.exists()

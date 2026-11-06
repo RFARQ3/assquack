@@ -3,7 +3,7 @@ import warnings
 import pytest
 
 from assquack import MissingAssetSchemaWarning
-from assquack._api import _resolve_table
+from assquack._pipeline.resolve import resolve_table as _resolve_table
 from assquack._storage.tables import TableReference
 
 

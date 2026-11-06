@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from assquack import AssquackConfig, IngestionConfig, asset
-from assquack._materialization.fragments import (
+from assquack._storage.fragment_writer import (
     NDJSONFragmentWriter,
     fragment_run_directory,
 )

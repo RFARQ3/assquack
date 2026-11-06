@@ -136,13 +136,27 @@ def test_provider_failure_is_safe_and_has_no_manifest(
 
     @asset(table="main.orders", export="orders.parquet")
     def orders():
-        return [{"id": 1}]
+        pytest.fail("Credential resolution must fail before the producer runs")
 
     config = AssquackConfig(home=tmp_path, exports=destination)
     with pytest.raises(ConfigurationError) as error:
         asyncio.run(orders(assquack_config=config))
     assert "synthetic-sensitive" not in "".join(traceback.format_exception(error.value))
-    assert not config.resolved_database_path.exists()
+    with inspect_database(config) as db:
+        assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
+            0,
+        )
+        assert db.execute(
+            "SELECT resolve_status, materialize_status, outcome, failed_stage, "
+            "error_type, error_message FROM assquack_meta.runs"
+        ).fetchone() == (
+            "failed",
+            "unstarted",
+            "failed",
+            "resolve",
+            "ConfigurationError",
+            "Could not load export credentials.",
+        )
 
 
 class SyntheticPreparation:
@@ -273,7 +287,7 @@ def test_generic_destination_does_not_require_file_formats(tmp_path):
 def test_partial_multi_destination_failure_records_only_completed_outputs(
     tmp_path, monkeypatch
 ):
-    from assquack._exports.writer.file import DuckDBFileWriter
+    from assquack._exports.writer import DuckDBFileWriter
 
     @asset(table="main.orders", export="orders.parquet")
     def orders():

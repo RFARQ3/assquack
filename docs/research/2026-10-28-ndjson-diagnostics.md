@@ -233,4 +233,4 @@ inside DuckDB. The process RSS measurements include that engine's allocations.
 - [Documentation index](../README.md)
 - [Scope discussion and preliminary benchmark](../journal/2026-09-08-mvp-scope.md)
 - [Schema inference](../schema-inference.md)
-- [Fragment writer](../../src/assquack/_materialization/fragments.py)
+- [Fragment writer](../../src/assquack/_storage/fragment_writer.py)
