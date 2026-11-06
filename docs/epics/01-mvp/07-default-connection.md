@@ -1,10 +1,31 @@
 # Default connection and direct fragment writing
 
 Status: **Complete**
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 Epic: 01 MVP
 Phase: 07
 Related docs: [Developer API](../../developer-api.md), [Configuration](../../configuration.md), [Storage](../../storage-model.md)
+
+## Pipeline stage extraction (6 November 2026)
+
+Extracted the existing materialization stages into named helpers directly below
+`materialize`, without changing public behavior. Export resolution stays alive
+for the whole operation, the database lock is released before producer awaits,
+and publication, failure, fragment ownership and active-run cleanup keep their order.
+Writer construction and claiming remain inside the existing failure guard so a
+failed claim still aborts the constructed writer.
+
+Independent review approved the extraction with no unresolved findings:
+
+- **140 focused offline tests passed**, no skips, on Python 3.11 / DuckDB 1.5.6.
+  Coverage includes capture, locking, cache, identity, retention, exports, schema,
+  publication timestamps, default connection and materialization modes.
+- Pipeline Ruff lint/format and targeted Pyright passed with no diagnostics.
+- Configured source/test Pyright retains five known diagnostics in `_api.py` and
+  `_templates.py`, verified against prior baseline evidence and unchanged files.
+- Local documentation links and diff whitespace checks passed.
+- Validation evidence is under `.tmp/pipeline-refactor-review`. No live systems
+  were accessed, and no public behavior or developer guidance changed.
 
 ## Native DuckDB query direction (5 November 2026)
 
