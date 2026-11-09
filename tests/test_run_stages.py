@@ -10,7 +10,7 @@ from unittest.mock import Mock
 import duckdb
 import pytest
 
-from assquack import AssquackConfig, FileSystemDestination, asset
+from assquack import AssquackConfig, asset
 from assquack._run import ACTIVE_RUNS
 from assquack._storage.database import transaction
 from assquack._storage.metadata import MetadataRepository
@@ -266,32 +266,6 @@ def test_final_state_save_failure_does_not_report_a_successful_call(
         )
         assert connection.execute("SELECT id FROM main.progress").fetchall() == [(1,)]
     assert not ACTIVE_RUNS
-
-
-def test_config_uses_provider_with_a_runtime_lock(tmp_path: Path):
-    class Provider:
-        def __init__(self):
-            self.lock = threading.Lock()
-
-        async def load(self):
-            pass
-
-        def get(self, name):
-            return None
-
-    destination = FileSystemDestination(base_uri=str(tmp_path / "exports"))
-    provider = Provider()
-    destination._credential_provider = provider
-    config = AssquackConfig(home=tmp_path, exports=destination)
-
-    @asset("main.progress", export="progress.parquet")
-    def source():
-        return [{"id": 1}]
-
-    result = asyncio.run(source(assquack_config=config))
-    assert result.row_count == 1
-    assert (tmp_path / "exports/progress.parquet").is_file()
-    assert destination._credential_provider is provider
 
 
 def test_rollback_failure_does_not_replace_the_original_transaction_error():

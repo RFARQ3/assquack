@@ -10,10 +10,6 @@ from pydantic import Field, PrivateAttr
 
 from assquack._errors import ExportError
 from assquack._exports.authentication.base import Authenticator
-from assquack._exports.authentication.credentials import (
-    CredentialProvider,
-    EnvironmentCredentialProvider,
-)
 from assquack._exports.authentication.registry import (
     AuthenticationRegistry,
     default_authenticators,
@@ -47,9 +43,6 @@ class FileSystemDestination(ExportDestination):
     _authenticators: AuthenticationRegistry = PrivateAttr(
         default_factory=default_authenticators
     )
-    _credential_provider: CredentialProvider = PrivateAttr(
-        default_factory=EnvironmentCredentialProvider
-    )
 
     def resolve(
         self, export: str | Mapping[str, str] | None, *, asset_name: str
@@ -67,9 +60,7 @@ class FileSystemDestination(ExportDestination):
                 export, asset_name=asset_name, base_uri=self.base_uri
             )
             preparation = self._preparations.select(targets[0].resolved_uri)
-            authentication = self._authenticators.select(
-                preparation.kind, self.auth, self._credential_provider
-            )
+            authentication = self._authenticators.select(preparation.kind, self.auth)
             targets = self._resolve_file_paths(targets, preparation, authentication)
             fingerprint = destination_fingerprint(
                 self._resolved_configuration(), preparation, authentication

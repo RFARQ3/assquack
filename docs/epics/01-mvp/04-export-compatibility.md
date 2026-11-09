@@ -36,6 +36,22 @@ Excluded:
 
 ## Architecture Notes
 
+### Environment-only credential sourcing - 9 November 2026
+
+Implemented: removed the injected credential-provider interface and asynchronous
+loading bridge. The single-destination MVP has no demonstrated non-environment
+credential-source requirement. Resolution reads selected inputs directly from the
+process environment once, retaining validation, captured values, fingerprints and
+operation cleanup. Authentication methods remain extensible. Earlier provider
+injection notes below are historical and superseded.
+
+Validation: 465 offline tests passed, followed by 185 independent focused tests
+after the final test revision. Ruff lint, Pyright, changed-file formatting,
+documentation links and `git diff --check` passed. Paired review has no remaining
+findings. Whole-repo formatting still flags pre-existing pipeline comment indentation;
+that unrelated file is unchanged. No live credentials or calls used.
+The broader phase remains In Progress for its existing live acceptance work.
+
 ### Single destination amendment — 9 November 2026
 
 Completed: removed simultaneous multi-destination exports for MVP.

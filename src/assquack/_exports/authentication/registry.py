@@ -9,7 +9,6 @@ from assquack._exports.authentication.base import Authenticator
 from assquack._exports.authentication.credentials import (
     CHAIN_REQUIREMENTS,
     AzureSasCredentials,
-    CredentialProvider,
     has_required_inputs,
     load_inputs,
 )
@@ -51,9 +50,7 @@ class AuthenticationRegistry:
             factory, acceptable_input_combinations, optional_inputs
         )
 
-    def select(
-        self, kind: str, method: str, provider: CredentialProvider
-    ) -> Authenticator:
+    def select(self, kind: str, method: str) -> Authenticator:
         """Capture configured inputs and select the first complete registration."""
         candidates: list[AuthenticationRegistration] = []
         for key, registration in self._registrations.items():
@@ -72,7 +69,7 @@ class AuthenticationRegistry:
                 name for candidate in candidates for name in candidate.input_names
             )
         )
-        available_inputs = load_inputs(provider, names)
+        available_inputs = load_inputs(names)
         for candidate in candidates:
             if has_required_inputs(
                 available_inputs, candidate.acceptable_input_combinations

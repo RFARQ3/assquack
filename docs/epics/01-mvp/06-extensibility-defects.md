@@ -10,8 +10,10 @@ Related docs: [Scope journal](../../journal/2026-09-08-mvp-scope.md), [Roadmap](
 
 **9 November scope amendment:** simultaneous multiple destinations are now
 removed from MVP. Earlier multi-destination implementation and validation notes
-below are historical. Destination types, authentication and credential providers
-remain extensible; see [single-destination work](04-export-compatibility.md#single-destination-amendment-9-november-2026).
+below are historical. Destination types and authentication remain extensible.
+Credential-provider injection has also been removed; see
+[environment-only sourcing](04-export-compatibility.md#environment-only-credential-sourcing-9-november-2026)
+and [single-destination work](04-export-compatibility.md#single-destination-amendment-9-november-2026).
 
 Track the extension barriers found in the 23 October source review so Rowan can
 work through them individually and commission implementation agents when ready.
@@ -77,10 +79,9 @@ The broader design received detailed consideration and is preserved in commit
 product and conflicts with its DuckDB-native goal. The general substitution
 acceptance rule above does not apply to writers or filesystem adapters.
 
-Authentication methods remain extensible. Internal credential-provider injection
-remains to support future multi-destination exports whose credentials may come
-from different sources. Public provider configuration is deferred; providers do
-not settle per-destination credential selection on their own.
+Authentication methods remain extensible. Credentials now come directly from the
+process environment; custom credential sources have no demonstrated requirement
+in the single-destination MVP and are deferred.
 
 This direction is implemented and verified in the working tree; paired review
 has no unresolved actionable findings.
@@ -97,7 +98,7 @@ Priorities below are review recommendations, not a revised approved release scop
 | ID | Finding | Disposition | Status |
 |---|---|---|---|
 | EXT-01 | Azure authentication selection | Instance-owned compatible-auth registry implemented | Complete |
-| EXT-02 | Export credential-provider injection boundary | Internal async load/get injection implemented; public API and integrations deferred | Complete |
+| EXT-02 | Export credential-provider injection boundary | Removed 9 November; custom sources deferred beyond MVP | Complete |
 | EXT-03 | Destination routing | Destination contract and registered preparation implemented | Complete |
 | EXT-04 | Export writing and metadata | Shared DuckDB writer and multi-destination manifests/cache verified | Complete |
 | EXT-05 | Schema strategy selection and context are insufficient | Internal registry and argument-free resolution implemented | Complete |
@@ -137,7 +138,7 @@ src/
         │   ├── registry.py          # Select compatible authentication methods
         │   ├── local.py             # No-op local authentication
         │   ├── azure.py             # SAS and credential-chain authentication
-        │   └── credentials.py       # Internal providers; environment default
+        │   └── credentials.py       # Captured environment inputs and validation
         └── writer/
             ├── __init__.py          # Internal writer entry points
             └── file.py              # DuckDBFileWriter: COPY to Parquet, CSV or JSON
@@ -190,7 +191,10 @@ cleanup. No new authentication integrations are supplied.
 
 ## EXT-02: Export credential provider injection
 
-**Complete — 27 October 2026.**
+**Historical implementation — 27 October 2026; removed 9 November 2026.**
+The following records the superseded design. See the
+[simplification decision](../../reviews/2026-11-09-mvp-scope-options.md).
+
 [CredentialProvider](../../../src/assquack/_exports/authentication/credentials.py)
 defines asynchronous `load()` and synchronous `get(name)`. A destination's private
 `_credential_provider` accepts a provider instance and defaults to

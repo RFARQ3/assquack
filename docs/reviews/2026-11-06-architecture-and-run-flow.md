@@ -1,5 +1,10 @@
 # Architecture and run flow proposal
 
+**9 November 2026 amendment:** credential-provider injection and its async loading
+bridge have been removed for the environment-only, single-destination MVP.
+Earlier provider discussions below are historical; see the
+[simplification decisions](../reviews/2026-11-09-mvp-scope-options.md).
+
 Status: **Implemented with the decisions recorded below; original proposal retained for context**
 Date: 2026-11-06
 

@@ -22,26 +22,13 @@ from assquack._storage.tables import TableReference
 from database_helpers import inspect_database
 
 
-class SyntheticProvider:
-    def __init__(self, account: str = "exampleaccount", fail: bool = False):
-        self.account = account
-        self.fail = fail
-        self.loads = 0
-        self.requested: list[str] = []
-
-    async def load(self) -> None:
-        await asyncio.sleep(0)
-        self.loads += 1
-        if self.fail:
-            raise ValueError("sig=synthetic-sensitive")
-
-    def get(self, name: str) -> str | None:
-        assert self.loads > 0
-        self.requested.append(name)
-        return {
-            "AZURE_STORAGE_SAS_TOKEN": "sig=synthetic-sensitive",
-            "AZURE_STORAGE_ACCOUNT_NAME": self.account,
-        }[name]
+@pytest.fixture(autouse=True)
+def environment(monkeypatch):
+    values = {}
+    monkeypatch.setattr(
+        "assquack._exports.authentication.credentials.getenv", values.get
+    )
+    return values
 
 
 @pytest.fixture
@@ -69,14 +56,18 @@ def intercepted_connections(monkeypatch):
 
 @pytest.mark.parametrize("explicit", [False, True])
 @pytest.mark.parametrize("running_loop", [False, True])
-def test_injected_async_provider_used_by_both_paths(
-    tmp_path, intercepted_connections, explicit, running_loop
+def test_environment_credentials_used_by_both_export_paths(
+    tmp_path, intercepted_connections, explicit, running_loop, environment, monkeypatch
 ):
-    provider = SyntheticProvider()
+    environment.update(
+        AZURE_STORAGE_ACCOUNT_NAME="exampleaccount",
+        AZURE_STORAGE_SAS_TOKEN="sig=synthetic-sensitive",
+    )
+    read = MagicMock(side_effect=environment.get)
+    monkeypatch.setattr("assquack._exports.authentication.credentials.getenv", read)
     destination = FileSystemDestination(
         base_uri="abfss://exampleaccount.dfs.core.windows.net/lake", auth="sas"
     )
-    destination._credential_provider = provider
     config = AssquackConfig(home=tmp_path, exports=destination)
 
     @asset(table="main.orders", export=None if explicit else "orders.parquet")
@@ -92,14 +83,12 @@ def test_injected_async_provider_used_by_both_paths(
     result = asyncio.run(run())
     if explicit and not running_loop:
         result.export(destination)
-    assert provider.loads == 1
-    assert provider.requested == [
+    assert [call.args[0] for call in read.call_args_list] == [
         "AZURE_STORAGE_SAS_TOKEN",
         "AZURE_STORAGE_ACCOUNT_NAME",
     ]
     assert "synthetic-sensitive" not in config.model_dump_json()
     assert "synthetic-sensitive" not in repr(config)
-    assert "_credential_provider" not in config.model_dump_json()
     statements = [
         call.args[0]
         for call in next(
@@ -119,20 +108,25 @@ def test_injected_async_provider_used_by_both_paths(
         )
 
 
-def test_local_does_not_load_provider(tmp_path):
+def test_local_does_not_read_credentials(tmp_path, monkeypatch):
     destination = FileSystemDestination(base_uri=str(tmp_path))
-    provider = SyntheticProvider(fail=True)
-    destination._credential_provider = provider
+    read = MagicMock(
+        side_effect=AssertionError("Local export must not read credentials")
+    )
+    monkeypatch.setattr("assquack._exports.authentication.credentials.getenv", read)
     target = destination.resolve("orders.parquet", asset_name="orders")[0]
     destination.export(MagicMock(), TableReference("main", "orders"), target)
-    assert provider.loads == 0 and provider.requested == []
+    read.assert_not_called()
 
 
-def test_provider_failure_is_safe_and_has_no_manifest(
-    tmp_path, intercepted_connections
+def test_invalid_credentials_are_safe_and_have_no_manifest(
+    tmp_path, intercepted_connections, environment
 ):
     destination = FileSystemDestination(base_uri="abfss://lake", auth="sas")
-    destination._credential_provider = SyntheticProvider(fail=True)
+    environment.update(
+        AZURE_STORAGE_ACCOUNT_NAME="exampleaccount",
+        AZURE_STORAGE_SAS_TOKEN="invalid-synthetic-sensitive",
+    )
 
     @asset(table="main.orders", export="orders.parquet")
     def orders():
@@ -155,7 +149,7 @@ def test_provider_failure_is_safe_and_has_no_manifest(
             "failed",
             "resolve",
             "ConfigurationError",
-            "Could not load export credentials.",
+            "Azure SAS token must be an encoded SAS query token.",
         )
 
 
@@ -231,10 +225,10 @@ def test_registry_duplicate_unknown_compatibility_and_isolation():
     with pytest.raises(ValueError, match="already registered"):
         auth.register("local", "none", lambda _: LocalAuthenticator())
     with pytest.raises(ConfigurationError, match="Unsupported"):
-        auth.select("local", "sas", SyntheticProvider())
+        auth.select("local", "sas")
     auth.register("local", "custom", lambda _: LocalAuthenticator())
     with pytest.raises(ConfigurationError, match="Unsupported"):
-        default_authenticators().select("local", "custom", SyntheticProvider())
+        default_authenticators().select("local", "custom")
 
 
 class SyntheticDestination(ExportDestination):

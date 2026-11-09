@@ -4,7 +4,6 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from os import getenv
-from typing import Protocol
 
 from pydantic import SecretStr
 
@@ -34,38 +33,6 @@ class AzureSasCredentials:
             raise ConfigurationError(
                 "Azure SAS token must be an encoded SAS query token."
             )
-
-
-class CredentialProvider(Protocol):
-    async def load(self) -> None: ...
-
-    def get(self, name: str) -> str | None: ...
-
-
-class EnvironmentCredentialProvider:
-    async def load(self) -> None:
-        pass
-
-    def get(self, name: str) -> str | None:
-        return getenv(name)
-
-
-def load_provider(provider: CredentialProvider) -> None:
-    """Join async loading to sync export calls, including calls inside an event loop."""
-    import asyncio
-    from concurrent.futures import ThreadPoolExecutor
-
-    try:
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            asyncio.run(provider.load())
-        else:
-            # A synchronous export cannot nest run_until_complete on its caller's loop.
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                executor.submit(lambda: asyncio.run(provider.load())).result()
-    except Exception:
-        raise ConfigurationError("Could not load export credentials.") from None
 
 
 CHAIN_ENVIRONMENT_NAMES = (
@@ -99,18 +66,15 @@ def has_required_inputs(
     )
 
 
-def load_inputs(
-    provider: CredentialProvider, names: tuple[str, ...]
-) -> dict[str, SecretStr]:
-    """Load once and capture each requested nonblank input without exposing errors."""
+def load_inputs(names: tuple[str, ...]) -> dict[str, SecretStr]:
+    """Capture each requested nonblank environment value once per resolution."""
     if not names:
         return {}
-    load_provider(provider)
     try:
         return {
             name: SecretStr(value)
             for name in names
-            if (value := provider.get(name)) and value.strip()
+            if (value := getenv(name)) and value.strip()
         }
     except Exception:
         raise ConfigurationError("Could not load export credentials.") from None

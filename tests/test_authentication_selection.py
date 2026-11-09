@@ -7,7 +7,6 @@ from assquack import FileSystemDestination
 from assquack._errors import ConfigurationError, ExportError
 from assquack._exports.authentication.azure import CredentialChainAuth, SasAuth
 from assquack._exports.authentication.credentials import (
-    EnvironmentCredentialProvider,
     has_required_inputs,
 )
 from assquack._exports.authentication.local import LocalAuthenticator
@@ -25,10 +24,13 @@ SAS = {
 }
 
 
-def provider_for(values):
-    provider = MagicMock(spec=EnvironmentCredentialProvider)
-    provider.get.side_effect = values.get
-    return provider
+@pytest.fixture(autouse=True)
+def environment(monkeypatch):
+    values = {}
+    monkeypatch.setattr(
+        "assquack._exports.authentication.credentials.getenv", values.get
+    )
+    return values
 
 
 @pytest.mark.parametrize(
@@ -52,12 +54,15 @@ def test_required_inputs_accept_any_complete_combination(
     "chain_inputs",
     [{}, {"AZURE_CLIENT_ID": "client"}, {**CHAIN, "AZURE_FEDERATED_TOKEN_FILE": " "}],
 )
-def test_auto_selects_sas_when_chain_is_absent_or_incomplete(chain_inputs):
-    provider = provider_for({**chain_inputs, **SAS})
-    auth = default_authenticators().select("azure", "auto", provider)
+def test_auto_selects_sas_when_chain_is_absent_or_incomplete(
+    chain_inputs, environment, monkeypatch
+):
+    environment.update({**chain_inputs, **SAS})
+    read = MagicMock(side_effect=environment.get)
+    monkeypatch.setattr("assquack._exports.authentication.credentials.getenv", read)
+    auth = default_authenticators().select("azure", "auto")
     assert isinstance(auth, SasAuth)
-    provider.load.assert_awaited_once()
-    names = [call.args[0] for call in provider.get.call_args_list]
+    names = [call.args[0] for call in read.call_args_list]
     assert len(names) == len(set(names))
     assert auth.fingerprint_inputs == {
         "account_name": "exampleaccount",
@@ -73,10 +78,11 @@ def test_auto_selects_sas_when_chain_is_absent_or_incomplete(chain_inputs):
         ("sas", SasAuth),
     ],
 )
-def test_complete_credentials_respect_priority_and_explicit_choice(method, expected):
-    auth = default_authenticators().select(
-        "azure", method, provider_for({**CHAIN, **SAS})
-    )
+def test_complete_credentials_respect_priority_and_explicit_choice(
+    method, expected, environment
+):
+    environment.update({**CHAIN, **SAS})
+    auth = default_authenticators().select("azure", method)
     assert isinstance(auth, expected)
     if isinstance(auth, CredentialChainAuth):
         assert set(auth.inputs) == set(CHAIN)
@@ -101,30 +107,32 @@ def test_complete_credentials_respect_priority_and_explicit_choice(method, expec
     ],
 )
 def test_incomplete_inputs_raise_without_switching_explicit_method(
-    method, values, missing
+    method, values, missing, environment
 ):
+    environment.update(values)
     with pytest.raises(ConfigurationError, match=missing) as caught:
-        default_authenticators().select("azure", method, provider_for(values))
+        default_authenticators().select("azure", method)
     assert "sig=synthetic" not in str(caught.value)
 
 
 @pytest.mark.parametrize("method", ["auto", "none"])
-def test_local_authentication_never_loads_credentials(method):
-    provider = provider_for({})
-    assert isinstance(
-        default_authenticators().select("local", method, provider), LocalAuthenticator
+def test_local_authentication_never_loads_credentials(method, monkeypatch):
+    read = MagicMock(
+        side_effect=AssertionError("Local exports must not read credentials")
     )
-    provider.load.assert_not_called()
-    provider.get.assert_not_called()
+    monkeypatch.setattr("assquack._exports.authentication.credentials.getenv", read)
+    assert isinstance(
+        default_authenticators().select("local", method), LocalAuthenticator
+    )
+    read.assert_not_called()
 
 
 @pytest.mark.parametrize("method", ["auto", "credential_chain"])
-def test_failed_chain_authentication_never_attempts_sas(method):
+def test_failed_chain_authentication_never_attempts_sas(method, environment):
     destination = FileSystemDestination(
         base_uri="abfss://exampleaccount.dfs.core.windows.net/lake", auth=method
     )
-    provider = provider_for({**CHAIN, **SAS})
-    destination._credential_provider = provider
+    environment.update({**CHAIN, **SAS})
     target = destination.resolve("orders.parquet", asset_name="orders")[0]
     connection = MagicMock()
 
@@ -144,13 +152,12 @@ def test_failed_chain_authentication_never_attempts_sas(method):
     assert "PROVIDER credential_chain" in registrations[0].args[0]
     assert "synthetic-sensitive" not in str(caught.value)
     assert destination._resolved is None
-    provider.load.assert_awaited_once()
 
 
-def test_auto_validates_selected_sas_without_native_fallback():
+def test_auto_validates_selected_sas_without_native_fallback(environment):
+    environment.update({**SAS, "AZURE_STORAGE_SAS_TOKEN": "malformed"})
     with pytest.raises(ConfigurationError, match="encoded SAS query"):
         default_authenticators().select(
             "azure",
             "auto",
-            provider_for({**SAS, "AZURE_STORAGE_SAS_TOKEN": "malformed"}),
         )

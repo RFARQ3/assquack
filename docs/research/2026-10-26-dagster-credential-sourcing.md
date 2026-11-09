@@ -1,5 +1,10 @@
 # Credential sourcing: lessons from Dagster
 
+**9 November 2026 amendment:** the internal credential-provider interface has
+been removed. The single-destination MVP reads credentials directly from the
+process environment; the research and earlier recommendation below are historical.
+See the [simplification decisions](../reviews/2026-11-09-mvp-scope-options.md).
+
 Research date: 26 October 2026. Recommendation only; no scope or defect-status change.
 
 **Recommendation:** downstream environment setup plus native DuckDB identity discovery

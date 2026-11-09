@@ -8,20 +8,17 @@ import pytest
 from assquack import FileSystemDestination
 from assquack._errors import ConfigurationError, ExportError
 from assquack._exports.authentication.azure import CredentialChainAuth, SasAuth
-from assquack._exports.authentication.credentials import (
-    EnvironmentCredentialProvider,
-)
 from assquack._exports.authentication.registry import default_authenticators
 from assquack._exports.preparation.azure import AzurePreparationStrategy
 
 
-def select_azure_auth(method, provider):
-    return default_authenticators().select("azure", method, provider)
+def select_azure_auth(method):
+    return default_authenticators().select("azure", method)
 
 
 @contextmanager
 def azure_export_auth(connection, uri, method):
-    auth = select_azure_auth(method, EnvironmentCredentialProvider())
+    auth = select_azure_auth(method)
     with AzurePreparationStrategy().prepare(connection, uri, auth):
         yield
 
@@ -54,7 +51,9 @@ def environment(monkeypatch):
     ],
 )
 @pytest.mark.parametrize("method", ["auto", "credential_chain"])
-def test_complete_chain_wins_over_any_sas_configuration(token, account, method):
+def test_complete_chain_wins_over_any_sas_configuration(
+    token, account, method, monkeypatch
+):
     values = {
         "AZURE_STORAGE_SAS_TOKEN": token,
         "AZURE_STORAGE_ACCOUNT_NAME": account,
@@ -62,11 +61,10 @@ def test_complete_chain_wins_over_any_sas_configuration(token, account, method):
         "AZURE_CLIENT_ID": "client",
         "AZURE_FEDERATED_TOKEN_FILE": "synthetic.jwt",
     }
-    provider = MagicMock(spec=EnvironmentCredentialProvider)
-    provider.get.side_effect = values.get
-    assert isinstance(select_azure_auth(method, provider), CredentialChainAuth)
-    provider.load.assert_awaited_once()
-    requested = [call.args[0] for call in provider.get.call_args_list]
+    read = MagicMock(side_effect=values.get)
+    monkeypatch.setattr("assquack._exports.authentication.credentials.getenv", read)
+    assert isinstance(select_azure_auth(method), CredentialChainAuth)
+    requested = [call.args[0] for call in read.call_args_list]
     assert len(requested) == len(set(requested))
     if method == "credential_chain":
         assert "AZURE_STORAGE_SAS_TOKEN" not in requested
@@ -74,16 +72,13 @@ def test_complete_chain_wins_over_any_sas_configuration(token, account, method):
 
 
 def test_explicit_chain_requires_environment_inputs():
-    provider = MagicMock(spec=EnvironmentCredentialProvider)
-    provider.get.return_value = None
     with pytest.raises(ConfigurationError, match="AZURE_TENANT_ID"):
-        select_azure_auth("credential_chain", provider)
-    provider.load.assert_awaited_once()
+        select_azure_auth("credential_chain")
 
 
 def test_explicit_sas_requires_credentials(environment):
     with pytest.raises(ConfigurationError, match="requires AZURE_STORAGE"):
-        select_azure_auth("sas", EnvironmentCredentialProvider())
+        select_azure_auth("sas")
 
 
 @pytest.mark.parametrize(
@@ -102,7 +97,7 @@ def test_invalid_sas_is_rejected_without_disclosure(token, environment):
         AZURE_STORAGE_ACCOUNT_NAME="exampleaccount", AZURE_STORAGE_SAS_TOKEN=token
     )
     with pytest.raises(ConfigurationError) as error:
-        select_azure_auth("sas", EnvironmentCredentialProvider())
+        select_azure_auth("sas")
     assert token not in str(error.value)
 
 
@@ -188,13 +183,11 @@ def test_sas_rejects_signed_or_mismatched_targets(uri, environment):
 def test_sas_credentials_are_resolved_at_use_time(environment):
     config = "sas"
     with pytest.raises(ConfigurationError, match="requires AZURE_STORAGE"):
-        select_azure_auth(config, EnvironmentCredentialProvider())
+        select_azure_auth(config)
     environment.update(
         AZURE_STORAGE_ACCOUNT_NAME="exampleaccount", AZURE_STORAGE_SAS_TOKEN="sig=fake"
     )
-    assert isinstance(
-        select_azure_auth(config, EnvironmentCredentialProvider()), SasAuth
-    )
+    assert isinstance(select_azure_auth(config), SasAuth)
     assert "sig=fake" not in repr(config)
     assert "sig=fake" not in FileSystemDestination(base_uri=URI).model_dump_json()
 
@@ -207,5 +200,5 @@ def test_invalid_account_is_rejected_without_disclosure(account, environment):
         AZURE_STORAGE_ACCOUNT_NAME=account, AZURE_STORAGE_SAS_TOKEN="sig=fake"
     )
     with pytest.raises(ConfigurationError) as error:
-        select_azure_auth("sas", EnvironmentCredentialProvider())
+        select_azure_auth("sas")
     assert account not in str(error.value)

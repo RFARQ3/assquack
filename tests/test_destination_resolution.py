@@ -19,38 +19,30 @@ from assquack._storage.tables import TableReference
 from database_helpers import inspect_database
 
 
-class Credentials:
-    def __init__(self):
-        self.token = "sig=synthetic-first"
-        self.loads = 0
-        self.reads = []
-
-    async def load(self):
-        self.loads += 1
-
-    def get(self, name):
-        self.reads.append(name)
-        return {
-            "AZURE_STORAGE_SAS_TOKEN": self.token,
-            "AZURE_STORAGE_ACCOUNT_NAME": "exampleaccount",
-        }[name]
+@pytest.fixture(autouse=True)
+def environment(monkeypatch):
+    values = {
+        "AZURE_STORAGE_SAS_TOKEN": "sig=synthetic-first",
+        "AZURE_STORAGE_ACCOUNT_NAME": "exampleaccount",
+    }
+    monkeypatch.setattr(
+        "assquack._exports.authentication.credentials.getenv", values.get
+    )
+    return values
 
 
 def sas_destination():
-    destination = FileSystemDestination(base_uri="abfss://lake", auth="sas")
-    provider = Credentials()
-    destination._credential_provider = provider
-    return destination, provider
+    return FileSystemDestination(base_uri="abfss://lake", auth="sas")
 
 
-def test_fingerprint_is_deterministic_typed_and_not_per_output(tmp_path):
-    destination, provider = sas_destination()
+def test_fingerprint_is_deterministic_typed_and_not_per_output(tmp_path, environment):
+    destination = sas_destination()
     first = destination.resolve("orders.parquet|json", asset_name="orders")
     second = destination.resolve("different.csv", asset_name="different")
     assert {target.destination_fingerprint for target in (*first, *second)} == {
         first[0].destination_fingerprint
     }
-    provider.token = "sig=synthetic-second"
+    environment["AZURE_STORAGE_SAS_TOKEN"] = "sig=synthetic-second"
     changed = destination.resolve("orders.parquet", asset_name="orders")
     assert changed[0].destination_fingerprint != first[0].destination_fingerprint
     assert "synthetic" not in repr(destination)
@@ -61,10 +53,12 @@ def test_fingerprint_is_deterministic_typed_and_not_per_output(tmp_path):
     assert hash_configuration({"a": 1}) != hash_configuration({"a": "1"})
 
 
-def test_resolve_captures_once_and_export_does_not_reselect(monkeypatch):
-    destination, provider = sas_destination()
+def test_resolve_captures_once_and_export_does_not_reselect(monkeypatch, environment):
+    destination = sas_destination()
+    read = MagicMock(side_effect=environment.get)
+    monkeypatch.setattr("assquack._exports.authentication.credentials.getenv", read)
     targets = destination.resolve("orders.parquet|json", asset_name="orders")
-    provider.token = "sig=changed-after-resolution"
+    environment["AZURE_STORAGE_SAS_TOKEN"] = "sig=changed-after-resolution"
     monkeypatch.setattr(
         destination._authenticators, "select", MagicMock(side_effect=AssertionError)
     )
@@ -81,13 +75,12 @@ def test_resolve_captures_once_and_export_does_not_reselect(monkeypatch):
     ]
     assert len(registrations) == 2
     assert all("synthetic-first" in value for value in registrations)
-    assert provider.loads == 1
-    assert len(provider.reads) == 2
+    assert read.call_count == 2
     assert destination._resolved is None
 
 
 def test_resolution_context_releases_on_failure_and_success(tmp_path):
-    destination, provider = sas_destination()
+    destination = sas_destination()
     resolved = destination
     with (
         pytest.raises(RuntimeError, match="synthetic failure"),
@@ -98,11 +91,12 @@ def test_resolution_context_releases_on_failure_and_success(tmp_path):
         raise RuntimeError("synthetic failure")
     assert resolved._resolved is None
     assert destination._resolved is None
-    assert provider.loads == 1
 
 
-def test_fingerprint_cache_matching_preserves_asset_identity(tmp_path, monkeypatch):
-    destination, provider = sas_destination()
+def test_fingerprint_cache_matching_preserves_asset_identity(
+    tmp_path, monkeypatch, environment
+):
+    destination = sas_destination()
     captured = []
 
     def synthetic_export(self, connection, source, target):
@@ -120,12 +114,12 @@ def test_fingerprint_cache_matching_preserves_asset_identity(tmp_path, monkeypat
 
     first = asyncio.run(orders.cache_first()(assquack_config=config))
     cached = asyncio.run(orders.cache_first()(assquack_config=config))
-    provider.token = "sig=synthetic-rotated"
+    environment["AZURE_STORAGE_SAS_TOKEN"] = "sig=synthetic-rotated"
     changed = asyncio.run(orders.cache_first()(assquack_config=config))
     assert cached.cached and changed.cached
     assert first.run_id == changed.run_id
     assert first.asset_id == changed.asset_id
-    assert len(extractions) == 1 and provider.loads == 3
+    assert len(extractions) == 1
     assert all(item._resolved is None for item in captured)
     assert destination._resolved is None
     with inspect_database(config) as connection:
@@ -170,7 +164,7 @@ def test_non_azure_authentication_inputs_affect_destination_fingerprint(tmp_path
 
 
 def test_resolution_failure_releases_captured_state(monkeypatch):
-    destination, provider = sas_destination()
+    destination = sas_destination()
     captured = []
     original = FileSystemDestination.resolve
 
@@ -186,13 +180,13 @@ def test_resolution_failure_releases_captured_state(monkeypatch):
     ):
         pytest.fail("resolution must fail")
     assert len(captured) == 1 and captured[0]._resolved is None
-    assert destination._resolved is None and provider.loads == 1
+    assert destination._resolved is None
 
 
-def test_interleaved_operations_retain_their_own_captured_credentials():
-    destination, provider = sas_destination()
+def test_interleaved_operations_retain_their_own_captured_credentials(environment):
+    destination = sas_destination()
     with resolve_exports("orders.parquet", "orders", destination) as first:
-        provider.token = "sig=synthetic-second"
+        environment["AZURE_STORAGE_SAS_TOKEN"] = "sig=synthetic-second"
         with resolve_exports("orders.parquet", "orders", destination) as second:
             assert (
                 first[0][1].destination_fingerprint
@@ -211,11 +205,11 @@ def test_interleaved_operations_retain_their_own_captured_credentials():
                     if call.args[0].startswith("CREATE TEMPORARY")
                 )
                 assert token in registration
-    assert destination._resolved is None and provider.loads == 2
+    assert destination._resolved is None
 
 
 def test_export_failure_releases_state_and_temporary_secret():
-    destination, _ = sas_destination()
+    destination = sas_destination()
     target = destination.resolve("orders.parquet|json", asset_name="orders")[0]
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
 
@@ -231,7 +225,7 @@ def test_export_failure_releases_state_and_temporary_secret():
 
 
 def test_rejected_old_target_releases_new_resolution():
-    destination, _ = sas_destination()
+    destination = sas_destination()
     old = destination.resolve("orders.parquet", asset_name="orders")[0]
     destination.resolve("other.parquet", asset_name="orders")
     with pytest.raises(ExportError, match="current resolve"):
@@ -240,7 +234,7 @@ def test_rejected_old_target_releases_new_resolution():
 
 
 def test_held_failure_does_not_retain_captured_authentication():
-    destination, _ = sas_destination()
+    destination = sas_destination()
     target = destination.resolve("orders.parquet", asset_name="orders")[0]
     assert destination._resolved is not None
     authentication = weakref.ref(destination._resolved.authentication)
@@ -262,7 +256,7 @@ def test_held_failure_does_not_retain_captured_authentication():
 
 
 def test_held_resolution_failure_releases_authentication(monkeypatch):
-    destination, _ = sas_destination()
+    destination = sas_destination()
     references = []
 
     class FailingPreparation(AzurePreparationStrategy):
@@ -281,9 +275,9 @@ def test_held_resolution_failure_releases_authentication(monkeypatch):
     assert destination._resolved is None
 
 
-def test_held_provider_validation_failure_clears_loader_values():
-    destination, provider = sas_destination()
-    provider.token = "invalid-synthetic-token"
+def test_held_credential_validation_failure_clears_values(environment):
+    destination = sas_destination()
+    environment["AZURE_STORAGE_SAS_TOKEN"] = "invalid-synthetic-token"
     with pytest.raises(Exception) as caught:
         destination.resolve("orders.parquet", asset_name="orders")
     traceback = caught.value.__traceback__

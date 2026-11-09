@@ -118,7 +118,7 @@ from the behavior itself.
 | [`publication_strategy()`](../src/assquack/_pipeline/publish.py) | Looks up `replace` in a fixed mapping and constructs a commit strategy. |
 | [`replace_schema_strategy()`](../src/assquack/_storage/schemas.py) | Looks up `config.schema.replace` and constructs a strategy with this run's resources. |
 | [`PreparationRegistry`](../src/assquack/_exports/preparation/registry.py) | Maps URI schemes to existing preparation objects. |
-| [`AuthenticationRegistry`](../src/assquack/_exports/authentication/registry.py) | Maps destination kind plus auth method to a factory receiving a credential provider. |
+| [`AuthenticationRegistry`](../src/assquack/_exports/authentication/registry.py) | Maps destination kind plus auth method to a factory receiving captured environment inputs. |
 
 For example, an `abfss` URI selects Azure preparation; `("azure", "sas")`
 selects the factory that creates SAS authentication. The `default_preparations()`
@@ -151,7 +151,7 @@ the same interface as collaborators that perform real work.
 returns `nullcontext()` from `authenticate()`. Local preparation can always
 enter an authentication context without branching on whether authentication is
 needed. Its fingerprint inputs are empty, and the local authentication factory
-does not load the credential provider.
+does not read credential environment variables.
 
 ## 7. Dependency injection and structural interfaces
 
@@ -161,19 +161,17 @@ without requiring inheritance from a shared concrete base class.
 
 **Instances:** `MetadataRepository` receives its connection and catalog;
 `CurrentRunSchemaStrategy` receives its connection, fragment callback, and reader;
-authentication factories receive a
-[`CredentialProvider`](../src/assquack/_exports/authentication/credentials.py).
-Commit, schema, preparation, authentication, and credential-provider contracts
-use protocols. `ExportDestination` instead uses an abstract base class.
+authentication factories receive captured `SecretStr` environment inputs.
+Commit, schema, preparation and authentication contracts use protocols.
+`ExportDestination` instead uses an abstract base class.
 
-The provider separates loading credential values from using them to authenticate.
 [`test_export_destinations.py`](../tests/test_export_destinations.py) supplies
-synthetic providers and preparation/authentication implementations to exercise
-these boundaries without contacting Azure.
+synthetic environment inputs and preparation/authentication implementations to
+exercise these boundaries without contacting Azure.
 
 There is no dependency-injection container. Wiring is ordinary Python arguments
-and object composition. Credential-provider injection is internal, not a public
-configuration option; the shared DuckDB engine is also not an injected backend.
+and object composition. Credential sourcing is environment-only; the shared
+DuckDB engine is also not an injected backend.
 
 ## 8. Repository for metadata access
 
@@ -320,11 +318,6 @@ The iterator approach allows yielded pages to be consumed incrementally. It does
 not promise every producer or native relation has bounded memory use.
 [`test_fragment_inputs.py`](../tests/test_fragment_inputs.py) demonstrates the
 accepted input shapes.
-
-Another small adapter is `load_provider()` in
-[credentials.py](../src/assquack/_exports/authentication/credentials.py): it
-bridges an asynchronous provider-loading interface to synchronous export code.
-It uses a worker thread when the caller already has an event loop.
 
 ## 15. Facade, result handle, and native lazy queries
 

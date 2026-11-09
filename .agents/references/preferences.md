@@ -23,8 +23,8 @@ across agent sessions.
 - Treat exports as compatibility artifacts, not canonical storage.
 - Use DuckDB as the export filesystem adapter and writer; do not add replacement
   registries or injection for other engines. Keep destination types and
-  authentication extensible. Retain internal credential-provider injection for
-  future multi-destination credential needs; public provider injection is deferred.
+  authentication extensible. Read credentials from the process environment; custom
+  credential sources and provider injection are deferred beyond the single-destination MVP.
 
 ## Documentation Direction
 

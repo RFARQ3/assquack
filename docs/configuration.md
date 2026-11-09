@@ -363,9 +363,9 @@ target defaults `path` and `format`. The earlier `azure_chain` and
 `azure_account_name` settings are not retained. The chain is restricted to supported environment-based methods. Use a fully qualified URI for
 credential-chain authentication. SAS can supply the account for a short URI.
 
-### SAS Credential Provider And Selection
+### SAS Environment Inputs And Selection
 
-`FileSystemDestination.resolve()` loads the provider once and reads each candidate
+`FileSystemDestination.resolve()` reads each candidate environment
 input once before cache lookup. Azure `auto` considers the credential chain first,
 then SAS if no chain input combination is complete. Explicit `sas` reads only its
 own inputs:
@@ -376,24 +376,19 @@ own inputs:
 | `AZURE_STORAGE_ACCOUNT_NAME` | Account belonging to the token; 3 to 24 lowercase letters or digits. |
 
 Surrounding whitespace is trimmed. Empty and whitespace-only values count as
-absent. A URI account never substitutes for the provider's required account.
+absent. A URI account never substitutes for the required environment account.
 A fully qualified URI must match the SAS account. Invalid credentials fail with
 safe messages rather than falling back to native discovery. Tokens retain URL
 encoding; raw semicolons, control characters, blank signatures and URLs are rejected.
 
-Providers implement internal asynchronous `load()` followed by synchronous
-`get(name)`. Each destination has an internal provider-instance injection point;
-it defaults to environment sourcing. Synchronous destination resolution runs loading
-to completion, using a worker thread with its own event loop if the caller
-already has an active loop. Providers must load on that loop rather than depend
-on tasks bound to the caller's loop. Local exports skip both loading and lookup. Credential-chain exports load the
-provider and capture the supported environment inputs. No public provider argument
-or provider registry is supplied.
-Private providers are excluded from config serialization and representations.
+Credentials come directly from the process environment. Each resolution captures
+its selected values as `SecretStr` for fingerprinting and authentication. Local
+exports do not read Azure credentials. Custom credential sources and provider
+injection are outside the single-destination MVP.
 
 ### Credential-Chain Environment Inputs
 
-`resolve()` loads the provider once and captures the values present for
+`resolve()` captures the environment values present for
 `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`,
 `AZURE_CLIENT_CERTIFICATE_PATH`, `AZURE_AUTHORITY_HOST`, and
 `AZURE_FEDERATED_TOKEN_FILE`. Those values enter the destination fingerprint;
@@ -412,7 +407,7 @@ configuration error before export for explicit `credential_chain`; `auto` may
 select SAS instead when its pair is complete. CLI and managed-identity fallback
 are disabled.
 The deployment supplies these same settings to DuckDB's process environment.
-The provider snapshot identifies the configuration; DuckDB still reads its
+Captured inputs determine the fingerprint; DuckDB still reads its
 runtime environment and obtains tokens when executing the export. No process
 variables are rewritten, and certificate/token files are not read for fingerprinting.
 
@@ -428,14 +423,14 @@ AccountName=exampleaccount;BlobEndpoint=https://exampleaccount.blob.core.windows
 Supported schemes are `az`, `azure` and `abfss`. Fully qualified paths use
 `abfss://exampleaccount.dfs.core.windows.net/lake/exports/orders.parquet` or
 `az://exampleaccount.blob.core.windows.net/lake/exports/orders.parquet`.
-Short SAS paths such as `abfss://lake/exports/orders.parquet` use the provider
+Short SAS paths such as `abfss://lake/exports/orders.parquet` use the environment
 account. Only public-cloud endpoints are supported. Hadoop `filesystem@account`
 paths and signed URI query strings are rejected. Keep credentials out of URIs.
 
 Each secret has a unique name and directory scope ending in `/`. It is dropped
 after COPY, including failure. Cleanup failure propagates a safe error; cleanup
 failure during an existing error is logged safely and does not expose backend
-diagnostics. Provider, extension-load and authentication errors suppress their
+diagnostics. Credential-read, extension-load and authentication errors suppress their
 potentially sensitive printed exception context. Temporary secrets are removed;
 the shared connection stays open.
 No success manifest is recorded for a failed export or failed cleanup.

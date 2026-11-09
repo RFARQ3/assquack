@@ -109,8 +109,8 @@ on cache hits, successful completion, and failures; temporary DuckDB secrets are
 removed after execution. Only one destination is configured per invocation;
 there is no cross-destination collision registry.
 
-Credential-chain resolution captures the supported environment inputs through the
-credential provider and fingerprints their values together with the selected chain.
+Credential-chain resolution captures the supported environment inputs directly from the
+process environment and fingerprints their values together with the selected chain.
 At least one complete client-secret, certificate, or workload-identity input set
 is required. DuckDB receives an explicit `env`, `workload_identity`, or
 `env;workload_identity` chain; CLI and managed-identity fallback are disabled.
@@ -310,10 +310,10 @@ decorators. See [ADLS credentials](configuration.md#adls-credentials)
 for the implemented registration contract and deployment requirements.
 
 The MVP path is DuckDB table to native DuckDB `COPY` to the resolved export URI.
-It has no fsspec or Prefect dependency. Credential providers supply explicit
-credentials independently of the strategies that register native DuckDB secrets.
-The SAS environment provider is implemented; credential blocks and arbitrary
-connection-string input remain outside this scope.
+It has no fsspec or Prefect dependency. Credentials come from the process
+environment; authentication strategies register native DuckDB secrets. Custom
+credential sources, credential blocks and arbitrary connection-string input
+remain outside this scope.
 
 ## Implemented Azure Export Path
 

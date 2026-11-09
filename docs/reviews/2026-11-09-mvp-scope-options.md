@@ -12,6 +12,7 @@ does not claim Maitland requested them or authorise further implementation.
 | Unused `chunk_size` | **Removed.** No runtime behaviour lost; MB-based NDJSON fragment sizing remains. | `6f3c1e3`; six production lines removed. |
 | Single-entry strategy registries | **Keep both.** Schema policy and materialization/publication selection remain separate extension points for future work. | No removal. |
 | Deep argument/configuration snapshots | **Simplified.** Use ordinary Python references and resolve identity at execution before the producer runs. Preserve independent derived options and original templates. | `1b3e6d5`; net 95 production lines removed. |
+| Credential-provider abstraction | **Removed.** Read credentials directly from the process environment. The single-destination MVP has no demonstrated non-environment credential-source requirement; custom sources are deferred and can be revisited in Git history. Keep authentication methods, input validation, fingerprints and per-operation credential capture. | Implemented in this change; net 48 production lines removed. |
 | Persistent stage tracking | **Keep for this PR; flag to Maitland as a potential simplification.** It makes the pipeline human-readable and metadata diagnostics helpful. Explain that rationale and let him decide whether to retain or simplify it. | No removal; Maitland's feedback remains pending. |
 
 ## Argument and configuration decisions
@@ -32,8 +33,8 @@ still capture their resolved paths and authentication inputs for the operation.
 
 ## PR handoff
 
-All three reductions are committed and reviewed. Keep the default-connection
-approach and native DuckDB-inferred types. No other removal is agreed. Stage
+All four reductions are implemented and reviewed. Keep the default-connection
+approach and native DuckDB-inferred types. No further removal is agreed. Stage
 tracking is the one retained feature to raise with Maitland; removing it would
 require preserving publication success, export-failure distinction and recovery.
 

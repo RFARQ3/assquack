@@ -1,5 +1,10 @@
 # Repository review — 4 November 2026
 
+**9 November 2026 amendment:** credential-provider injection and its async loading
+bridge have been removed for the environment-only, single-destination MVP.
+Earlier provider discussions below are historical; see the
+[simplification decisions](../reviews/2026-11-09-mvp-scope-options.md).
+
 Review status: COMPLETE
 
 Assquack's main path is understandable: capture, infer, publish, then export.
