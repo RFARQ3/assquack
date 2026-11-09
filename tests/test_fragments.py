@@ -38,6 +38,7 @@ def test_materialization_uses_bounded_local_ndjson_fragments(
     run_directory = (
         config.resolved_fragment_directory
         / "asset=main.fragmented_orders"
+        / f"asset_id={result.asset_id}"
         / f"run_id={result.run_id}"
     )
     fragments = sorted(run_directory.glob("*.ndjson"))
@@ -72,9 +73,17 @@ def test_materialization_uses_bounded_local_ndjson_fragments(
 
 
 def test_fragment_path_uses_safe_hive_partition_values(tmp_path: Path) -> None:
-    directory = fragment_run_directory(tmp_path, "sales/orders:daily", "run-123")
+    directory = fragment_run_directory(
+        tmp_path, "sales/orders:daily", "a" * 64, "run-123"
+    )
 
-    assert directory == tmp_path / "asset=sales_orders_daily" / "run_id=run-123"
+    assert (
+        directory
+        == tmp_path
+        / "asset=sales_orders_daily"
+        / f"asset_id={'a' * 64}"
+        / "run_id=run-123"
+    )
 
 
 def test_publication_preserves_inferred_json_and_native_values(tmp_path: Path) -> None:
@@ -199,7 +208,7 @@ def test_failed_extraction_after_rollover_preserves_publication(
 
     with inspect_database(config) as connection:
         failed = connection.execute(
-            "SELECT run_id FROM assquack_meta.runs WHERE status = 'failed'"
+            "SELECT run_id, asset_id FROM assquack_meta.runs WHERE status = 'failed'"
         ).fetchone()
         assert failed is not None
         if first is not None:
@@ -213,7 +222,7 @@ def test_failed_extraction_after_rollover_preserves_publication(
             ).fetchone() == (0,)
 
     failed_directory = fragment_run_directory(
-        config.resolved_fragment_directory, "main.safe_fragments", failed[0]
+        config.resolved_fragment_directory, "main.safe_fragments", failed[1], failed[0]
     )
     assert len(list(failed_directory.glob("*.ndjson"))) == 1
     assert not (failed_directory / "_COMPLETE").exists()
@@ -244,7 +253,10 @@ def test_per_call_megabyte_target_controls_actual_fragment_boundaries(
     )
     result = asyncio.run(source(assquack_config=config))
     directory = fragment_run_directory(
-        config.resolved_fragment_directory, "main.byte_boundaries", result.run_id
+        config.resolved_fragment_directory,
+        "main.byte_boundaries",
+        result.asset_id,
+        result.run_id,
     )
     assert [path.stat().st_size for path in sorted(directory.glob("*.ndjson"))] == [
         31 * count for count in expected_counts

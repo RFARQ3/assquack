@@ -91,7 +91,7 @@ The three paths are independent:
 - an export alias identifies an optional compatibility output.
 
 By default, fragments live under
-`fragments/asset=<asset-name>/run_id=<run-id>/` beside the configured database.
+`fragments/asset=<asset-name>/asset_id=<asset-id>/run_id=<run-id>/` beside the configured database.
 Changing an export from local storage to ADLS does not move the fragments or
 the database.
 

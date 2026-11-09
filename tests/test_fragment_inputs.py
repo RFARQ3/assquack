@@ -268,10 +268,10 @@ def test_native_partial_files_follow_retention_allowlist(
     from assquack._storage.retention import _remove_run_directory
 
     run_id = "a" * 32
-    directory = tmp_path / "asset=source" / f"run_id={run_id}"
+    directory = tmp_path / "asset=source" / f"asset_id={'a' * 64}" / f"run_id={run_id}"
     directory.mkdir(parents=True)
     (directory / filename).write_bytes(b'{"id":1}\n')
-    _remove_run_directory(tmp_path, "source", run_id)
+    _remove_run_directory(tmp_path, "source", "a" * 64, run_id)
     assert not directory.exists()
 
 
@@ -281,7 +281,7 @@ def test_native_evaluation_failure_cleans_intermediate(
     from assquack._storage.retention import _remove_run_directory
 
     run_id = "b" * 32
-    directory = tmp_path / "asset=source" / f"run_id={run_id}"
+    directory = tmp_path / "asset=source" / f"asset_id={'a' * 64}" / f"run_id={run_id}"
     writer = NDJSONFragmentWriter(directory, target_bytes=1000)
     with nullcontext(duckdb.default_connection()) as connection:
         relation = connection.sql(
@@ -295,7 +295,7 @@ def test_native_evaluation_failure_cleans_intermediate(
     assert not list(directory.glob("*.parquet"))
     assert not list(directory.glob("*.ndjson"))
     assert not (directory / "_COMPLETE").exists()
-    _remove_run_directory(tmp_path, "source", run_id)
+    _remove_run_directory(tmp_path, "source", "a" * 64, run_id)
     assert not directory.exists()
 
 

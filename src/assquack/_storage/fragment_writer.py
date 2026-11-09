@@ -30,14 +30,18 @@ class FragmentFile:
 _UNSAFE_PARTITION_VALUE = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
-def fragment_run_directory(root: Path, asset_name: str, run_id: str) -> Path:
+def fragment_run_directory(
+    root: Path, asset_name: str, asset_id: str, run_id: str
+) -> Path:
     """Build a local, Hive-style path for one asset materialization run."""
 
     safe_asset_name = _UNSAFE_PARTITION_VALUE.sub("_", asset_name).strip("_")
     if not safe_asset_name:
         safe_asset_name = "asset"
 
-    return root / f"asset={safe_asset_name}" / f"run_id={run_id}"
+    return (
+        root / f"asset={safe_asset_name}" / f"asset_id={asset_id}" / f"run_id={run_id}"
+    )
 
 
 class NDJSONFragmentWriter:

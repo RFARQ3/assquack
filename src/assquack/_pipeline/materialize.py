@@ -22,7 +22,10 @@ async def materialize(run: AssquackRun) -> None:
     try:
         writer = NDJSONFragmentWriter(
             fragment_run_directory(
-                run.config.resolved_fragment_directory, run.resolved.asset_name, run.id
+                run.config.resolved_fragment_directory,
+                run.resolved.asset_name,
+                run.resolved.asset_id,
+                run.id,
             ),
             target_bytes=ceil(
                 Decimal(str(run.config.ingestion.fragment_target_mb)) * 1_000_000

@@ -31,7 +31,7 @@ def prune_fragments(
 
     for run_id in obsolete:
         try:
-            _remove_run_directory(root, asset_name, run_id)
+            _remove_run_directory(root, asset_name, asset_id, run_id)
         except Exception:
             _LOGGER.warning(
                 "Could not prune fragments for run %s", run_id, exc_info=True
@@ -48,19 +48,23 @@ def _reject_redirected_path(path: Path) -> None:
             raise ValueError(f"Refusing redirected fragment path: {part}")
 
 
-def _remove_run_directory(root: Path, asset_name: str, run_id: str) -> None:
+def _remove_run_directory(
+    root: Path, asset_name: str, asset_id: str, run_id: str
+) -> None:
+    if re.fullmatch(r"[0-9a-f]{64}", asset_id) is None:
+        raise ValueError(f"Unsafe fragment asset identifier: {asset_id!r}")
     if _RUN_ID.fullmatch(run_id) is None:
         raise ValueError(f"Unsafe fragment run identifier: {run_id!r}")
     if ".." in root.parts:
         raise ValueError(f"Unsafe fragment root: {root}")
 
     root = root.absolute()
-    directory = fragment_run_directory(root, asset_name, run_id)
+    directory = fragment_run_directory(root, asset_name, asset_id, run_id)
     try:
         _reject_redirected_path(directory)
     except FileNotFoundError:
         return
-    if directory.resolve().parent.parent != root.resolve():
+    if directory.resolve().parents[2] != root.resolve():
         raise ValueError(f"Fragment directory escapes configured root: {directory}")
 
     # Capture produces only flat files. Unknown content is retained for inspection;

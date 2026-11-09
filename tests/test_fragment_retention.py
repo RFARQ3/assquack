@@ -47,7 +47,9 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
     first = asyncio.run(source(assquack_config=config))
     latest = asyncio.run(source(assquack_config=config))
     root = config.resolved_fragment_directory
-    assert not fragment_run_directory(root, "source", first.run_id).exists()
+    assert not fragment_run_directory(
+        root, "source", first.asset_id, first.run_id
+    ).exists()
 
     fail = True
     for _ in range(5):
@@ -67,8 +69,12 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
         ).fetchone() == (7,)
     assert len(failures) == 5
     for index, (run_id,) in enumerate(failures):
-        assert fragment_run_directory(root, "source", run_id).exists() == (index < 3)
-    assert fragment_run_directory(root, "source", latest.run_id).exists()
+        assert fragment_run_directory(
+            root, "source", first.asset_id, run_id
+        ).exists() == (index < 3)
+    assert fragment_run_directory(
+        root, "source", latest.asset_id, latest.run_id
+    ).exists()
 
     cached = asyncio.run(source.cache_first()(assquack_config=config))
     assert cached.cached and cached.run_id == latest.run_id
@@ -77,14 +83,16 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
     fail = False
     recovered = asyncio.run(source(assquack_config=config))
     assert recovered.run_id not in {row[0] for row in failures}
-    assert not fragment_run_directory(root, "source", latest.run_id).exists()
+    assert not fragment_run_directory(
+        root, "source", latest.asset_id, latest.run_id
+    ).exists()
     with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT id, _qa_run_id FROM main.retained"
         ).fetchall() == [(8, recovered.run_id)]
 
 
-def test_parameterized_assets_share_directory_without_sharing_retention(
+def test_parameterized_assets_group_fragments_by_identity_without_sharing_retention(
     tmp_path: Path,
 ) -> None:
     @asset(table="main.orders_{region}", name="orders")
@@ -96,10 +104,16 @@ def test_parameterized_assets_share_directory_without_sharing_retention(
     old = asyncio.run(orders("east", assquack_config=config))
     current = asyncio.run(orders("east", assquack_config=config))
     assert other.asset_id != current.asset_id
+    assert {
+        path.name
+        for path in (config.resolved_fragment_directory / "asset=orders").iterdir()
+    } == {f"asset_id={other.asset_id}", f"asset_id={current.asset_id}"}
     root = config.resolved_fragment_directory
-    assert not fragment_run_directory(root, "orders", old.run_id).exists()
-    assert fragment_run_directory(root, "orders", other.run_id).exists()
-    assert fragment_run_directory(root, "orders", current.run_id).exists()
+    assert not fragment_run_directory(root, "orders", old.asset_id, old.run_id).exists()
+    assert fragment_run_directory(root, "orders", other.asset_id, other.run_id).exists()
+    assert fragment_run_directory(
+        root, "orders", current.asset_id, current.run_id
+    ).exists()
 
 
 def seed_run(
@@ -109,7 +123,7 @@ def seed_run(
     status: str,
     day: int,
     *,
-    asset_id: str = "asset-id",
+    asset_id: str = "a" * 64,
 ) -> Path:
     timestamp = datetime(2026, 1, day, tzinfo=UTC)
     connection.execute(
@@ -123,7 +137,7 @@ def seed_run(
             timestamp if status == "success" else None,
         ],
     )
-    directory = fragment_run_directory(root, "orders", run_id)
+    directory = fragment_run_directory(root, "orders", asset_id, run_id)
     directory.mkdir(parents=True)
     (directory / "fragment=000000.partial").write_text("evidence", encoding="utf-8")
     return directory
@@ -145,15 +159,15 @@ def test_catalog_chronology_and_identity_preserve_running_unknown_and_history(
             for day in (4, 5, 6)
         ]
         running = seed_run(connection, root, "a" * 32, "running", 1)
-        other = seed_run(connection, root, "b" * 32, "success", 1, asset_id="other")
-        orphan = fragment_run_directory(root, "orders", "c" * 32)
+        other = seed_run(connection, root, "b" * 32, "success", 1, asset_id="b" * 64)
+        orphan = fragment_run_directory(root, "orders", "a" * 64, "c" * 32)
         orphan.mkdir()
         (orphan / "fragment=000000.ndjson").write_text("orphan", encoding="utf-8")
         before = connection.execute(
             "SELECT to_json(r) FROM assquack_meta.runs r ORDER BY run_id"
         ).fetchall()
 
-        prune_fragments(MetadataRepository(connection), root, "asset-id", "orders")
+        prune_fragments(MetadataRepository(connection), root, "a" * 64, "orders")
 
         assert not old_success.exists()
         assert not old_failure.exists()
@@ -191,7 +205,7 @@ def test_colliding_orphan_is_not_claimed_by_failed_run_and_later_deleted(
         f"{first.asset_id}:{clock.now.return_value.isoformat()}".encode()
     ).hexdigest()
     orphan = fragment_run_directory(
-        config.resolved_fragment_directory, "orders", run_id
+        config.resolved_fragment_directory, "orders", first.asset_id, run_id
     )
     orphan.mkdir()
     evidence = orphan / "fragment=000000.ndjson"
@@ -217,7 +231,7 @@ def test_colliding_orphan_is_not_claimed_by_failed_run_and_later_deleted(
     assert evidence.read_bytes() == b"unknown evidence\n"
 
 
-@pytest.mark.parametrize("redirect", ["root", "asset", "run", "child"])
+@pytest.mark.parametrize("redirect", ["root", "asset", "asset_id", "run", "child"])
 def test_retention_rejects_redirected_directories(
     tmp_path: Path, redirect: str
 ) -> None:
@@ -226,9 +240,13 @@ def test_retention_rejects_redirected_directories(
     with inspect_database(config, bootstrap=True) as connection:
         old = seed_run(connection, root, "a" * 32, "success", 1)
         seed_run(connection, root, "b" * 32, "success", 2)
-        link = {"root": root, "asset": old.parent, "run": old, "child": old / "nested"}[
-            redirect
-        ]
+        link = {
+            "root": root,
+            "asset": old.parent.parent,
+            "asset_id": old.parent,
+            "run": old,
+            "child": old / "nested",
+        }[redirect]
         target = tmp_path / "outside-fragment-root"
         if redirect == "child":
             target.mkdir()
@@ -247,7 +265,7 @@ def test_retention_rejects_redirected_directories(
         else:
             link.symlink_to(target, target_is_directory=True)
 
-        prune_fragments(MetadataRepository(connection), root, "asset-id", "orders")
+        prune_fragments(MetadataRepository(connection), root, "a" * 64, "orders")
 
         assert link.exists()
         assert {
@@ -271,7 +289,7 @@ def test_unknown_content_prevents_partial_deletion(
             extra.mkdir()
         else:
             extra.write_text("unknown", encoding="utf-8")
-        prune_fragments(MetadataRepository(connection), root, "asset-id", "orders")
+        prune_fragments(MetadataRepository(connection), root, "a" * 64, "orders")
         assert extra.exists()
         assert (old / "fragment=000000.partial").read_text() == "evidence"
 
@@ -352,7 +370,9 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
             )
             for day in range(1, 5)
         ]
-        unrelated = seed_run(connection, root, "f" * 32, "running", 1, asset_id="other")
+        unrelated = seed_run(
+            connection, root, "f" * 32, "running", 1, asset_id="b" * 64
+        )
 
     cached = asyncio.run(orders.cache_first()(assquack_config=config))
 
@@ -361,7 +381,7 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
     assert not stale[0].exists()
     assert all(path.exists() for path in stale[1:])
     assert unrelated.exists()
-    assert fragment_run_directory(root, "orders", first.run_id).exists()
+    assert fragment_run_directory(root, "orders", first.asset_id, first.run_id).exists()
     with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT count(*) FROM assquack_meta.runs WHERE status = 'failed' "
@@ -369,7 +389,7 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
             "AND failed_stage IS NULL AND outcome = 'failed'"
         ).fetchone() == (4,)
         assert connection.execute(
-            "SELECT status FROM assquack_meta.runs WHERE asset_id = 'other'"
+            "SELECT status FROM assquack_meta.runs WHERE asset_id = ?", ["b" * 64]
         ).fetchone() == ("running",)
 
 
@@ -409,10 +429,10 @@ def test_equal_timestamps_still_retain_exactly_three_failed_runs(
             for number in range(1, 6)
         ]
         metadata = MetadataRepository(connection)
-        prune_fragments(metadata, root, "asset-id", "orders")
+        prune_fragments(metadata, root, "a" * 64, "orders")
         retained = {path for path in directories if path.exists()}
         assert len(retained) == 3
-        prune_fragments(metadata, root, "asset-id", "orders")
+        prune_fragments(metadata, root, "a" * 64, "orders")
         assert {path for path in directories if path.exists()} == retained
         assert connection.execute(
             "SELECT count(*) FROM assquack_meta.runs"
@@ -447,12 +467,12 @@ def test_cancelled_capture_keeps_evidence_and_retry_starts_fresh(
     asyncio.run(cancel_capture())
     with inspect_database(config) as connection:
         row = connection.execute(
-            "SELECT run_id, status FROM assquack_meta.runs"
+            "SELECT run_id, status, asset_id FROM assquack_meta.runs"
         ).fetchone()
         assert row is not None and row[1] == "failed"
         failed_id = row[0]
     failed_directory = fragment_run_directory(
-        config.resolved_fragment_directory, "source", failed_id
+        config.resolved_fragment_directory, "source", row[2], failed_id
     )
     assert (failed_directory / "fragment=000000.ndjson").read_text() == '{"id":1}\n'
     assert not (failed_directory / "_COMPLETE").exists()

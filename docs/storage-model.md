@@ -209,11 +209,12 @@ Near-term modes can reuse the same table model:
 Every fresh materialization writes JSON-shaped source rows to:
 
 ```text
-<fragment-directory>/asset=<asset-name>/run_id=<run-id>/fragment=<number>.ndjson
+<fragment-directory>/asset=<asset-name>/asset_id=<asset-id>/run_id=<run-id>/fragment=<number>.ndjson
 ```
 
 The fragment directory defaults beside the database. Hive-style path components
-keep assets, runs, and fragments identifiable during inspection and recovery.
+group argument-derived asset IDs under each asset name and identify each run.
+Existing fragment directories are left untouched; new captures use this layout.
 It is local ingestion storage and never resolves through the asset export alias
 or `mad://` adapter. Fragments are completed through atomic rename before
 DuckDB reads them, and `ingestion.fragment_target_mb` sets their byte-size target.

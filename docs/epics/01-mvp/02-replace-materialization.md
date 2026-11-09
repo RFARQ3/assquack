@@ -8,6 +8,13 @@ Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.m
 
 ## Intent
 
+The 9 November fragment-layout update groups captures by asset name, asset ID
+and run ID. Writing and retention use the same path helper. Cache behaviour and
+completion markers stay unchanged; old paths are not migrated or deleted.
+Validation: **69 targeted tests passed**, independently repeated by the reviewer,
+covering argument-derived ID grouping and retention at the new depth. Ruff lint,
+changed-file formatting, Pyright, documentation links and whitespace checks pass.
+
 The 9 November cleanup removed the unused `chunk_size` setting and its environment
 alias. NDJSON sizing remains controlled by `ingestion.fragment_target_mb`.
 All 89 targeted configuration, fragment rollover, retention and query-chaining
@@ -136,7 +143,7 @@ to test independently without turning the decorator into a storage policy API.
 ## Fragment And Staging Contracts
 
 Each run writes `.partial` files under
-`<fragment-directory>/asset=<asset-name>/run_id=<run-id>/`. A fragment is
+`<fragment-directory>/asset=<asset-name>/asset_id=<asset-id>/run_id=<run-id>/`. A fragment is
 flushed and renamed to `fragment=<number>.ndjson` only when complete.
 `_COMPLETE` marks successful source capture. DuckDB receives only completed
 fragment paths. Disable Hive partition inference in the shared JSON reader so

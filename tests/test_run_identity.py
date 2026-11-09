@@ -89,7 +89,7 @@ def test_run_identity_matches_persisted_runtime_and_fragments(
         ]
 
     directory = fragment_run_directory(
-        config.resolved_fragment_directory, "main.orders", first.run_id
+        config.resolved_fragment_directory, "main.orders", first.asset_id, first.run_id
     )
     assert (directory / "_COMPLETE").exists()
     assert (directory / "fragment=000000.ndjson").read_text() == '{"id":1}\n'
@@ -192,7 +192,7 @@ def test_existing_fragment_directory_is_never_overwritten(
         f"{first.asset_id}:2026-10-22T01:02:03.456790+00:00".encode()
     ).hexdigest()
     directory = fragment_run_directory(
-        config.resolved_fragment_directory, "main.orders", orphan_id
+        config.resolved_fragment_directory, "main.orders", first.asset_id, orphan_id
     )
     directory.mkdir(parents=True)
     fragment = directory / "fragment=000000.ndjson"
