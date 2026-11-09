@@ -3,6 +3,11 @@
 Status: **Implemented with the decisions recorded below; original proposal retained for context**
 Date: 2026-11-06
 
+**9 November amendment:** the per-call argument/configuration snapshot guarantees
+below are superseded. Calls now bind at execution and use ordinary argument
+references, while retaining independent derived options and templates. See
+[current argument behaviour](../developer-api.md#call-arguments-and-execution).
+
 Assquack should read as four core objects and five visible stages. An asset
 defines work. A request asks for that work. A run records its progress. A result
 provides access to the published table. The coordinator should read

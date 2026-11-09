@@ -1,12 +1,32 @@
 # Request snapshots and run stages
 
 Status: **Complete**
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 Epic: 01 MVP
 Phase: 08
 Related docs: [Architecture proposal](../../reviews/2026-11-06-architecture-and-run-flow.md), [Lifecycle](../../materialization-lifecycle.md)
 
 ## Implementation direction
+
+### Ordinary argument references — 9 November 2026
+
+Rowan approved removing per-call deep argument/configuration snapshots. Bind
+arguments and select configuration when execution starts, calculate identity
+before calling the producer, and pass argument objects through unchanged.
+Keep independent derived options/original templates from the MAD.Prefect fix.
+Configuration is shared: changes before execution and between calls apply;
+callers must not change it during an active invocation. Operation-owned export
+path, credential capture and fingerprints remain unchanged. This supersedes
+the snapshot guarantees in the historical implementation notes below.
+
+Completed and independently reviewed: the full offline suite passed **466 tests**;
+the reviewer also passed **90 targeted tests**. Ruff lint/format, Pyright (zero
+errors/warnings), documentation links and whitespace checks passed. Tests retain
+the MAD.Prefect sibling/template isolation cases and verify current arguments at
+execution, visible producer mutations and unchanged pre-producer identity/paths.
+The initial new-test query-fragment syntax error was corrected before the passing
+full run. Type checking required access to existing installed dependency metadata.
+No live systems, compatibility shims, commits or strategy-document changes.
 
 Introduce `AssquackRequest` to preserve invocation arguments and options and
 `AssquackRun` to record Resolve, Materialize, Stage, Publish and Export progress.

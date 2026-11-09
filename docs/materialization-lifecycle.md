@@ -14,7 +14,7 @@ tracks validation and final choices.
 
 ```mermaid
 flowchart LR
-  Request[Capture AssquackRequest] --> Resolve
+  Request[Bind AssquackRequest at execution] --> Resolve
   Resolve -->|Fresh extraction| Materialize
   Materialize --> Stage
   Stage --> Publish
@@ -23,20 +23,19 @@ flowchart LR
   Export --> Result[AssquackResult]
 ```
 
-Calling an asset immediately creates an `AssquackRequest`. It binds supplied and
-previously bound arguments, applies defaults, and copies ordinary data containers
-and configured options. Every request includes its effective configuration:
-call override, attached asset config or defaults. The pipeline accepts only this
-request, and the run reads its configuration from the request. The returned
-coroutine performs the pipeline when awaited.
-Changing the caller's dictionaries or settings before awaiting cannot change that
-call. Producer code receives separate containers, preserving the request's originals.
+An awaited asset call creates an `AssquackRequest` when execution starts. It binds
+supplied and previously bound arguments, applies defaults, and selects the effective
+configuration: call override, attached asset config or defaults. Arguments and
+configuration retain their Python references. Changes before execution apply;
+producer argument mutations remain visible to the caller. Resolve fixes identity
+and paths before producer execution. Keep configuration unchanged during an active
+call; see [argument behaviour](developer-api.md#call-arguments-and-execution).
 
 `AssquackRun` exists before cache lookup and holds changing progress separately:
 
 | Stage | Work | State saved |
 | --- | --- | --- |
-| Resolve | Format captured templates, derive identity, use captured configuration, register the asset, recover interrupted runs, check the current publication and resolve exports. | Start and outcome once a new attempt's database row exists. |
+| Resolve | Format original templates, derive identity, use selected configuration, register the asset, recover interrupted runs, check the current publication and resolve exports. | Start and outcome once a new attempt's database row exists. |
 | Materialize | Call the producer and pass its output to the fragment writer. | Start before capture and success after fragments finish. |
 | Stage | Ask DuckDB to describe completed fragments, then load the candidate table. | Start before inference and success after loading. |
 | Publish | Replace the asset table and update publication metadata atomically. | Start before the transaction; success inside it. |

@@ -1,16 +1,11 @@
-"""Keep each request's values separate from later calls and configuration changes.
-
-MAD.Prefect's attribute-formatting tests establish sibling option isolation and
-reuse of original templates. The argument tests extend that protection to the
-agreed Assquack call snapshot; MAD.Prefect does not deep-copy call arguments.
-"""
+"""Keep MAD.Prefect option isolation and ordinary Python argument references."""
 
 import asyncio
 from datetime import timedelta
 
 import pytest
 
-from assquack import AssquackConfig, asset
+from assquack import AssquackConfig, FileSystemDestination, asset
 from assquack._options import ExportSpec
 from assquack._pipeline.resolve import resolve_request
 
@@ -102,102 +97,78 @@ def test_export_declaration_changes_do_not_rewrite_an_existing_request():
 
 
 @pytest.mark.parametrize(
-    "argument_source", ["positional", "keyword", "bound", "default"]
+    "argument_source", ["positional", "keyword", "keyword_only", "bound", "default"]
 )
-def test_request_keeps_nested_arguments_as_they_were_when_created(argument_source):
+def test_pending_call_uses_current_nested_arguments(tmp_path, argument_source):
     filters = {"ids": [1, 2]}
 
-    # A mutable default is intentional: it must not rewrite a previous request.
     @asset("bronze.orders")
     def source(filters=filters):
-        raise AssertionError("Creating requests must not execute the producer")
+        assert filters is original_filters
+        return [{"id": number} for number in filters["ids"]]
 
-    if argument_source == "positional":
-        request = source._request((filters,), {})
-    elif argument_source == "keyword":
-        request = source._request((), {"filters": filters})
-    elif argument_source == "bound":
-        request = source.with_arguments(filters=filters)._request((), {})
-    else:
-        request = source._request((), {})
-
-    filters["ids"].append(3)
-
-    assert request.arguments == ({"ids": [1, 2]},)
-    original = source._request((), {"filters": {"ids": [1, 2]}})
-    assert resolve_request(request).asset_id == resolve_request(original).asset_id
-
-
-def test_request_keeps_nested_keyword_only_arguments_as_they_were_when_created():
     @asset("bronze.orders")
-    def source(*, filters: dict[str, list[int]]):
-        raise AssertionError("Creating requests must not execute the producer")
+    def keyword_source(*, filters):
+        assert filters is original_filters
+        return [{"id": number} for number in filters["ids"]]
 
-    filters = {"ids": [1, 2]}
-    request = source._request((), {"filters": filters})
+    original_filters = filters
+    config = AssquackConfig(home=tmp_path)
+    if argument_source == "positional":
+        pending = source(filters, assquack_config=config)
+    elif argument_source == "keyword":
+        pending = source(filters=filters, assquack_config=config)
+    elif argument_source == "keyword_only":
+        pending = keyword_source(filters=filters, assquack_config=config)
+    elif argument_source == "bound":
+        pending = source.with_arguments(filters=filters)(assquack_config=config)
+    else:
+        pending = source(assquack_config=config)
+
     filters["ids"].append(3)
-
-    assert request.keyword_arguments == {"filters": {"ids": [1, 2]}}
-
-
-def test_reusing_arguments_for_another_call_does_not_rewrite_the_first_request():
-    @asset(
-        "bronze.{selection[endpoint]}",
-        export="raw/{selection[endpoint]}.parquet",
-    )
-    def source(selection: dict[str, str]):
-        raise AssertionError("Creating requests must not execute the producer")
-
-    selection = {"endpoint": "orders"}
-    first = source._request((selection,), {})
-    selection["endpoint"] = "customers"
-    second = source._request((selection,), {})
-
-    assert resolve_request(first).table.table_name == "orders"
-    assert resolve_request(first).export == "raw/orders.parquet"
-    assert first.arguments == ({"endpoint": "orders"},)
-    assert resolve_request(second).table.table_name == "customers"
-    assert resolve_request(second).export == "raw/customers.parquet"
-    assert second.arguments == ({"endpoint": "customers"},)
-    assert resolve_request(first).asset_id != resolve_request(second).asset_id
+    result = asyncio.run(pending)
+    assert result.row_count == 3
+    assert asyncio.run(result.query("SELECT id ORDER BY id")).fetchall() == [
+        (1,),
+        (2,),
+        (3,),
+    ]
 
 
 @pytest.mark.parametrize("config_source", ["default", "asset", "call"])
-def test_request_captures_effective_config(tmp_path, config_source):
+def test_request_uses_effective_config_reference(tmp_path, config_source):
     attached = AssquackConfig(home=tmp_path / "attached")
     override = AssquackConfig(home=tmp_path / "override")
 
     @asset("main.orders", config=attached if config_source != "default" else None)
     def source():
-        raise AssertionError("Capturing configuration must not execute the producer")
+        raise AssertionError("Binding configuration must not execute the producer")
 
     request = source._request(
         (), {}, config=override if config_source == "call" else None
     )
-    expected = {
-        "default": AssquackConfig().home,
-        "asset": attached.home,
-        "call": override.home,
-    }
-    assert request.config.home == expected[config_source]
-
-    attached.home = tmp_path / "changed-attached"
-    override.home = tmp_path / "changed-override"
-    assert request.config.home == expected[config_source]
+    if config_source == "default":
+        assert request.config.home == AssquackConfig().home
+    else:
+        assert request.config is (override if config_source == "call" else attached)
 
 
-def test_call_captures_arguments_and_config_before_awaiting(tmp_path):
-    @asset("main.{selection[endpoint]}")
+def test_call_resolves_arguments_and_config_when_awaited(tmp_path):
+    @asset("main.{selection[endpoint]}", export="{selection[endpoint]}.parquet")
     def source(selection):
         return [{"endpoint": selection["endpoint"]}]
 
     selection = {"endpoint": "orders"}
-    config = AssquackConfig(home=tmp_path)
+    config = AssquackConfig(home=tmp_path, exports=str(tmp_path / "first"))
     pending = source(selection, assquack_config=config)
     selection["endpoint"] = "customers"
-    config.attachment_name = "changed"
+    config.exports = FileSystemDestination(base_uri=str(tmp_path / "second"))
+    expected = resolve_request(source._request((selection,), {}, config=config))
     result = asyncio.run(pending)
 
-    assert result.table.table_name == "orders"
-    assert result.config.attachment_name == "assquack"
-    assert asyncio.run(result.query()).fetchall()[0][2] == "orders"
+    assert result.table.table_name == "customers"
+    assert result.asset_id == expected.asset_id
+    assert result.config is config
+    assert asyncio.run(result.query()).fetchall()[0][2] == "customers"
+    assert (tmp_path / "second/customers.parquet").is_file()
+    assert not (tmp_path / "first").exists()

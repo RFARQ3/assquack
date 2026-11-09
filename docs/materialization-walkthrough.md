@@ -147,11 +147,11 @@ fetches API data.
 ## 4. Calling an asset creates an AssquackRequest
 
 Prefect executes the flow, which calls the globally defined assets.
-[`AssquackAsset.__call__()`](../src/assquack/_asset.py) captures the arguments and
-options in an [`AssquackRequest`](../src/assquack/_request.py) immediately, then
-returns the pipeline coroutine. `_request()` combines bound and supplied arguments
-and applies defaults. Ordinary nested data containers are copied so another call
-cannot rewrite these values. Producer execution receives its own containers too.
+[`AssquackAsset.__call__()`](../src/assquack/_asset.py) binds the arguments and
+options in an [`AssquackRequest`](../src/assquack/_request.py) when execution starts.
+`_request()` combines bound and supplied arguments and applies defaults. Argument
+values are passed by reference, including when the producer mutates them. Resolve
+calculates identity before producer code runs; it does not depend on a deep copy.
 
 The awaited coroutine enters [`run_pipeline()`](../src/assquack/_pipeline/__init__.py),
 which creates [`AssquackRun`](../src/assquack/_run.py) to track the stages. Resolve

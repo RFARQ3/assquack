@@ -42,14 +42,14 @@ component that knows how to perform it.
 
 **Instance:** [`AssquackAsset._request()`](../src/assquack/_asset.py) constructs a
 [`AssquackRequest`](../src/assquack/_request.py) containing
-the producer, copied bound arguments, original templates, mode and cache policy.
-The effective configuration is captured alongside those inputs. Resolve derives
-identity and destinations from the captured values.
+the producer, bound argument references, original templates, mode and cache policy.
+The effective configuration is selected when execution starts. Resolve derives
+identity and destinations before the producer can mutate its inputs.
 
 The asset then passes that request to the standalone
 [`run_pipeline()` function](../src/assquack/_pipeline/__init__.py), which
 executes the work. `AssquackRun` holds changing stage progress separately from the
-request's original values.
+request's inputs.
 
 For example, the reusable `paginated_asset` definition becomes a request to run
 that producer with `endpoint="orders"` and publish to `bronze.orders`.
@@ -266,11 +266,10 @@ object or final `build()` step. Each returned object is already an asset.
 Resolve builds a separate resolved asset description and qualifies its table
 reference; it does not alter the request's original templates.
 
-Asset definitions remain shallow fluent copies. At invocation, `AssquackRequest`
-copies ordinary built-in argument containers and returns fresh execution containers.
-This protects the captured call from caller and producer mutations while retaining
-live objects such as assets, generators and relations. Configuration settings are
-copied without duplicating credential providers or other runtime resources.
+Asset definitions remain shallow fluent copies with independently copied export
+options and retained original templates. Request arguments and configuration use
+ordinary Python references. Formatting one derived asset cannot rewrite its siblings,
+but a producer mutating an argument changes the caller's object too.
 
 ## 13. Partial evaluation and deferred template resolution
 

@@ -64,7 +64,9 @@ Use `@asset("sales.orders", config=config)` to attach a project config, or
 `orders.with_options(config=other_config)` for an independent asset copy.
 Execution, asset queries and existence checks select the explicit
 `assquack_config` call override, then the attached config, then ordinary
-`AssquackConfig()` defaults. Objects are selected whole, not merged.
+`AssquackConfig()` defaults. Objects are selected whole, not merged or deep-copied.
+Selection happens when execution starts. Change shared configuration before
+execution or between invocations, not while an invocation is running.
 See [asset option copies](developer-api.md#asset-config-and-option-copies)
 for resets, chaining and dependency behavior.
 

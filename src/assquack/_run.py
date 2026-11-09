@@ -29,7 +29,7 @@ ACTIVE_RUNS: set[tuple[str, str]] = set()
 class AssquackRun:
     """Track one call from resolution through publication and exports.
 
-    The request preserves original inputs. This object holds changing execution
+    The request holds the call's inputs. This object holds changing execution
     state, including the last completed stage and the reason a stage failed.
     """
 

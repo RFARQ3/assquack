@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from typing import Any, Generic, ParamSpec, TypeAlias, TypeVar
@@ -83,15 +83,15 @@ class AssquackAsset(Generic[P, AssetReturn]):
             formatter.format(templates.table, allow_partial=True),
         )
 
-    def __call__(
+    async def __call__(
         self,
         *args: P.args,
         assquack_config: AssquackConfig | None = None,  # pyright: ignore[reportGeneralTypeIssues]
         **kwargs: P.kwargs,
-    ) -> Coroutine[Any, Any, AssquackResult]:
-        """Capture this call now; execute it when the returned coroutine is awaited."""
+    ) -> AssquackResult:
+        """Bind current arguments and configuration when execution starts."""
         request = self._request(args, kwargs, config=assquack_config)
-        return run_pipeline(request)
+        return await run_pipeline(request)
 
     async def query(
         self,
@@ -186,15 +186,19 @@ class AssquackAsset(Generic[P, AssetReturn]):
         *,
         config: AssquackConfig | None = None,
     ) -> AssquackRequest:
-        """Capture the call before resolution or producer execution can change it."""
+        """Bind supplied and default arguments without copying their values."""
         assert self._templates is not None
-        return AssquackRequest.capture(
-            self.fn,
-            args,
-            {**self.bound_arguments, **kwargs},
-            table=self._templates.table,
-            name=self._templates.name,
-            export=self._templates.export,
+        bound = inspect.signature(self.fn).bind(
+            *args, **{**self.bound_arguments, **kwargs}
+        )
+        bound.apply_defaults()
+        return AssquackRequest(
+            fn=self.fn,
+            arguments=bound.args,
+            keyword_arguments=bound.kwargs,
+            table_template=self._templates.table,
+            name_template=self._templates.name,
+            export_template=self._templates.export,
             mode=self.mode,
             config=config or self.config or AssquackConfig(),
             use_cache=self.prefer_cache,

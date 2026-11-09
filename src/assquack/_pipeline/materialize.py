@@ -32,8 +32,7 @@ async def materialize(run: AssquackRun) -> None:
             run.repository.claim_run_fragments(run.id)
 
         # Producer code may await or call other assets. No database lock spans it.
-        arguments, keywords = run.request.execution_arguments()
-        value = run.request.fn(*arguments, **keywords)
+        value = run.request.fn(*run.request.arguments, **run.request.keyword_arguments)
         if inspect.isawaitable(value):
             value = await value
         run.row_count = await write_fragments(value, writer, run.config)

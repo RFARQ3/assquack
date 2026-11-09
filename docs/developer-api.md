@@ -348,21 +348,25 @@ arguments participate in:
 Bound arguments preserve legacy path-template ergonomics without making the API
 depend on a particular orchestration framework.
 
-## Call arguments and request copies
+## Call arguments and execution
 
-Calling an asset captures an internal `AssquackRequest` immediately and returns a
-coroutine to await. Bound and supplied arguments, including defaults, are captured
-before resolution. Built-in dictionaries, lists, tuples, sets and byte arrays are
-copied recursively; aliases between arguments remain aliases within the copy.
-Changing those containers after the call cannot change its identity, table or
-producer inputs. Producer mutations also leave the recorded request unchanged.
+Calling an asset returns a coroutine. When execution starts, Assquack binds supplied
+and default arguments, selects the effective configuration, and creates an internal
+`AssquackRequest`. Resolve calculates the identity, table and export paths before
+calling the producer. Missing or invalid function arguments are reported when the
+call is awaited, because argument binding happens then.
 
-Live resources and other object types retain identity: generators, database
-connections/relations, assets, custom objects and DataFrames are not blindly copied.
-Callers remain responsible for their lifetime and mutation. Effective configuration
-copies its settings and destination fields while retaining runtime credential
-providers and strategies. Neither these objects nor request arguments are persisted
-into run metadata.
+Argument values retain ordinary Python references. Changes to a list or dictionary
+before awaiting are visible to the producer and identity calculation. If the producer
+then mutates that value, the caller sees the mutation too; the already resolved
+identity and paths do not change. Mutable defaults behave like ordinary Python defaults.
+There are no recursive argument copies or per-call configuration snapshots.
+
+Derived assets still keep independent options and original templates: formatting
+one derivative cannot overwrite a sibling's export declaration. Configuration is
+shared, so change it before execution or between calls, not during an active call.
+Export resolution still captures its own write paths and credentials for the operation.
+Arguments and configuration are not persisted into run metadata.
 
 An `AssquackRun` tracks the five stage outcomes independently of the request.
 See [lifecycle](materialization-lifecycle.md#lifecycle-at-a-glance).

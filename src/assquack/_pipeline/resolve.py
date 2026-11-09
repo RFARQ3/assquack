@@ -38,11 +38,10 @@ class ResolvedAsset:
 
 
 def resolve_request(request: AssquackRequest) -> ResolvedAsset:
-    """Resolve names, exports and identity from the captured call arguments."""
+    """Resolve names, exports and identity before producer execution."""
     validate_options(request.table_template, request.mode, request.cache_expiration)
-    arguments, keywords = request.execution_arguments()
     signature = inspect.signature(request.fn)
-    bound = signature.bind(*arguments, **keywords)
+    bound = signature.bind(*request.arguments, **request.keyword_arguments)
     formatter = AssetTemplateFormatter(bound.args, bound)
     name = formatter.format(request.name_template or request.table_template)
     table_name = formatter.format(request.table_template)

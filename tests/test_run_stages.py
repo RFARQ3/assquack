@@ -122,15 +122,10 @@ def test_failed_stage_is_recorded_without_losing_the_published_table(
     assert not ACTIVE_RUNS
 
 
-def test_producer_mutation_preserves_request_values_and_caller_arguments(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_producer_mutates_caller_arguments_without_changing_resolved_identity(
+    tmp_path: Path,
 ):
-    requests = []
-    original_save = MetadataRepository.save_run_state
-
-    def save(repository, run):
-        requests.append(run.request)
-        original_save(repository, run)
+    from assquack._pipeline.resolve import resolve_request
 
     @asset("main.{selection[endpoint]}", export="{selection[endpoint]}.parquet")
     def source(selection, *, same_selection):
@@ -139,24 +134,24 @@ def test_producer_mutation_preserves_request_values_and_caller_arguments(
         selection["ids"].append(3)
         return [{"id": value} for value in selection["ids"]]
 
-    monkeypatch.setattr(MetadataRepository, "save_run_state", save)
     selection = {"endpoint": "orders", "ids": [1, 2]}
+    config = AssquackConfig(home=tmp_path, exports=str(tmp_path / "exports"))
+    expected = resolve_request(
+        source._request((selection,), {"same_selection": selection}, config=config)
+    )
     result = asyncio.run(
-        source(
-            selection,
-            same_selection=selection,
-            assquack_config=AssquackConfig(home=tmp_path),
-        )
+        source(selection, same_selection=selection, assquack_config=config)
     )
 
-    assert selection == {"endpoint": "orders", "ids": [1, 2]}
+    assert selection == {"endpoint": "changed_by_producer", "ids": [1, 2, 3]}
     assert result.table.table_name == "orders"
     assert result.row_count == 3
-    assert requests
-    for request in requests:
-        arguments, keywords = request.execution_arguments()
-        assert arguments == ({"endpoint": "orders", "ids": [1, 2]},)
-        assert keywords["same_selection"] is arguments[0]
+    assert result.asset_id == expected.asset_id
+    assert (tmp_path / "exports/orders.parquet").is_file()
+    with inspect_database(config) as connection:
+        assert connection.execute(
+            "SELECT asset_id FROM assquack_meta.runs WHERE run_id = ?", [result.run_id]
+        ).fetchone() == (expected.asset_id,)
 
 
 def test_resolve_failure_releases_destinations_after_state_save_fails(
@@ -273,7 +268,7 @@ def test_final_state_save_failure_does_not_report_a_successful_call(
     assert not ACTIVE_RUNS
 
 
-def test_config_capture_preserves_a_provider_with_a_runtime_lock(tmp_path: Path):
+def test_config_uses_provider_with_a_runtime_lock(tmp_path: Path):
     class Provider:
         def __init__(self):
             self.lock = threading.Lock()
@@ -297,23 +292,6 @@ def test_config_capture_preserves_a_provider_with_a_runtime_lock(tmp_path: Path)
     assert result.row_count == 1
     assert (tmp_path / "exports/progress.parquet").is_file()
     assert destination._credential_provider is provider
-
-
-def test_producer_changes_to_config_do_not_redirect_the_active_run(tmp_path: Path):
-    destination = FileSystemDestination(base_uri=str(tmp_path / "exports"))
-    config = AssquackConfig(home=tmp_path, exports=destination)
-
-    @asset("main.progress", export="progress.parquet")
-    def source():
-        config.home = tmp_path / "changed"
-        destination.base_uri = str(tmp_path / "changed-exports")
-        return [{"id": 1}]
-
-    result = asyncio.run(source(assquack_config=config))
-    assert result.config.home == tmp_path
-    assert (tmp_path / "exports/progress.parquet").is_file()
-    assert not (tmp_path / "changed").exists()
-    assert not (tmp_path / "changed-exports").exists()
 
 
 def test_rollback_failure_does_not_replace_the_original_transaction_error():
