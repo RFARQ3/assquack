@@ -28,7 +28,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
     run = AssquackRun(request)
     resources = ExitStack()
     try:
-        # 1. Resolve identity, check the cache and prepare the export destination.
+        # 1. Resolve asset identity, check the cache and prepare the export destination.
         try:
             run.resolve_status = "running"
             run.save_state()
@@ -39,8 +39,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
             run.fail("resolve", error)
             raise
 
-        # 2. Materialize the producer's output into completed fragment files.
-        # No database lock spans producer code, which may await other assets.
+        # 2. Materialize the asset's data into NDJSON fragment files.
         if run.cached is None:
             try:
                 run.materialize_status = "running"
@@ -54,10 +53,10 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
         else:
             run.materialize_status = "skipped"
 
-        # Keep the table unchanged between staging, publication and exports.
-        # These operations are synchronous and do not await producer code.
+        # Hold the database lock through staging (3), publication (4) and export (5).
         with database_operation(run.config) as connection:
-            # 3. Stage the fragments using DuckDB's inferred columns and types.
+
+        # 3. Stage the fragments using DuckDB's inferred columns and types.
             if run.cached is None:
                 try:
                     run.stage_status = "running"
@@ -71,7 +70,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
             else:
                 run.stage_status = "skipped"
 
-            # 4. Publish the table and its success metadata in one transaction.
+        # 4. Publish the table and its success metadata in one transaction.
             if run.cached is None:
                 try:
                     run.publish_status = "running"
@@ -86,7 +85,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
             else:
                 run.publish_status = "skipped"
 
-            # 5. Export the publication, retaining each completed file's record.
+        # 5. Export the publication, retaining each completed file's record.
             try:
                 if exports:
                     run.export_status = "running"
@@ -100,7 +99,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
                 run.fail("export", error)
                 raise
 
-            # A failed final save must not falsely mark a completed stage failed.
+            # Record successful completion of the overall run.
             try:
                 run.outcome = "success"
                 run.save_state()
