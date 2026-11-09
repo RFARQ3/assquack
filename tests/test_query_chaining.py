@@ -75,7 +75,7 @@ def test_python_variable_chains_and_native_materialization(tmp_path, first):
 
 def test_same_database_assets_publish_then_join_in_one_execution(tmp_path):
     config = AssquackConfig(home=tmp_path)
-    alternate = AssquackConfig(home=tmp_path, chunk_size=9, exports="./unused")
+    alternate = AssquackConfig(home=tmp_path, exports="./unused")
 
     @asset("bronze.first", config=config)
     def first():

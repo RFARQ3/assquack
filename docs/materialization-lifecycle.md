@@ -99,8 +99,7 @@ the database.
 ## Fragment Capture
 
 `AssquackConfig.ingestion.fragment_target_mb` controls the target byte size of
-each fragment. Python inputs stream one record at a time; `chunk_size` does not
-control capture or fragment boundaries.
+each fragment. Python inputs stream one record at a time.
 The Python writer counts serialized UTF-8 bytes including each newline, then completes
 the fragment after a whole record reaches or exceeds the target. Oversized
 records stay intact; capture never creates an empty trailing fragment. See

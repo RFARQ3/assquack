@@ -1,12 +1,19 @@
 # Replace Materialization
 
 Status: **Complete**
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 Epic: 01 MVP
 Phase: 02
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Materialization Lifecycle](../../materialization-lifecycle.md), [Schema Inference](../../schema-inference.md)
 
 ## Intent
+
+The 9 November cleanup removed the unused `chunk_size` setting and its environment
+alias. NDJSON sizing remains controlled by `ingestion.fragment_target_mb`.
+All 89 targeted configuration, fragment rollover, retention and query-chaining
+tests passed; an independent reviewer also passed those tests with no correctness
+or readability findings. Ruff lint/format, Pyright, documentation links and
+whitespace checks passed. No compatibility handling was added.
 
 The [default connection phase](07-default-connection.md) supersedes the connection,
 writer-lock and native capture details recorded below. This phase remains complete

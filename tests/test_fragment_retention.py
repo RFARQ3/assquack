@@ -39,7 +39,6 @@ def test_retention_preserves_success_and_three_failures_then_retries_fresh(
 
     config = AssquackConfig(
         home=tmp_path / "database",
-        chunk_size=1,
         ingestion=IngestionConfig(
             fragment_directory=tmp_path / "configured-fragments",
             fragment_target_mb=0.000001,
@@ -434,7 +433,6 @@ def test_cancelled_capture_keeps_evidence_and_retry_starts_fresh(
 
     config = AssquackConfig(
         home=tmp_path,
-        chunk_size=1,
         ingestion=IngestionConfig(fragment_target_mb=0.000001),
     )
 

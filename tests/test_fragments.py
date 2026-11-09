@@ -15,9 +15,8 @@ from assquack._storage.fragment_writer import (
 from database_helpers import inspect_database
 
 
-@pytest.mark.parametrize("chunk_size", [1, 3, 20])
 def test_materialization_uses_bounded_local_ndjson_fragments(
-    tmp_path: Path, chunk_size: int
+    tmp_path: Path,
 ) -> None:
     @asset(table="main.fragmented_orders")
     async def orders() -> list[dict[str, object]]:
@@ -31,7 +30,6 @@ def test_materialization_uses_bounded_local_ndjson_fragments(
 
     config = AssquackConfig(
         home=tmp_path,
-        chunk_size=chunk_size,
         ingestion=IngestionConfig(fragment_target_mb=0.000035),
     )
 
@@ -192,7 +190,6 @@ def test_failed_extraction_after_rollover_preserves_publication(
 
     config = AssquackConfig(
         home=tmp_path,
-        chunk_size=1,
         ingestion=IngestionConfig(fragment_target_mb=0.000001),
     )
     first = asyncio.run(source(assquack_config=config)) if previous_success else None

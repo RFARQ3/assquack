@@ -121,12 +121,6 @@ class AssquackConfig(_ProcessSettings):
             return FileSystemDestination(base_uri=value)
         return FileSystemDestination.model_validate(value)
 
-    chunk_size: int = Field(
-        default=1_000,
-        ge=1,
-        validation_alias="ASSQUACK_CHUNK_SIZE",
-    )
-
     # Keep schema.replace available without a field shadowing Pydantic's legacy
     # schema() method. JSON schema generation uses model_json_schema().
     @property

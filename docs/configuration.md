@@ -168,7 +168,7 @@ file. Fragments are uncompressed.
 
 Native relation inputs use DuckDB COPY with approximate byte targeting; files
 may substantially exceed the target. Empty native output is deleted before
-registration. Python inputs stream records directly and do not use `chunk_size`.
+registration. Python inputs stream records directly.
 Switching between Python and native batches can close an unfinished fragment;
 all completed fragments remain nonempty and contain whole records.
 

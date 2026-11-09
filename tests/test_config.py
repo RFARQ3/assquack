@@ -88,7 +88,6 @@ def test_process_environment_populates_the_full_config_tree(
 ) -> None:
     monkeypatch.setenv("ASSQUACK_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("ASSQUACK_DATABASE_PATH", str(tmp_path / "database.duckdb"))
-    monkeypatch.setenv("ASSQUACK_CHUNK_SIZE", "250")
     monkeypatch.setenv("ASSQUACK_INGESTION__FRAGMENT_TARGET_MB", "0.125")
     monkeypatch.setenv(
         "ASSQUACK_INGESTION__FRAGMENT_DIRECTORY",
@@ -107,7 +106,6 @@ def test_process_environment_populates_the_full_config_tree(
 
     assert config.home == tmp_path / "home"
     assert config.database_path == tmp_path / "database.duckdb"
-    assert config.chunk_size == 250
     assert config.ingestion.fragment_target_mb == 0.125
     assert config.ingestion.fragment_directory == tmp_path / "ingestion"
     assert config.duckdb.threads == 8
@@ -121,6 +119,11 @@ def test_process_environment_populates_the_full_config_tree(
         "path": None,
         "format": None,
     }
+
+
+def test_removed_chunk_size_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="chunk_size"):
+        AssquackConfig.model_validate({"chunk_size": 250})
 
 
 def test_fragment_directory_defaults_beside_database(tmp_path: Path) -> None:

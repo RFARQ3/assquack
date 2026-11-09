@@ -1,11 +1,14 @@
 # Environment-backed Configuration
 
 Status: Historical observation; export settings superseded 27 October 2026;
-environment setting removed 29 October 2026
+environment setting removed 29 October 2026; unused chunk-size setting removed
+9 November 2026
 
 Current exports use `ASSQUACK_EXPORTS` JSON rather than the older nested export
 variables listed below. `environment`, `ASSQUACK_ENVIRONMENT`, and `ENVIRONMENT`
-are no longer Assquack settings; paths derive from home or explicit overrides. See [current configuration](../configuration.md#exports).
+are no longer Assquack settings; paths derive from home or explicit overrides.
+`ASSQUACK_CHUNK_SIZE` is also removed; NDJSON sizing uses
+`ASSQUACK_INGESTION__FRAGMENT_TARGET_MB`. See [current configuration](../configuration.md#exports).
 
 This document records prototype behaviour and does not change the contracts in
 the canonical documentation.
