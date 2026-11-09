@@ -172,17 +172,18 @@ as compatibility outputs.
 The key changes are:
 
 - No core Prefect dependency.
-- No requirement to persist full raw JSON or intermediate file fragments before
-  DuckDB can infer or query data.
+- Capture input rows in bounded local NDJSON fragments, then use DuckDB's native
+  JSON reader to infer types and build the replacement table.
 - Use an embedded local `.duckdb` database as the MVP write target.
-- Store asset registry, runs, schemas, observations, and exports in DuckDB system
-  tables instead of filesystem JSON metadata.
+- Store asset registry, runs, current-publication pointers and export records in
+  DuckDB metadata tables instead of filesystem JSON metadata. The published
+  table owns the current schema; no separate schema-observation history is kept.
 - Materialize through staging tables and transactionally replace the current
   table for MVP `replace` mode.
-- Treat yielded batches as observed data. Infer and update schema evidence from
-  the rows received in each run.
-- Store volatile nested payloads as DuckDB `VARIANT` by default, with typed
-  columns promoted over time.
+- Infer replacement columns from the current run's completed fragments without
+  carrying forward earlier columns or types.
+- Preserve DuckDB-inferred types, including nested types and `JSON`; do not
+  force heterogeneous fields to `VARIANT` or promote columns over later runs.
 - Make materialization modes explicit: start with `replace`, then add `append`,
   `merge`, and snapshot/history semantics deliberately.
 - Keep ADLS, Parquet, CSV, and `mad://` style paths as export or compatibility
@@ -202,9 +203,9 @@ async def orders():
 result = await orders.cache_first().query("SELECT *")
 ```
 
-But the runtime should insert batches into DuckDB staging, update Assquack
-metadata tables, replace or update the current asset table, and optionally export
-Parquet after the table state is committed.
+The runtime captures rows in local NDJSON fragments, infers a typed staging
+table, and transactionally replaces the current asset table and publication
+metadata. Configured compatibility exports run after that commit.
 
 ## Optional Legacy Adapter Direction
 

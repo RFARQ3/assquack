@@ -64,10 +64,10 @@ Manual exports always write; automatic cache retries skip completed outputs.
 The return value is one resolved URI string, or an ordered list for multiple
 outputs. An explicit export works when automatic exports are disabled.
 
-Results remain live table references. The existing DF-002 limitation remains:
-a retained result can export newer rows while recording its original run and row
-count. This redesign does not establish current-publication identity; see the
-[repository finding](reviews/2026-11-04-repository-review.md).
+Results remain live table references. A retained result exports the table's
+current publication and records that publication's asset ID, run ID and row
+count. If the table has no current Assquack publication, manual export fails.
+This resolves the earlier DF-002 [repository finding](reviews/2026-11-04-repository-review.md).
 
 ## Why Destinations Need Fingerprints
 

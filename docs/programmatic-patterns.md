@@ -356,13 +356,13 @@ catalog, schema, and table names and supplies quoted SQL. `FragmentFile` lives
 with the fragment writer; `ProjectionSpec` lives with schema inference.
 [`records.py`](../src/assquack/_storage/records.py) defines `AssetRecord` and
 `PublicationRecord`; [`ExportTarget`](../src/assquack/_exports/models.py) describes
-one resolved output. `AssquackRequest` holds the captured call, while `AssquackRun`
+one resolved output. `AssquackRequest` holds the bound call, while `AssquackRun`
 holds changing execution state. These are
 typed records/DTOs; their existence does not imply a full domain-driven design.
 [`AssquackConfig`](../src/assquack/_config.py) and its nested settings models
 provide a related boundary for validation and normalization. For example, a
 string export base becomes a `FileSystemDestination`, leaving downstream code
-with a consistent list of destination objects.
+with one destination object or `None` when automatic exports are disabled.
 
 ## 17. Cache lookup and resumable export progress
 

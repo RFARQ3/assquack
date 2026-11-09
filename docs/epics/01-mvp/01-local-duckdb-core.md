@@ -1,7 +1,7 @@
 # Local DuckDB Core
 
 Status: **In Progress**
-Last updated: 2026-11-03
+Last updated: 2026-11-09
 Epic: 01 MVP
 Phase: 01
 Related docs: [Roadmap](../../roadmap.md), [Storage Model](../../storage-model.md), [Configuration](../../configuration.md)
@@ -133,9 +133,11 @@ Kubernetes note and references. The broader core phase remains **In Progress**.
 
 ### Fragment ownership metadata
 
-Retention adds `runs.fragments_owned` through an idempotent additive bootstrap
-migration. Legacy catalog records default to owned; new attempts explicitly
-start unowned and claim ownership only after exclusive fragment-directory
+The earlier additive bootstrap migration is superseded. Current bootstrap creates
+`runs.fragments_owned` in a fresh catalog and does not migrate existing databases.
+It rejects catalogs missing required stage-tracking columns; use a fresh database
+path for incompatible pre-release metadata. New attempts explicitly start unowned
+and claim ownership only after exclusive fragment-directory
 creation succeeds. This keeps a failed claim from turning an orphan directory
 into deletion-eligible evidence. No metadata records are deleted or expired.
 See the [replace phase](02-replace-materialization.md#staging-retention-contract)

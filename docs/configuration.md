@@ -358,8 +358,9 @@ fails with the required combinations; it never selects a different method. Once
 authentication is selected, a validation or authentication failure propagates
 without trying another strategy. Registry instances are isolated per destination
 and reject duplicate registrations.
-The destination's public fields remain `base_uri` and `auth`; the earlier
-`azure_chain` and `azure_account_name` settings are not retained. The chain is restricted to supported environment-based methods. Use a fully qualified URI for
+The filesystem destination's public fields are `base_uri`, `auth`, and the manual
+target defaults `path` and `format`. The earlier `azure_chain` and
+`azure_account_name` settings are not retained. The chain is restricted to supported environment-based methods. Use a fully qualified URI for
 credential-chain authentication. SAS can supply the account for a short URI.
 
 ### SAS Credential Provider And Selection

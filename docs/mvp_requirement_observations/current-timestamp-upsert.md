@@ -1,9 +1,11 @@
 # Current Timestamp Upsert Workaround
 
-Status: Working MVP requirement observation
+Status: Historical observation; superseded by current publication metadata
 
-This document records prototype behaviour and does not change the contracts in
-the canonical documentation.
+This document records an earlier prototype workaround, not the current metadata
+contract. Assets now record `first_materialized_at` and `last_materialized_at` on
+successful publication; there is no `updated_at` column. See
+[Storage Model](../storage-model.md) for current metadata.
 
 ## Observed Problem
 
@@ -18,7 +20,7 @@ DuckDB treated `current_timestamp` as though it were a column on
 `assquack_meta.assets` and raised a binder error because that column does not
 exist.
 
-## MVP Behaviour
+## Historical Prototype Behaviour
 
 The attempted insert already supplies `current_timestamp` for `updated_at`.
 The conflict update therefore reuses that inserted value:
@@ -30,15 +32,15 @@ updated_at = excluded.updated_at
 This does not rename the `updated_at` column or create an alias. `excluded`
 refers to the row that Assquack attempted to insert.
 
-## Current Prototype Location
+## Historical Implementation Location
 
 ```text
 src/assquack/_storage/metadata.py
 ```
 
-## Compatibility With Canonical Docs
+## Historical Requirement
 
-The canonical materialization contract requires the asset metadata
+The prototype's materialization contract required the asset metadata
 `updated_at` value to be refreshed. It does not prescribe the SQL expression
 used by the upsert. Reusing the timestamp from the attempted insert preserves
 the required behaviour while avoiding the DuckDB binder failure.

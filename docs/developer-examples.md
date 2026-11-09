@@ -177,7 +177,7 @@ async def vendor_events():
 
 Assquack writes the returned API rows into bounded local NDJSON fragments, then
 uses DuckDB's native JSON reader to infer the combined shape and build typed
-columns. Genuinely heterogeneous fields can remain `VARIANT`. Fragment placement
+columns. Heterogeneous fields can retain DuckDB's inferred `JSON` type. Fragment placement
 and sizing are runtime configuration, not decorator arguments.
 
 ## Manual Export Destinations
@@ -206,7 +206,7 @@ settings. See [manual exports](exports.md#manual-exports) for defaults.
 - [Materialization Lifecycle](materialization-lifecycle.md): how returned or
   yielded rows become DuckDB tables.
 - [Schema Inference](schema-inference.md): how local JSON evidence becomes typed
-  columns and selective `VARIANT` values.
+  columns while preserving DuckDB-inferred types, including `JSON`.
 
 ## General database queries
 

@@ -75,12 +75,15 @@ the topic links that match the work in front of you.
 
 ## Implementation Tracking
 
+- [MVP simplification decisions](reviews/2026-11-09-mvp-scope-options.md):
+  completed reductions, retained features and the stage-tracking discussion for Maitland.
+
 - [Request snapshots and run stages](epics/01-mvp/08-request-and-run-pipeline.md):
   implementation and validation of the five-stage pipeline and request guarantees.
 
 - [Architecture and run flow proposal — 6 November 2026](reviews/2026-11-06-architecture-and-run-flow.md):
-  review-only source layout, core object ownership, five-stage execution and
-  proposed invocation/publication metadata; decisions for discussion before implementation.
+  implemented architecture decisions and later amendments, with the original
+  proposal retained as historical context.
 - [Repository review — 4 November 2026](reviews/2026-11-04-repository-review.md):
   readability-first review, adjudicated correctness findings, minimal remedies,
   and repository coverage.

@@ -63,9 +63,10 @@ The implementation sequence and acceptance checks are recorded there.
 
 - General and asset queries return native relations on DuckDB's actual default
   connection. Named `AssquackConfig` attachments support fully qualified SQL and
-  joins across databases. One user attachment allows short table names; multiple
-  attachments require `database.schema.table`. Config scopes do not override this
-  rule. No task changes the global default. Table globbing remains deferred. See the
+  joins across databases. Short names follow DuckDB's current database and search
+  path, even with multiple attachments; use `database.schema.table` to select a
+  database explicitly. Asset configuration selects writes without changing the
+  native read context. Table globbing remains deferred. See the
   [public contract](developer-api.md#general-database-queries) and
   [default connection phase](epics/01-mvp/07-default-connection.md).
 - Implement `.query(sql=None, params=None)` against the current table.
