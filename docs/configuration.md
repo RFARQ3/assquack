@@ -31,7 +31,7 @@ AssquackConfig
     memory_limit
     temp_directory
     extensions
-  exports: one destination or a list (default [])
+  exports: one destination or null (default null)
     base_uri
     auth
 ```
@@ -263,8 +263,8 @@ multi-threaded use of the global connection are outside Assquack's coordination.
 
 ## Exports
 
-`AssquackConfig.exports` accepts a single path string, one `ExportDestination`,
-or a list of destinations, normalized to an ordered list. A path string creates
+`AssquackConfig.exports` accepts one path string, `ExportDestination`, filesystem
+mapping, or `None`. Lists are rejected. A path string creates
 a `FileSystemDestination` with its default `auth="auto"`; no authentication
 setting is needed for an ordinary local export directory:
 
@@ -272,7 +272,7 @@ setting is needed for an ordinary local export directory:
 config = AssquackConfig(exports="E:/data/namely/exports")
 ```
 
-The default is `[]`: no automatic exports, even when an asset
+The default is `None`: no automatic exports, even when an asset
 has an export declaration. This does not prevent materialization or cache hits.
 The supplied destination is `FileSystemDestination(base_uri, auth)`, constructed
 with keyword arguments. `base_uri` is required; `auth` defaults to `"auto"`.
@@ -282,23 +282,19 @@ Formats belong to asset declarations, not destinations.
 from assquack import AssquackConfig, FileSystemDestination
 
 config = AssquackConfig(
-    exports=[
-        FileSystemDestination(base_uri="./exports"),
-        FileSystemDestination(
-            base_uri="abfss://exampleaccount.dfs.core.windows.net/lake/exports",
-            auth="credential_chain",
-        ),
-    ],
+    exports=FileSystemDestination(
+        base_uri="abfss://exampleaccount.dfs.core.windows.net/lake/exports",
+        auth="credential_chain",
+    ),
 )
 result = await orders(assquack_config=config)
 ```
 
-Each destination resolves the same declaration. All pipe formats are written to
-the first destination before moving to the next. Relative and `mad://` aliases
-resolve under that destination's base; absolute paths and concrete URIs keep their
+The destination resolves the declaration and writes pipe formats in declaration
+order. Relative and `mad://` aliases resolve under its base; absolute paths and concrete URIs keep their
 location. Resolution freezes the actual write path before cache lookup or writing.
-The operation rejects the same resolved write path with different destination
-fingerprints; repeated identical configurations are allowed. See
+Changing the destination or its credentials between runs changes the fingerprint,
+so a previous export does not satisfy the new configuration. See
 [Exports](exports.md) for credential capture, lifetime, and fingerprint semantics.
 
 Set `ASSQUACK_EXPORTS` directly to the export directory. For example, in PowerShell:
@@ -307,15 +303,16 @@ Set `ASSQUACK_EXPORTS` directly to the export directory. For example, in PowerSh
 $env:ASSQUACK_EXPORTS = "E:/data/namely/exports"
 ```
 
-JSON objects and lists remain supported when configuring multiple destinations
-or explicit options. `auth` is optional and defaults to `"auto"`:
+Use a JSON object for explicit options. `auth` is optional and defaults to `"auto"`:
 
 ```json
-[{"base_uri": "./exports", "auth": "auto"}]
+{"base_uri": "./exports", "auth": "auto"}
 ```
 
-Direct values override this environment variable; `exports=[]` explicitly
-disables automatic exports. Mapping inputs construct filesystem destinations.
+Direct values override this environment variable; `exports=None` explicitly
+disables automatic exports. The environment value `null` also disables them.
+JSON arrays, including empty and single-item arrays, are rejected.
+Mapping inputs construct filesystem destinations.
 Custom destination types are supplied as Python `ExportDestination` instances.
 `model_dump(by_alias=True)` preserves concrete destination fields. JSON schema
 includes the filesystem mapping. No `.env` files are loaded.
@@ -326,7 +323,7 @@ variables are not interpreted. There are no `enabled`, `default_format`,
 `snapshot_runs`, `options`, writer or adapter selectors. Unknown destination
 fields fail validation. Snapshots and custom COPY options remain unsupported.
 
-`result.export(destination)` explicitly exports even with `exports=[]`.
+`result.export(destination)` explicitly exports even with `exports=None`.
 It uses the supplied string or destination object independently of automatic
 export configuration. Strings use `auth="auto"` and resolve relative to
 `<home>/exports`. Filesystem objects provide `base_uri`, `auth`, and optional

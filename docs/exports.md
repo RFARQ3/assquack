@@ -10,7 +10,7 @@ authentication, then calls the separate `DuckDBFileWriter` directly. DuckDB owns
 filesystem access and serialization; there is no adapter wrapper, writer registry
 or replacement-engine injection. Local and Azure are supplied. Database destinations
 remain future work. See [Configuration](configuration.md#exports) for the public
-single-or-list configuration and [implementation layout](epics/01-mvp/06-extensibility-defects.md#agreed-export-source-layout)
+single-destination configuration and [implementation layout](epics/01-mvp/06-extensibility-defects.md#agreed-export-source-layout)
 for ownership and extension boundaries.
 
 `resolve()` expands the declaration into formats and exact write paths, selects
@@ -38,7 +38,7 @@ flowchart LR
 
 `result.export(destination: str | ExportDestination)` requires one destination.
 A string is filesystem shorthand with `auth="auto"`, independent of configured
-automatic destinations. Relative paths and `mad://` aliases resolve under
+automatic destination. Relative paths and `mad://` aliases resolve under
 `<home>/exports`; absolute local paths, file URIs and supported Azure URIs keep
 their own location. Local paths need no credentials; Azure uses the existing
 automatic authentication selection. No argument-free export is provided.
@@ -104,12 +104,10 @@ whole configuration SHA-256 digest is stored, never credentials or reversible
 encodings. Deterministic hashes do not protect weak secrets from guessed inputs;
 `SecretStr` provides display redaction, not memory encryption or guaranteed erasure.
 
-Each operation uses private destination copies. Captured authentication is released
+Each operation uses a private destination copy. Captured authentication is released
 on cache hits, successful completion, and failures; temporary DuckDB secrets are
-removed after execution. An operation-scoped dictionary maps exact write paths to
-fingerprints. A different fingerprint at an already registered path is an error;
-repeating the same path and fingerprint is allowed. No persistent collision registry
-or remote physical-alias discovery is involved.
+removed after execution. Only one destination is configured per invocation;
+there is no cross-destination collision registry.
 
 Credential-chain resolution captures the supported environment inputs through the
 credential provider and fingerprints their values together with the selected chain.
@@ -151,7 +149,7 @@ Export aliases resolve in this order:
 4. Pipe syntax expands one alias into multiple export targets.
 
 `mad://` is Assquack's logical export scheme. It resolves to
-each filesystem destination's `base_uri` at runtime, preserving the legacy MAD-style path
+the filesystem destination's `base_uri` at runtime, preserving the legacy MAD-style path
 shape without making object storage the primary database location.
 
 Example configuration:
@@ -270,7 +268,7 @@ mad://customer_summary.json
 
 When a filesystem destination is configured, Assquack rejects empty entries,
 duplicate formats, unsupported suffixes, multiple base paths, and conflicting
-structured `format`/suffix combinations before extraction. With `exports=[]`,
+structured `format`/suffix combinations before extraction. With `exports=None`,
 automatic export declarations are not resolved or validated. A structured target supplies one format; it cannot also use pipes.
 An extensionless path uses Parquet unless its structured `format` selects CSV or
 JSON. Manual exports use the same parser; see [Manual Exports](#manual-exports).
@@ -394,8 +392,8 @@ Each output records its destination fingerprint, actual format, resolved URI, ro
 for the first target and `legacy` for subsequent targets. `options_json` records
 CSV `header: true` and JSON `array: false`; Parquet uses native defaults.
 
-Destinations run in configuration order, with formats in declaration order within
-each destination. With `exports=[]`, no automatic output or export-manifest cache
+Formats run in declaration order at the configured destination.
+With `exports=None`, no automatic output or export-manifest cache
 requirement is added. Manual exports use the destination supplied to `result.export(...)`.
 
 Outputs are written in that order. If one fails, the call raises and

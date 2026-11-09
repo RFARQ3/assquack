@@ -224,7 +224,7 @@ def test_all_formats_use_azure_auth_and_native_copy(
             auth="credential_chain",
         ),
     )
-    destination = config.export_destinations[0]
+    destination = config.export_destination
     assert isinstance(destination, FileSystemDestination)
     targets = destination.resolve("orders.parquet|csv|json", asset_name="orders")
     for target in targets:

@@ -27,7 +27,7 @@ def export_result(
         if isinstance(destination, str)
         else destination
     )
-    with resolve_exports(declaration, result.asset_name, [configured]) as exports:
+    with resolve_exports(declaration, result.asset_name, configured) as exports:
         with database_operation(result.config) as connection:
             catalog = database_catalog(result.config)
             metadata = MetadataRepository(connection, catalog)

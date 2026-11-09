@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator, Mapping, Sequence
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 
 from assquack._errors import ExportError
@@ -14,34 +14,22 @@ from assquack._exports.models import ExportTarget
 def resolve_exports(
     export: str | Mapping[str, str] | None,
     asset_name: str,
-    destinations: Sequence[ExportDestination],
+    configured: ExportDestination | None,
 ) -> Generator[tuple[tuple[ExportDestination, ExportTarget], ...], None, None]:
     """Own destination state until cache lookup and all writes have finished."""
     resolved: list[tuple[ExportDestination, ExportTarget]] = []
-    operation_destinations: list[ExportDestination] = []
-    seen: dict[str, str] = {}
+    destination = configured.model_copy() if configured is not None else None
     try:
-        for configured in destinations:
-            destination = configured.model_copy()
+        if destination is not None:
             destination._release()  # pyright: ignore[reportPrivateUsage]
-            operation_destinations.append(destination)
             for target in destination.resolve(export, asset_name=asset_name):
-                path = target.resolved_uri
-                fingerprint = target.destination_fingerprint
-                if not fingerprint:
+                if not target.destination_fingerprint:
                     raise ExportError(
                         "Resolved destinations must supply a fingerprint."
                     )
-                if path in seen and seen[path] != fingerprint:
-                    raise ExportError(
-                        "Different destination configurations resolve "
-                        "to the same write path."
-                    )
-                seen[path] = fingerprint
                 resolved.append((destination, target))
         yield tuple(resolved)
     finally:
-        for destination in operation_destinations:
+        if destination is not None:
             destination._release()  # pyright: ignore[reportPrivateUsage]
         resolved.clear()
-        operation_destinations.clear()

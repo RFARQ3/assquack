@@ -166,7 +166,7 @@ and recovers interrupted run metadata. The cache lookup checks that the requeste
 asset still occupies that physical table and that the publication has not expired.
 On a miss, a new run row records Resolve progress before export resolution.
 
-Export destinations resolve their paths and authentication inputs once. The pod's
+The export destination resolves its paths and authentication inputs once. The pod's
 workload-identity inputs select the credential chain. Assquack fingerprints the
 selected configuration without storing raw credentials in metadata; DuckDB obtains
 the runtime token when exporting.

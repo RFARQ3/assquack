@@ -416,7 +416,7 @@ The distinction is what each setting controls:
 
 | Category | Settings |
 | --- | --- |
-| Execution config | Home, database path, DuckDB resources, fragment settings, export destinations |
+| Execution config | Home, database path, DuckDB resources, fragment settings, export destination |
 | Asset options | Table, mode, name, cache expiration, export path/format, attached config |
 | Function arguments | Inputs to the wrapped function, bound through `with_arguments()` |
 

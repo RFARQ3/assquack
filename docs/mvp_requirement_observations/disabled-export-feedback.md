@@ -2,7 +2,7 @@
 
 Status: Historical observation; superseded 27 October 2026
 
-The destination refactor intentionally makes `exports=[]` skip automatic exports
+The destination configuration intentionally makes `exports=None` skip automatic exports
 without an error. See [current configuration](../configuration.md#exports). The
 prototype behaviour below is retained as historical context.
 

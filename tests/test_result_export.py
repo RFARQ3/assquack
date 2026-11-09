@@ -18,7 +18,7 @@ def materialized_result(tmp_path):
         return [{"id": 1, "text": "quoted, café"}]
 
     return asyncio.run(
-        orders(assquack_config=AssquackConfig(home=tmp_path, exports=[]))
+        orders(assquack_config=AssquackConfig(home=tmp_path, exports=None))
     )
 
 
@@ -98,8 +98,8 @@ def test_manual_defaults_do_not_change_automatic_targets_or_fingerprints(tmp_pat
         base_uri=str(tmp_path), path="elsewhere.json", format="csv"
     )
     with (
-        resolve_exports("orders.parquet|csv", "orders", [plain]) as first,
-        resolve_exports("orders.parquet|csv", "orders", [manual]) as second,
+        resolve_exports("orders.parquet|csv", "orders", plain) as first,
+        resolve_exports("orders.parquet|csv", "orders", manual) as second,
     ):
         assert [target for _, target in first] == [target for _, target in second]
 

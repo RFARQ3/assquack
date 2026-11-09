@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -35,6 +35,25 @@ Excluded:
 - Arbitrary connection strings, account keys and credential-store/block integrations.
 
 ## Architecture Notes
+
+### Single destination amendment — 9 November 2026
+
+Completed: removed simultaneous multi-destination exports for MVP.
+`AssquackConfig.exports` accepts one path, destination instance or filesystem
+mapping; `None` disables automatic exports. Lists are rejected. Multiple formats,
+authentication, fingerprints, snapshots and cached-table export reattempts remain.
+Destination fan-out and cross-destination collision checks are removed while
+operation-owned cleanup remains. Offline tests cover configuration forms,
+multi-format partial failures, changed destinations/credentials between runs
+and isolated operation state. This supersedes earlier single-or-list notes below.
+
+Validation: all **469 tests passed** on Python 3.11.9 / DuckDB 1.5.6; an independent
+reviewer also passed 125 targeted tests and reviewed correctness and readability.
+Ruff lint/format, Pyright (zero errors/warnings), documentation links and whitespace
+checks passed. The initial suite exposed one old list-shaped test fixture, now
+fixed. Pyright needed access to existing installed dependency metadata; no live
+systems or customer data were used. The broader phase remains **In Progress**
+because its existing end-to-end acceptance work is outside this slice.
 
 ### Resolve/export amendment — 27 October 2026
 

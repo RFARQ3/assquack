@@ -284,78 +284,51 @@ def test_generic_destination_does_not_require_file_formats(tmp_path):
         ]
 
 
-def test_partial_multi_destination_failure_records_only_completed_outputs(
+def test_partial_multi_format_failure_retries_only_unfinished_outputs(
     tmp_path, monkeypatch
 ):
     from assquack._exports.writer import DuckDBFileWriter
 
-    @asset(table="main.orders", export="orders.parquet")
+    extractions = []
+    writes = []
+
+    @asset(table="main.orders", export="orders.parquet|csv|json")
     def orders():
+        extractions.append(1)
         return [{"id": 1}]
 
-    config = AssquackConfig(
-        home=tmp_path,
-        exports=[
-            FileSystemDestination(base_uri=str(tmp_path / name))
-            for name in ("a", "b", "c")
-        ],
-    )
+    config = AssquackConfig(home=tmp_path, exports=str(tmp_path / "out"))
     original = DuckDBFileWriter.write
 
     def fail_second(self, connection, source, target, uri):
-        if Path(uri).parent.name == "b":
+        writes.append(target.format)
+        if target.format == "csv":
             raise ValueError("synthetic output failure")
         original(self, connection, source, target, uri)
 
     monkeypatch.setattr(DuckDBFileWriter, "write", fail_second)
     with pytest.raises(ValueError, match="synthetic output failure"):
-        asyncio.run(orders(assquack_config=config))
-    filename = "orders.parquet"
+        asyncio.run(orders.cache_first()(assquack_config=config))
     with inspect_database(config) as db:
         assert db.execute(
             "SELECT resolved_uri FROM assquack_meta.exports"
-        ).fetchall() == [(str(tmp_path / "a" / filename),)]
+        ).fetchall() == [(str(tmp_path / "out/orders.parquet"),)]
         assert db.execute("SELECT id FROM main.orders").fetchall() == [(1,)]
-    assert not (tmp_path / "c" / filename).exists()
-    monkeypatch.setattr(DuckDBFileWriter, "write", original)
-    asyncio.run(orders(assquack_config=config))
-    assert (tmp_path / "c" / filename).exists()
+    assert not (tmp_path / "out/orders.json").exists()
 
+    def record_write(self, connection, source, target, uri):
+        writes.append(target.format)
+        original(self, connection, source, target, uri)
 
-def test_each_destination_uses_its_own_provider(tmp_path, intercepted_connections):
-    destinations = []
-    providers = []
-    for account in ("firstaccount", "secondaccount"):
-        provider = SyntheticProvider(account)
-        destination = FileSystemDestination(
-            base_uri=f"abfss://{account}.dfs.core.windows.net/lake", auth="sas"
+    monkeypatch.setattr(DuckDBFileWriter, "write", record_write)
+    result = asyncio.run(orders.cache_first()(assquack_config=config))
+    assert result.cached and len(extractions) == 1
+    assert writes == ["parquet", "csv", "csv", "json"]
+    assert (tmp_path / "out/orders.json").exists()
+    with inspect_database(config) as db:
+        assert db.execute("SELECT count(*) FROM assquack_meta.exports").fetchone() == (
+            3,
         )
-        destination._credential_provider = provider
-        destinations.append(destination)
-        providers.append(provider)
-
-    @asset(table="main.orders", export="orders.parquet")
-    def orders():
-        return [{"id": 1}]
-
-    asyncio.run(
-        orders(assquack_config=AssquackConfig(home=tmp_path, exports=destinations))
-    )
-    registrations = [
-        call.args[1]["connection_string"]
-        for call in next(
-            c
-            for c in intercepted_connections
-            if any(
-                call.args[0].strip().startswith("CREATE TEMPORARY")
-                for call in c.execute.call_args_list
-            )
-        ).execute.call_args_list
-        if call.args[0].startswith("CREATE TEMPORARY")
-    ]
-    assert registrations[0].startswith("AccountName=firstaccount;")
-    assert registrations[1].startswith("AccountName=secondaccount;")
-    assert [p.loads for p in providers] == [1, 1]
 
 
 def test_filesystem_mapping_is_present_in_json_schema():

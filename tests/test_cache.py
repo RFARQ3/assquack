@@ -339,9 +339,9 @@ def test_changed_destination_fingerprint_reexports_same_table(tmp_path: Path) ->
     # Explicit local auth changes the fingerprint while retaining the same path.
     changed = config.model_copy(
         update={
-            "exports": [
-                FileSystemDestination(base_uri=str(tmp_path / "exports"), auth="none")
-            ]
+            "exports": FileSystemDestination(
+                base_uri=str(tmp_path / "exports"), auth="none"
+            )
         }
     )
     result = asyncio.run(orders.cache_first()(assquack_config=changed))

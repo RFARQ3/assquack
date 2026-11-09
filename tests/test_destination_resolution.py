@@ -86,31 +86,12 @@ def test_resolve_captures_once_and_export_does_not_reselect(monkeypatch):
     assert destination._resolved is None
 
 
-def test_collision_rule_allows_equal_configuration_and_rejects_different(tmp_path):
-    destination = FileSystemDestination(base_uri=str(tmp_path))
-    with resolve_exports(
-        "orders.parquet", "orders", [destination, destination]
-    ) as outputs:
-        assert len(outputs) == 2
-        assert outputs[0][0] is not outputs[1][0]
-        copies = [cast(FileSystemDestination, item[0]) for item in outputs]
-    assert all(copy._resolved is None for copy in copies)
-    assert destination._resolved is None
-
-    other = FileSystemDestination(base_uri=str(tmp_path), auth="none")
-    with (
-        pytest.raises(ExportError, match="same write path"),
-        resolve_exports("orders.parquet", "orders", [destination, other]),
-    ):
-        pytest.fail("conflicting outputs must fail before execution")
-
-
 def test_resolution_context_releases_on_failure_and_success(tmp_path):
     destination, provider = sas_destination()
     resolved = destination
     with (
         pytest.raises(RuntimeError, match="synthetic failure"),
-        resolve_exports("orders.parquet", "orders", [destination]) as outputs,
+        resolve_exports("orders.parquet", "orders", destination) as outputs,
     ):
         resolved = cast(FileSystemDestination, outputs[0][0])
         assert resolved._resolved is not None
@@ -188,32 +169,31 @@ def test_non_azure_authentication_inputs_affect_destination_fingerprint(tmp_path
     assert first.destination_fingerprint != second.destination_fingerprint
 
 
-def test_partial_resolution_failure_releases_earlier_capture(tmp_path, monkeypatch):
-    first, provider = sas_destination()
+def test_resolution_failure_releases_captured_state(monkeypatch):
+    destination, provider = sas_destination()
     captured = []
     original = FileSystemDestination.resolve
 
-    def observe(self, export, *, asset_name):
+    def fail_after_capture(self, export, *, asset_name):
         captured.append(self)
-        return original(self, export, asset_name=asset_name)
+        original(self, export, asset_name=asset_name)
+        raise ExportError("synthetic resolution failure")
 
-    monkeypatch.setattr(FileSystemDestination, "resolve", observe)
-    invalid = FileSystemDestination(base_uri="unsupported://example")
+    monkeypatch.setattr(FileSystemDestination, "resolve", fail_after_capture)
     with (
-        pytest.raises(ExportError, match="Unsupported"),
-        resolve_exports("orders.parquet", "orders", [first, invalid]),
+        pytest.raises(ExportError, match="synthetic resolution failure"),
+        resolve_exports("orders.parquet", "orders", destination),
     ):
         pytest.fail("resolution must fail")
-    assert len(captured) == 2
-    assert all(item._resolved is None for item in captured)
-    assert first._resolved is None and provider.loads == 1
+    assert len(captured) == 1 and captured[0]._resolved is None
+    assert destination._resolved is None and provider.loads == 1
 
 
 def test_interleaved_operations_retain_their_own_captured_credentials():
     destination, provider = sas_destination()
-    with resolve_exports("orders.parquet", "orders", [destination]) as first:
+    with resolve_exports("orders.parquet", "orders", destination) as first:
         provider.token = "sig=synthetic-second"
-        with resolve_exports("orders.parquet", "orders", [destination]) as second:
+        with resolve_exports("orders.parquet", "orders", destination) as second:
             assert (
                 first[0][1].destination_fingerprint
                 != second[0][1].destination_fingerprint

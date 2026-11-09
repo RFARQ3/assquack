@@ -220,7 +220,7 @@ exceptional exits. Python expresses this with `with` and `async with`.
 | --- | --- |
 | [`database_operation()`](../src/assquack/_storage/database.py) | Holds the shared connection's reentrant lock for a synchronous operation. |
 | [`transaction()`](../src/assquack/_storage/database.py) | Commits or rolls back a database transaction. |
-| [`resolve_exports()`](../src/assquack/_exports/resolution.py) | Copies configured destinations for an operation and releases their captured resolution state on exit. |
+| [`resolve_exports()`](../src/assquack/_exports/resolution.py) | Copies the configured destination for an operation and releases its captured resolution state on exit. |
 | Local/Azure `prepare()` and `authenticate()` | Prepare writing and delimit temporary authentication resources. |
 
 The pipeline uses `database_operation()` and `CONNECTION_LOCK`. DuckDB retains

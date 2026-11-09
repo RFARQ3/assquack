@@ -23,7 +23,7 @@ export_module = importlib.import_module("assquack._pipeline.export")
 
 
 def test_materialize_progress_is_saved_before_the_producer_runs(tmp_path: Path):
-    config = AssquackConfig(home=tmp_path, exports=[])
+    config = AssquackConfig(home=tmp_path, exports=None)
 
     @asset("main.progress")
     async def source():
@@ -239,7 +239,7 @@ def test_failure_state_save_does_not_replace_the_producer_error(
 def test_final_state_save_failure_does_not_report_a_successful_call(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    config = AssquackConfig(home=tmp_path, exports=[])
+    config = AssquackConfig(home=tmp_path, exports=None)
     failure = RuntimeError("final state save failed")
     original_save = MetadataRepository.save_run_state
 
@@ -287,7 +287,7 @@ def test_config_capture_preserves_a_provider_with_a_runtime_lock(tmp_path: Path)
     destination = FileSystemDestination(base_uri=str(tmp_path / "exports"))
     provider = Provider()
     destination._credential_provider = provider
-    config = AssquackConfig(home=tmp_path, exports=[destination])
+    config = AssquackConfig(home=tmp_path, exports=destination)
 
     @asset("main.progress", export="progress.parquet")
     def source():
@@ -301,7 +301,7 @@ def test_config_capture_preserves_a_provider_with_a_runtime_lock(tmp_path: Path)
 
 def test_producer_changes_to_config_do_not_redirect_the_active_run(tmp_path: Path):
     destination = FileSystemDestination(base_uri=str(tmp_path / "exports"))
-    config = AssquackConfig(home=tmp_path, exports=[destination])
+    config = AssquackConfig(home=tmp_path, exports=destination)
 
     @asset("main.progress", export="progress.parquet")
     def source():
@@ -396,7 +396,7 @@ def test_cache_requires_the_requested_asset_to_still_occupy_the_table(
     tmp_path: Path, empty
 ):
     calls = []
-    config = AssquackConfig(home=tmp_path, exports=[])
+    config = AssquackConfig(home=tmp_path, exports=None)
 
     @asset("main.shared", name="shared")
     def source(value: int):
@@ -414,7 +414,7 @@ def test_cache_requires_the_requested_asset_to_still_occupy_the_table(
 def test_retained_result_export_records_the_run_that_now_occupies_the_table(
     tmp_path: Path,
 ):
-    config = AssquackConfig(home=tmp_path, exports=[])
+    config = AssquackConfig(home=tmp_path, exports=None)
 
     @asset("main.shared")
     def source(value: int):
@@ -433,7 +433,7 @@ def test_retained_result_export_records_the_run_that_now_occupies_the_table(
 def test_publication_pointer_failure_rolls_back_table_and_success_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    config = AssquackConfig(home=tmp_path, exports=[])
+    config = AssquackConfig(home=tmp_path, exports=None)
     value = 1
 
     @asset("main.progress")

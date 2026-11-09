@@ -129,12 +129,12 @@ def resolve(
             # Cached calls do no awaited producer work while this lock is held.
             resources.enter_context(database_operation(run.config))
             run.row_count = run.cached.row_count
-    destinations = resolve_exports(
+    outputs = resolve_exports(
         asset.export,
         asset.asset_name,
-        run.config.export_destinations if asset.export is not None else [],
+        run.config.export_destination if asset.export is not None else None,
     )
-    exports = resources.enter_context(destinations)
+    exports = resources.enter_context(outputs)
     return exports
 
 

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -22,46 +23,63 @@ def test_plain_export_path_uses_default_auth(monkeypatch, source, path):
     else:
         config = AssquackConfig(exports=path)
 
-    assert len(config.export_destinations) == 1
-    destination = config.export_destinations[0]
+    assert config.export_destination is not None
+    destination = config.export_destination
     assert isinstance(destination, FileSystemDestination)
     assert destination.base_uri == path
     assert destination.auth == "auto"
 
 
-@pytest.mark.parametrize(
-    "value, expected",
-    [
-        ('{"base_uri": "./exports"}', [("./exports", "auto")]),
-        (
-            '[{"base_uri": "./one"}, {"base_uri": "./two", "auth": "none"}]',
-            [("./one", "auto"), ("./two", "none")],
-        ),
-        ("[]", []),
-    ],
-)
-def test_export_json_environment_forms_remain_supported(monkeypatch, value, expected):
-    monkeypatch.setenv("ASSQUACK_EXPORTS", value)
-    destinations = AssquackConfig().export_destinations
-    assert [destination.model_dump() for destination in destinations] == [
-        {"base_uri": path, "auth": auth, "path": None, "format": None}
-        for path, auth in expected
-    ]
+@pytest.mark.parametrize("source", ["python", "environment"])
+def test_export_mapping_uses_filesystem_destination(monkeypatch, source):
+    value = {"base_uri": "./exports"}
+    if source == "environment":
+        monkeypatch.setenv("ASSQUACK_EXPORTS", json.dumps(value))
+        config = AssquackConfig()
+    else:
+        config = AssquackConfig.model_validate({"exports": value})
+    assert config.export_destination is not None
+    assert config.export_destination.model_dump() == {
+        "base_uri": "./exports",
+        "auth": "auto",
+        "path": None,
+        "format": None,
+    }
+
+
+@pytest.mark.parametrize("source", ["python", "environment"])
+@pytest.mark.parametrize("count", [0, 1, 2])
+def test_export_lists_are_rejected(monkeypatch, source, count):
+    value = [{"base_uri": f"./exports-{index}"} for index in range(count)]
+    if source == "environment":
+        monkeypatch.setenv("ASSQUACK_EXPORTS", json.dumps(value))
+    with pytest.raises(ValidationError, match="one destination or None"):
+        if source == "environment":
+            AssquackConfig()
+        else:
+            AssquackConfig.model_validate({"exports": value})
+
+
+def test_exports_default_to_disabled_and_environment_null_disables(monkeypatch):
+    monkeypatch.delenv("ASSQUACK_EXPORTS", raising=False)
+    assert AssquackConfig().export_destination is None
+    monkeypatch.setenv("ASSQUACK_EXPORTS", "null")
+    assert AssquackConfig().export_destination is None
 
 
 def test_export_path_override_and_destination_instances(monkeypatch):
     monkeypatch.setenv("ASSQUACK_EXPORTS", "./environment")
     config = AssquackConfig(exports="./direct")
-    assert config.export_destinations[0].model_dump() == {
+    assert config.export_destination is not None
+    assert config.export_destination.model_dump() == {
         "base_uri": "./direct",
         "auth": "auto",
         "path": None,
         "format": None,
     }
     destination = FileSystemDestination(base_uri="./instance", auth="none")
-    assert AssquackConfig(exports=destination).export_destinations[0] is destination
-    assert AssquackConfig(exports=[destination]).export_destinations[0] is destination
-    assert AssquackConfig(exports=[]).export_destinations == []
+    assert AssquackConfig(exports=destination).export_destination is destination
+    assert AssquackConfig(exports=None).export_destination is None
 
 
 def test_process_environment_populates_the_full_config_tree(
@@ -96,8 +114,8 @@ def test_process_environment_populates_the_full_config_tree(
     assert config.duckdb.memory_limit == "4GB"
     assert config.duckdb.temp_directory == tmp_path / "spill"
     assert config.duckdb.extensions == ("json", "parquet")
-    assert len(config.export_destinations) == 1
-    assert config.export_destinations[0].model_dump() == {
+    assert config.export_destination is not None
+    assert config.export_destination.model_dump() == {
         "base_uri": "./exports",
         "auth": "auto",
         "path": None,
@@ -127,11 +145,11 @@ def test_direct_values_override_environment(monkeypatch) -> None:
 
     config = AssquackConfig(
         home=Path("direct-value"),
-        exports=[],
+        exports=None,
     )
 
     assert config.home == Path("direct-value")
-    assert config.export_destinations == []
+    assert config.export_destination is None
 
 
 def test_documented_environment_names_remain_supported(

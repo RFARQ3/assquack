@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Self, cast
+from typing import Literal, Self
 
 from pydantic import (
     AliasChoices,
@@ -93,12 +93,8 @@ class AssquackConfig(_ProcessSettings):
     duckdb: DuckDBConfig = Field(default_factory=DuckDBConfig)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     schema_settings: SchemaConfig = Field(default_factory=SchemaConfig, alias="schema")
-    exports: (
-        str
-        | SerializeAsAny[FileSystemDestination | ExportDestination]
-        | list[SerializeAsAny[FileSystemDestination | ExportDestination]]
-    ) = Field(
-        default_factory=list[ExportDestination], validation_alias="ASSQUACK_EXPORTS"
+    exports: str | SerializeAsAny[FileSystemDestination | ExportDestination] | None = (
+        Field(default=None, validation_alias="ASSQUACK_EXPORTS")
     )
 
     @field_validator("attachment_name")
@@ -116,16 +112,14 @@ class AssquackConfig(_ProcessSettings):
 
     @field_validator("exports", mode="before")
     @classmethod
-    def normalize_exports(cls, value: object) -> list[ExportDestination]:
+    def normalize_exports(cls, value: object) -> ExportDestination | None:
+        if value is None or isinstance(value, ExportDestination):
+            return value
+        if isinstance(value, list):
+            raise ValueError("exports accepts one destination or None, not a list.")
         if isinstance(value, str):
-            return [FileSystemDestination(base_uri=value)]
-        destinations = cast(list[object], value) if isinstance(value, list) else [value]
-        return [
-            item
-            if isinstance(item, ExportDestination)
-            else FileSystemDestination.model_validate(item)
-            for item in destinations
-        ]
+            return FileSystemDestination(base_uri=value)
+        return FileSystemDestination.model_validate(value)
 
     chunk_size: int = Field(
         default=1_000,
@@ -150,9 +144,9 @@ class AssquackConfig(_ProcessSettings):
         return self
 
     @property
-    def export_destinations(self) -> list[ExportDestination]:
-        # Validation normalizes the public single-or-list input.
-        assert isinstance(self.exports, list)
+    def export_destination(self) -> ExportDestination | None:
+        # Validation normalizes path and mapping inputs to a destination.
+        assert self.exports is None or isinstance(self.exports, ExportDestination)
         return self.exports
 
     @property

@@ -108,20 +108,19 @@ class AssquackRequest:
 
 def capture_config(config: AssquackConfig) -> AssquackConfig:
     """Copy settings while retaining destination providers and other live resources."""
-    destinations = [
-        destination.model_copy(
+    destination = config.export_destination
+    if destination is not None:
+        destination = destination.model_copy(
             update={
                 name: copy_arguments(getattr(destination, name))
                 for name in type(destination).model_fields
             }
         )
-        for destination in config.export_destinations
-    ]
     return config.model_copy(
         update={
             "duckdb": config.duckdb.model_copy(deep=True),
             "ingestion": config.ingestion.model_copy(deep=True),
             "schema_settings": config.schema.model_copy(deep=True),
-            "exports": destinations,
+            "exports": destination,
         }
     )

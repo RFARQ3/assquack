@@ -74,7 +74,7 @@ def test_pipeline_records_failure_when_a_stage_helper_raises(
 def test_publish_success_save_failure_rolls_back_the_table_and_publication(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    config = AssquackConfig(home=tmp_path, exports=[])
+    config = AssquackConfig(home=tmp_path, exports=None)
     value = 1
 
     @asset("main.lifecycle")
@@ -111,7 +111,7 @@ def test_publish_success_save_failure_rolls_back_the_table_and_publication(
 def test_pipeline_records_and_reraises_cancellation_from_materialize(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    config = AssquackConfig(home=tmp_path, exports=[])
+    config = AssquackConfig(home=tmp_path, exports=None)
     cancellation = asyncio.CancelledError("caller cancelled")
 
     @asset("main.lifecycle")

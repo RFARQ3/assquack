@@ -1,12 +1,17 @@
 # MVP Extensibility Defects
 
 Status: **In Progress**
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 Epic: 01 MVP
 Phase: 06
 Related docs: [Scope journal](../../journal/2026-09-08-mvp-scope.md), [Roadmap](../../roadmap.md), [Export compatibility](04-export-compatibility.md)
 
 ## Purpose and authority
+
+**9 November scope amendment:** simultaneous multiple destinations are now
+removed from MVP. Earlier multi-destination implementation and validation notes
+below are historical. Destination types, authentication and credential providers
+remain extensible; see [single-destination work](04-export-compatibility.md#single-destination-amendment-9-november-2026).
 
 Track the extension barriers found in the 23 October source review so Rowan can
 work through them individually and commission implementation agents when ready.

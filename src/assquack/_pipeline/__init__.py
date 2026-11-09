@@ -28,7 +28,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
     run = AssquackRun(request)
     resources = ExitStack()
     try:
-        # 1. Resolve the asset's identity, check the cache and prepare export destinations.
+        # 1. Resolve identity, check the cache and prepare the export destination.
         try:
             run.resolve_status = "running"
             run.save_state()
@@ -123,7 +123,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
             resources.close()
         except Exception:
             _LOGGER.warning(
-                "Could not release export destinations for run %s",
+                "Could not release export destination for run %s",
                 run.run_id,
                 exc_info=True,
             )
