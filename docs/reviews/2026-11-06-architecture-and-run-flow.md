@@ -1,5 +1,10 @@
 # Architecture and run flow proposal
 
+**9 November stage-diagnostics amendment:** individual Resolve, Materialize, Stage
+and Publish status columns are removed. Publication `status`, `export_status`,
+overall `outcome` and failure details remain. The stage-status design below is
+historical; see [current run metadata](../storage-model.md#run-stages-and-current-publications).
+
 **9 November 2026 amendment:** credential-provider injection and its async loading
 bridge have been removed for the environment-only, single-destination MVP.
 Earlier provider discussions below are historical; see the

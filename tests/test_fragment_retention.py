@@ -365,7 +365,8 @@ def test_cache_hit_recovers_interrupted_runs_without_reextracting(
     with inspect_database(config) as connection:
         assert connection.execute(
             "SELECT count(*) FROM assquack_meta.runs WHERE status = 'failed' "
-            "AND error = 'Interrupted before publication completed'"
+            "AND error = 'Interrupted before publication completed' "
+            "AND failed_stage IS NULL AND outcome = 'failed'"
         ).fetchone() == (4,)
         assert connection.execute(
             "SELECT status FROM assquack_meta.runs WHERE asset_id = 'other'"

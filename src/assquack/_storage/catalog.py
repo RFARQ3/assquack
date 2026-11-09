@@ -36,10 +36,6 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection, catalog: str) -> N
             row_count BIGINT,
             error VARCHAR,
             fragments_owned BOOLEAN DEFAULT true,
-            resolve_status VARCHAR NOT NULL DEFAULT 'unstarted',
-            materialize_status VARCHAR NOT NULL DEFAULT 'unstarted',
-            stage_status VARCHAR NOT NULL DEFAULT 'unstarted',
-            publish_status VARCHAR NOT NULL DEFAULT 'unstarted',
             export_status VARCHAR NOT NULL DEFAULT 'unstarted',
             outcome VARCHAR NOT NULL DEFAULT 'running',
             failed_stage VARCHAR,
@@ -76,10 +72,6 @@ def bootstrap_database(connection: duckdb.DuckDBPyConnection, catalog: str) -> N
         ).fetchall()
     }
     required = {
-        "resolve_status",
-        "materialize_status",
-        "stage_status",
-        "publish_status",
         "export_status",
         "outcome",
         "failed_stage",

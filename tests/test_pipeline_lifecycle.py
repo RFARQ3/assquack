@@ -28,12 +28,11 @@ def test_pipeline_records_failure_when_a_stage_helper_raises(
         return [{"id": 1}]
 
     def fail(run, *args):
-        assert getattr(run, f"{failed_stage}_status") == "running"
         if failed_stage == "resolve":
             original_resolve(run, *args)
         with inspect_database(config) as connection:
             assert connection.execute(
-                f"SELECT {failed_stage}_status FROM assquack_meta.runs"
+                "SELECT outcome FROM assquack_meta.runs"
             ).fetchone() == ("running",)
         raise failure
 
@@ -54,16 +53,15 @@ def test_pipeline_records_failure_when_a_stage_helper_raises(
     ]
     with inspect_database(config) as connection:
         row = connection.execute(
-            "SELECT resolve_status, materialize_status, stage_status, publish_status, "
-            "export_status, outcome, failed_stage, error_type FROM assquack_meta.runs"
+            "SELECT export_status, outcome, failed_stage, error_type "
+            "FROM assquack_meta.runs"
         ).fetchone()
-        stages = ["resolve", "materialize", "stage", "publish", "export"]
-        position = stages.index(failed_stage)
-        assert row is not None
-        assert row[:position] == ("success",) * position
-        assert row[position] == "failed"
-        assert row[position + 1 : 5] == ("unstarted",) * (4 - position)
-        assert row[5:] == ("failed", failed_stage, "ValueError")
+        assert row == (
+            "failed" if failed_stage == "export" else "unstarted",
+            "failed",
+            failed_stage,
+            "ValueError",
+        )
         assert connection.execute(
             "SELECT count(*) FROM information_schema.tables "
             "WHERE table_schema = 'assquack_stage'"
@@ -83,15 +81,14 @@ def test_publish_success_save_failure_rolls_back_the_table_and_publication(
 
     first = asyncio.run(source(assquack_config=config))
     failure = RuntimeError("publish success save failed")
-    original_save = MetadataRepository.save_run_state
+    original_save = MetadataRepository.mark_run_successful
 
-    def save(repository, run):
-        if run.publish_status == "success":
-            raise failure
-        original_save(repository, run)
+    def save(repository, run_id, **kwargs):
+        original_save(repository, run_id, **kwargs)
+        raise failure
 
     value = 2
-    monkeypatch.setattr(MetadataRepository, "save_run_state", save)
+    monkeypatch.setattr(MetadataRepository, "mark_run_successful", save)
     with pytest.raises(RuntimeError) as raised:
         asyncio.run(source(assquack_config=config))
     assert raised.value is failure
@@ -101,10 +98,10 @@ def test_publish_success_save_failure_rolls_back_the_table_and_publication(
             "SELECT run_id FROM assquack_meta.current_publications"
         ).fetchone() == (first.run_id,)
         assert connection.execute(
-            "SELECT status, publish_status, failed_stage, materialized_at "
+            "SELECT status, failed_stage, materialized_at "
             "FROM assquack_meta.runs WHERE run_id != ?",
             [first.run_id],
-        ).fetchone() == ("failed", "failed", "publish", None)
+        ).fetchone() == ("failed", "publish", None)
     assert not ACTIVE_RUNS
 
 
@@ -119,7 +116,6 @@ def test_pipeline_records_and_reraises_cancellation_from_materialize(
         pytest.fail("The substituted materialize helper must raise first")
 
     async def cancel(run):
-        assert run.materialize_status == "running"
         raise cancellation
 
     monkeypatch.setattr(pipeline, "materialize", cancel)
@@ -129,7 +125,6 @@ def test_pipeline_records_and_reraises_cancellation_from_materialize(
     assert any("Assquack materialize failed" in note for note in cancellation.__notes__)
     with inspect_database(config) as connection:
         assert connection.execute(
-            "SELECT materialize_status, failed_stage, error_type, outcome "
-            "FROM assquack_meta.runs"
+            "SELECT status, failed_stage, error_type, outcome FROM assquack_meta.runs"
         ).fetchone() == ("failed", "materialize", "CancelledError", "failed")
     assert not ACTIVE_RUNS

@@ -31,22 +31,22 @@ producer argument mutations remain visible to the caller. Resolve fixes identity
 and paths before producer execution. Keep configuration unchanged during an active
 call; see [argument behaviour](developer-api.md#call-arguments-and-execution).
 
-`AssquackRun` exists before cache lookup and holds changing progress separately:
+`AssquackRun` exists before cache lookup and holds execution state separately:
 
-| Stage | Work | State saved |
+| Stage | Work | Metadata saved |
 | --- | --- | --- |
-| Resolve | Format original templates, derive identity, use selected configuration, register the asset, recover interrupted runs, check the current publication and resolve exports. | Start and outcome once a new attempt's database row exists. |
-| Materialize | Call the producer and pass its output to the fragment writer. | Start before capture and success after fragments finish. |
-| Stage | Ask DuckDB to describe completed fragments, then load the candidate table. | Start before inference and success after loading. |
-| Publish | Replace the asset table and update publication metadata atomically. | Start before the transaction; success inside it. |
-| Export | Write requested files and record each completed export. | Start and outcome, or skipped if no exports were requested. |
+| Resolve | Format original templates, derive identity, use selected configuration, register the asset, recover interrupted runs, check the current publication and resolve exports. | Create a running row for a new attempt. |
+| Materialize | Call the producer and pass its output to the fragment writer. | Record fragment-directory ownership. |
+| Stage | Ask DuckDB to describe completed fragments, then load the candidate table. | No separate progress status. |
+| Publish | Replace the asset table and update publication metadata atomically. | Publication `status=success`, timestamp, row count and current-publication pointer. |
+| Export | Write requested files and record each completed export. | Export status: running, success, failed or skipped. |
 
-The coordinator is `_pipeline/__init__.py`. Its five numbered sections visibly
-assign the running and success states, save progress, call the underlying work,
-and catch that stage's failure. Each stage has a corresponding work module; those
-helpers do not record stage outcomes. Publish's transaction is visible in the main
-function and includes the success-state save. Cleanup drops the candidate table and runs retention once at exit, after
-the outcome is known. Cleanup errors cannot hide the original execution error.
+The coordinator is `_pipeline/__init__.py`. Its five numbered sections call the
+underlying work and catch that stage's failure. Exceptions retain their original
+traceback and are recorded with `failed_stage` and error details. Overall `outcome`
+records invocation completion separately from publication success. Publish's
+transaction is visible in the main function. Cleanup drops the candidate table
+and runs retention once at exit; cleanup errors cannot hide the original error.
 
 A cache hit still has an `AssquackRun`, but creates no new database run row.
 Materialize, Stage and Publish are skipped. Missing exports use the existing
@@ -238,7 +238,7 @@ Exports read from the committed current table. An export failure can fail the
 public call, but it does not roll back the successful table materialization.
 The metadata retains `status=success` for publication and records `outcome=failed`,
 `export_status=failed`, the failed stage and error details for the call. A failure
-while saving the final outcome leaves completed stage statuses unchanged and uses
+while saving the final outcome preserves publication and export status and uses
 `failed_stage=NULL`, because no stage operation failed.
 Cache state is based on DuckDB metadata and the current table, not fragment or
 export existence alone.

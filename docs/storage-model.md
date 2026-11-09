@@ -139,12 +139,18 @@ DDL belongs to the implementor-facing
 
 ### Run stages and current publications
 
-`assquack_meta.runs` includes `resolve_status`, `materialize_status`, `stage_status`,
-`publish_status` and `export_status`. Values are `unstarted`, `running`, `success`,
-`failed` or `skipped`. `outcome` describes the complete invocation, while existing
-`status` retains publication success for cache and retention. `failed_stage`,
-`error_type` and a bounded `error_message` identify failures. A final-state save
-failure can have no failed stage; completed stage outcomes stay unchanged.
+`assquack_meta.runs.status` records publication as `running`, `success` or
+`failed`. `outcome` describes the complete invocation. `export_status` is
+`unstarted`, `running`, `success`, `failed` or `skipped`, so a run without exports
+remains distinguishable from an export that failed or was never reached.
+`failed_stage`, `error_type` and a bounded `error_message` identify caught errors.
+Resolve, Materialize, Stage and Publish do not have individual status columns.
+
+A successful publication stays `status=success` if a later export or final-state
+save fails; cache and retention still use that publication. A final-state save
+failure has `failed_stage=NULL`, because no stage operation failed. Recovery of a
+hard-interrupted process records `InterruptedRun`; it can identify export from
+`export_status=running`, but earlier interrupted stages are unknown (`NULL`).
 
 `assquack_meta.current_publications` maps each physical schema/table to its current
 run. Publish updates this row in the same transaction as table replacement and
@@ -157,7 +163,10 @@ Cache-hit calls create an in-memory run but no new database row. New attempts re
 the existing MD5 asset/runtime run ID. This refactor does not add invocation IDs to
 public results or persist schema history. Existing prerelease databases with an
 incompatible runs schema fail clearly; use a new database path. No automatic
-migration or deletion of existing data is performed.
+migration or deletion of existing data is performed. An existing database with
+the required columns may still contain the four old stage-status columns; they
+are no longer read or updated. Use a fresh database for the reduced physical
+layout rather than treating those old values as current diagnostics.
 
 ## Asset Tables
 

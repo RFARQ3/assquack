@@ -8,6 +8,29 @@ Related docs: [Architecture proposal](../../reviews/2026-11-06-architecture-and-
 
 ## Implementation direction
 
+### Compact run diagnostics - 9 November 2026
+
+Keep `export_status`, overall `outcome`, `failed_stage` and error details. Remove
+Resolve, Materialize, Stage and Publish status columns and their progress writes.
+The existing `status` records publication success atomically with the table swap;
+cache and retention use it even if a later export or final state save fails.
+The numbered pipeline and stage-specific exception reporting stay intact.
+Hard interruptions before export have no known failed stage; interruption during
+export remains identifiable from `export_status`. Existing databases are not
+migrated; unused old columns can remain, while a fresh catalog has the compact
+layout.
+
+Validation: **469 offline tests passed**, including four recovery cases preserving
+committed publication across interruption before/during/after export. Existing
+stage-error, cancellation, rollback, cache, export-retry and retention tests pass.
+Ruff lint, changed-file formatting, Pyright (zero errors/warnings), local Markdown
+links and whitespace checks pass. Whole-tree formatting reports 11 unchanged
+files; they remain outside this change. Type checking used approved read access
+to existing installed dependency metadata.
+
+This supersedes the detailed stage-status design in the historical notes below.
+
+
 ### Ordinary argument references — 9 November 2026
 
 Rowan approved removing per-call deep argument/configuration snapshots. Bind

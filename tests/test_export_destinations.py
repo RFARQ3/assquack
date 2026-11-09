@@ -141,11 +141,10 @@ def test_invalid_credentials_are_safe_and_have_no_manifest(
             0,
         )
         assert db.execute(
-            "SELECT resolve_status, materialize_status, outcome, failed_stage, "
+            "SELECT status, outcome, failed_stage, "
             "error_type, error_message FROM assquack_meta.runs"
         ).fetchone() == (
             "failed",
-            "unstarted",
             "failed",
             "resolve",
             "ConfigurationError",

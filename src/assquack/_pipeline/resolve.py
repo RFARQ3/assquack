@@ -78,7 +78,7 @@ def resolve(
 ) -> tuple[tuple[ExportDestination, ExportTarget], ...]:
     """Resolve identifiers, recover metadata, check the cache and prepare exports.
 
-    The caller owns resource release and stage status. A cache hit retains the
+    The caller owns resource release and failure reporting. A cache hit retains the
     database lock in resources so its table cannot change before export finishes.
     """
     run.asset = resolve_request(run.request)

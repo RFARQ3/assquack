@@ -22,38 +22,29 @@ publish_module = importlib.import_module("assquack._pipeline.publish")
 export_module = importlib.import_module("assquack._pipeline.export")
 
 
-def test_materialize_progress_is_saved_before_the_producer_runs(tmp_path: Path):
+def test_run_records_publication_and_export_outcomes(tmp_path: Path):
     config = AssquackConfig(home=tmp_path, exports=None)
 
     @asset("main.progress")
     async def source():
         with inspect_database(config) as connection:
             assert connection.execute(
-                "SELECT resolve_status, materialize_status, stage_status, "
-                "publish_status, export_status, outcome FROM assquack_meta.runs"
-            ).fetchone() == (
-                "success",
-                "running",
-                "unstarted",
-                "unstarted",
-                "unstarted",
-                "running",
-            )
+                "SELECT status, export_status, outcome FROM assquack_meta.runs"
+            ).fetchone() == ("running", "unstarted", "running")
         await asyncio.sleep(0)
         return [{"id": 1}]
 
     asyncio.run(source(assquack_config=config))
     with inspect_database(config) as connection:
         assert connection.execute(
-            "SELECT resolve_status, materialize_status, stage_status, "
-            "publish_status, export_status, outcome FROM assquack_meta.runs"
-        ).fetchone() == (
-            "success",
-            "success",
-            "success",
-            "success",
-            "skipped",
-            "success",
+            "SELECT status, export_status, outcome FROM assquack_meta.runs"
+        ).fetchone() == ("success", "skipped", "success")
+        columns = {
+            row[0]
+            for row in connection.execute("DESCRIBE assquack_meta.runs").fetchall()
+        }
+        assert not columns.intersection(
+            {"resolve_status", "materialize_status", "stage_status", "publish_status"}
         )
     assert not ACTIVE_RUNS
 
@@ -94,24 +85,18 @@ def test_failed_stage_is_recorded_without_losing_the_published_table(
 
     with inspect_database(config) as connection:
         row = connection.execute(
-            "SELECT resolve_status, materialize_status, stage_status, "
-            "publish_status, export_status, outcome, failed_stage, error_type, "
+            "SELECT export_status, outcome, failed_stage, error_type, "
             "error_message, status FROM assquack_meta.runs "
             "ORDER BY runtime DESC LIMIT 1"
         ).fetchone()
-        assert row is not None
-        stages = ["resolve", "materialize", "stage", "publish", "export"]
-        position = stages.index(failed_stage)
-        assert row[:5] == tuple(
-            "success"
-            if index < position
-            else "failed"
-            if index == position
-            else "unstarted"
-            for index in range(5)
+        assert row == (
+            "failed" if failed_stage == "export" else "unstarted",
+            "failed",
+            failed_stage,
+            "RuntimeError",
+            str(failure),
+            "success" if failed_stage == "export" else "failed",
         )
-        assert row[5:9] == ("failed", failed_stage, "RuntimeError", str(failure))
-        assert row[9] == ("success" if failed_stage == "export" else "failed")
         assert connection.execute("SELECT id FROM main.progress").fetchall() == [
             (2 if failed_stage == "export" else 1,)
         ]
@@ -154,12 +139,12 @@ def test_producer_mutates_caller_arguments_without_changing_resolved_identity(
         ).fetchone() == (expected.asset_id,)
 
 
-def test_resolve_failure_releases_destinations_after_state_save_fails(
+def test_resolve_failure_releases_destinations(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     released = []
-    failure = RuntimeError("resolve state save failed")
-    original_save = MetadataRepository.save_run_state
+    failure = RuntimeError("resolve failed after opening destination")
+    original_resolve = resolve_module.resolve
 
     @contextmanager
     def destinations(*args, **kwargs):
@@ -168,17 +153,18 @@ def test_resolve_failure_releases_destinations_after_state_save_fails(
         finally:
             released.append(True)
 
-    def save(repository, run):
-        if run.resolve_status == "success":
-            raise failure
-        original_save(repository, run)
+    def resolve_then_fail(run, resources):
+        original_resolve(run, resources)
+        raise failure
 
     @asset("main.progress")
     def source():
         raise AssertionError("Resolve failed before the producer could run")
 
     monkeypatch.setattr(resolve_module, "resolve_exports", destinations)
-    monkeypatch.setattr(MetadataRepository, "save_run_state", save)
+    monkeypatch.setattr(
+        importlib.import_module("assquack._pipeline"), "resolve", resolve_then_fail
+    )
     with pytest.raises(RuntimeError) as raised:
         asyncio.run(source(assquack_config=AssquackConfig(home=tmp_path)))
     assert raised.value is failure
@@ -253,7 +239,7 @@ def test_final_state_save_failure_does_not_report_a_successful_call(
     assert raised.value is failure
     with inspect_database(config) as connection:
         assert connection.execute(
-            "SELECT publish_status, outcome, error_type, error_message, "
+            "SELECT status, outcome, error_type, error_message, "
             "export_status, failed_stage "
             "FROM assquack_meta.runs"
         ).fetchone() == (
@@ -411,7 +397,45 @@ def test_publication_pointer_failure_rolls_back_table_and_success_metadata(
             "SELECT run_id FROM assquack_meta.current_publications"
         ).fetchone() == (first.run_id,)
         assert connection.execute(
-            "SELECT status, publish_status, materialized_at FROM assquack_meta.runs "
-            "WHERE run_id != ?",
+            "SELECT status, materialized_at FROM assquack_meta.runs WHERE run_id != ?",
             [first.run_id],
-        ).fetchone() == ("failed", "failed", None)
+        ).fetchone() == ("failed", None)
+
+
+@pytest.mark.parametrize(
+    "export_status", ["unstarted", "running", "success", "skipped"]
+)
+def test_interrupted_call_preserves_its_committed_publication(
+    tmp_path: Path, export_status: str
+):
+    calls = 0
+    config = AssquackConfig(home=tmp_path, exports=None)
+
+    @asset("main.progress")
+    def source():
+        nonlocal calls
+        calls += 1
+        return [{"id": 1}]
+
+    first = asyncio.run(source(assquack_config=config))
+    with inspect_database(config) as connection:
+        connection.execute(
+            "UPDATE assquack_meta.runs SET outcome = 'running', export_status = ?",
+            [export_status],
+        )
+
+    cached = asyncio.run(source.cache_first()(assquack_config=config))
+    assert cached.cached and cached.run_id == first.run_id
+    assert calls == 1
+    with inspect_database(config) as connection:
+        assert connection.execute(
+            "SELECT status, outcome, export_status, failed_stage, error_type, error "
+            "FROM assquack_meta.runs"
+        ).fetchone() == (
+            "success",
+            "failed",
+            "failed" if export_status == "running" else export_status,
+            "export" if export_status == "running" else None,
+            "InterruptedRun",
+            None,
+        )

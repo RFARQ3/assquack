@@ -54,27 +54,22 @@ class MetadataRepository:
         self._connection.execute(
             f"""
             INSERT INTO {self._schema}.runs (
-                run_id, asset_id, status, runtime, fragments_owned, resolve_status
-            ) VALUES (?, ?, 'running', ?, false, 'running')
+                run_id, asset_id, status, runtime, fragments_owned
+            ) VALUES (?, ?, 'running', ?, false)
             """,
             [run_id, asset_id, runtime],
         )
 
     def save_run_state(self, run: AssquackRun) -> None:
-        """Save stage outcomes without changing the committed publication status."""
+        """Save invocation diagnostics without changing the publication status."""
         self._connection.execute(
             f"""
             UPDATE {self._schema}.runs SET
-                resolve_status = ?, materialize_status = ?, stage_status = ?,
-                publish_status = ?, export_status = ?, outcome = ?,
+                export_status = ?, outcome = ?,
                 failed_stage = ?, error_type = ?, error_message = ?, duration_ms = ?
             WHERE run_id = ?
             """,
             [
-                run.resolve_status,
-                run.materialize_status,
-                run.stage_status,
-                run.publish_status,
                 run.export_status,
                 run.outcome,
                 run.failed_stage,
@@ -104,7 +99,7 @@ class MetadataRepository:
             FROM {self._schema}.current_publications p
             JOIN {self._schema}.runs r ON r.run_id = p.run_id
             WHERE lower(p.schema_name) = lower(?) AND lower(p.table_name) = lower(?)
-                  AND r.publish_status = 'success'
+                  AND r.status = 'success'
             """,
             [table.schema_name, table.table_name],
         ).fetchone()
@@ -130,30 +125,17 @@ class MetadataRepository:
         self._connection.execute(
             f"""
             UPDATE {self._schema}.runs
-            SET status = CASE WHEN publish_status = 'success'
+            SET status = CASE WHEN status = 'success'
                                   THEN 'success' ELSE 'failed' END,
                 outcome = 'failed',
-                resolve_status = CASE WHEN resolve_status = 'running'
-                    THEN 'failed' ELSE resolve_status END,
-                materialize_status = CASE WHEN materialize_status = 'running'
-                    THEN 'failed' ELSE materialize_status END,
-                stage_status = CASE WHEN stage_status = 'running'
-                    THEN 'failed' ELSE stage_status END,
-                publish_status = CASE WHEN publish_status = 'running'
-                    THEN 'failed' ELSE publish_status END,
                 export_status = CASE WHEN export_status = 'running'
                     THEN 'failed' ELSE export_status END,
-                failed_stage = CASE
-                    WHEN resolve_status = 'running' THEN 'resolve'
-                    WHEN materialize_status = 'running' THEN 'materialize'
-                    WHEN stage_status = 'running' THEN 'stage'
-                    WHEN publish_status = 'running' THEN 'publish'
-                    WHEN export_status = 'running' THEN 'export' END,
+                failed_stage = CASE WHEN export_status = 'running' THEN 'export' END,
                 error_type = 'InterruptedRun',
                 error_message = 'Interrupted before completion',
-                error = 'Interrupted before publication completed'
-            WHERE asset_id = ? AND (status = 'running'
-                OR (outcome = 'running' AND publish_status = 'success'))
+                error = CASE WHEN status = 'success' THEN error
+                    ELSE 'Interrupted before publication completed' END
+            WHERE asset_id = ? AND outcome = 'running'
                 AND run_id NOT IN (SELECT unnest(?::VARCHAR[]))
             """,
             [asset_id, list(active_run_ids)],
@@ -208,7 +190,7 @@ class MetadataRepository:
         self._connection.execute(
             f"""
             UPDATE {self._schema}.runs
-            SET status = 'success', publish_status = 'success',
+            SET status = 'success',
                 materialized_at = current_timestamp,
                 duration_ms = ?,
                 row_count = ?,
@@ -234,11 +216,12 @@ class MetadataRepository:
         )
 
     def mark_run_failed(self, run_id: str, error: str, duration_ms: int) -> None:
+        """Fail an unpublished attempt without invalidating a committed table."""
         self._connection.execute(
             f"""
             UPDATE {self._schema}.runs
             SET status = 'failed', duration_ms = ?, error = ?
-            WHERE run_id = ?
+            WHERE run_id = ? AND status = 'running'
             """,
             [duration_ms, error[:4_000], run_id],
         )

@@ -30,7 +30,7 @@ class AssquackRun:
     """Track one call from resolution through publication and exports.
 
     The request holds the call's inputs. This object holds changing execution
-    state, including the last completed stage and the reason a stage failed.
+    state, including export progress and the reason a stage failed.
     """
 
     request: AssquackRequest
@@ -45,10 +45,6 @@ class AssquackRun:
     candidate_table: TableReference | None = None
     fragments: list[FragmentFile] = field(default_factory=list[FragmentFile])
     row_count: int = 0
-    resolve_status: StageStatus = "unstarted"
-    materialize_status: StageStatus = "unstarted"
-    stage_status: StageStatus = "unstarted"
-    publish_status: StageStatus = "unstarted"
     export_status: StageStatus = "unstarted"
     outcome: Literal["running", "success", "failed"] = "running"
     failed_stage: StageName | None = None
@@ -91,8 +87,8 @@ class AssquackRun:
 
     def fail(self, stage: StageName | None, error: BaseException) -> None:
         """Record the failed stage without replacing the original exception."""
-        if stage is not None:
-            setattr(self, f"{stage}_status", "failed")
+        if stage == "export":
+            self.export_status = "failed"
         self.outcome = "failed"
         self.failed_stage = stage
         self.error_type = type(error).__name__
@@ -105,10 +101,9 @@ class AssquackRun:
         try:
             if self.persisted:
                 with database_operation(self.config):
-                    if self.publish_status != "success":
-                        self.repository.mark_run_failed(
-                            self.id, str(error), self.duration_ms
-                        )
+                    self.repository.mark_run_failed(
+                        self.id, str(error), self.duration_ms
+                    )
                     self.repository.save_run_state(self)
         except Exception:
             _LOGGER.warning(

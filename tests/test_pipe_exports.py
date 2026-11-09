@@ -78,9 +78,8 @@ def test_invalid_declarations_fail_before_extraction(
             0,
         )
         assert db.execute(
-            "SELECT resolve_status, materialize_status, outcome, failed_stage, "
-            "error_type FROM assquack_meta.runs"
-        ).fetchone() == ("failed", "unstarted", "failed", "resolve", "ExportError")
+            "SELECT status, outcome, failed_stage, error_type FROM assquack_meta.runs"
+        ).fetchone() == ("failed", "failed", "resolve", "ExportError")
 
 
 @pytest.mark.parametrize("format_name", ["csv", "json", "parquet"])

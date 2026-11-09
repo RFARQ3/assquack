@@ -20,9 +20,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def run_pipeline(request: AssquackRequest) -> AssquackResult:
-    """Run each stage and record its progress, success or failure here.
+    """Run each stage and record export progress, the outcome and any failure.
 
-    The work helpers do not manage stage outcomes. Publication and its success
+    The work helpers do not manage invocation outcomes. Publication and its success
     record commit together; a later export failure leaves that table available.
     """
     run = AssquackRun(request)
@@ -30,11 +30,7 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
     try:
         # 1. Resolve asset identity, check the cache and prepare the export destination.
         try:
-            run.resolve_status = "running"
-            run.save_state()
             exports = resolve(run, resources)
-            run.resolve_status = "success"
-            run.save_state()
         except BaseException as error:
             run.fail("resolve", error)
             raise
@@ -42,50 +38,31 @@ async def run_pipeline(request: AssquackRequest) -> AssquackResult:
         # 2. Materialize the asset's data into NDJSON fragment files.
         if run.cached is None:
             try:
-                run.materialize_status = "running"
-                run.save_state()
                 await materialize(run)
-                run.materialize_status = "success"
-                run.save_state()
             except BaseException as error:
                 run.fail("materialize", error)
                 raise
-        else:
-            run.materialize_status = "skipped"
 
         # Hold the database lock through staging (3), publication (4) and export (5).
         with database_operation(run.config) as connection:
-
-        # 3. Stage the fragments using DuckDB's inferred columns and types.
+            # 3. Stage the fragments using DuckDB's inferred columns and types.
             if run.cached is None:
                 try:
-                    run.stage_status = "running"
-                    run.save_state()
                     stage(run)
-                    run.stage_status = "success"
-                    run.save_state()
                 except BaseException as error:
                     run.fail("stage", error)
                     raise
-            else:
-                run.stage_status = "skipped"
 
-        # 4. Publish the table and its success metadata in one transaction.
+            # 4. Publish the table and its success metadata in one transaction.
             if run.cached is None:
                 try:
-                    run.publish_status = "running"
-                    run.save_state()
                     with transaction(connection):
                         publish(run)
-                        run.publish_status = "success"
-                        run.save_state()
                 except BaseException as error:
                     run.fail("publish", error)
                     raise
-            else:
-                run.publish_status = "skipped"
 
-        # 5. Export the publication, retaining each completed file's record.
+            # 5. Export the publication, retaining each completed file's record.
             try:
                 if exports:
                     run.export_status = "running"
