@@ -19,6 +19,7 @@ from assquack._exports.destinations.base import (
     clear_exception_locals,
 )
 from assquack._exports.destinations.fingerprint import destination_fingerprint
+from assquack._exports.diagnostics import AzureExportError
 from assquack._exports.models import ExportTarget
 from assquack._exports.preparation.registry import (
     PreparationRegistry,
@@ -126,6 +127,11 @@ class FileSystemDestination(ExportDestination):
         except BaseException as error:
             self._release()
             clear_exception_locals(error)
+            if isinstance(error, AzureExportError):
+                # contextlib can reattach the native write error to its replacement.
+                # Release its frames before removing the payload from the public error.
+                error.__context__ = None
+                error.__cause__ = None
             raise
         finally:
             if state is not None and target is state.targets[-1]:

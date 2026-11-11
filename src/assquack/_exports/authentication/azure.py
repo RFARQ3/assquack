@@ -9,12 +9,12 @@ from uuid import uuid4
 import duckdb
 from pydantic import SecretStr
 
-from assquack._errors import ExportError
 from assquack._exports.authentication.credentials import (
     CHAIN_REQUIREMENTS,
     AzureSasCredentials,
     has_required_inputs,
 )
+from assquack._exports.diagnostics import azure_export_error
 from assquack._storage.sql import quote_identifier
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,30 +36,34 @@ class AzureAuthenticator:
     ) -> Generator[None, None, None]:
         """Keep the temporary secret scoped to this output and remove it on failure."""
         name = quote_identifier(f"assquack_export_{uuid4().hex}")
-        registered = False
+        failure = None
         try:
             self.register(connection, name, uri.rsplit("/", 1)[0] + "/")
-            registered = True
+        except Exception as error:
+            failure = azure_export_error("authentication", error)
+        # Do not chain native diagnostics. The destination also detaches context
+        # that contextlib can attach while unwinding a failed write.
+        if failure is not None:
+            raise failure from None
+
+        try:
             yield
         except BaseException as error:
-            if registered:
-                try:
-                    connection.execute(f"DROP TEMPORARY SECRET {name}")
-                except Exception:
-                    _LOGGER.warning("Could not remove temporary Azure export secret.")
-            # Native diagnostics may contain signed URLs even for identity auth.
+            try:
+                connection.execute(f"DROP TEMPORARY SECRET {name}")
+            except Exception as cleanup_error:
+                _LOGGER.warning("%s", azure_export_error("cleanup", cleanup_error))
             if isinstance(error, Exception):
-                raise ExportError(
-                    "Azure export failed; check authentication and permissions."
-                ) from None
-            raise
+                failure = azure_export_error("write", error)
+            else:
+                raise
         else:
             try:
                 connection.execute(f"DROP TEMPORARY SECRET {name}")
-            except Exception:
-                raise ExportError(
-                    "Could not remove temporary Azure export secret."
-                ) from None
+            except Exception as error:
+                failure = azure_export_error("cleanup", error)
+        if failure is not None:
+            raise failure from None
 
 
 @dataclass(frozen=True)
