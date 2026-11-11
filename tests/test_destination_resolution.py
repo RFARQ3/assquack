@@ -218,7 +218,7 @@ def test_export_failure_releases_state_and_temporary_secret():
             raise RuntimeError("synthetic write failure")
 
     connection.execute.side_effect = execute
-    with pytest.raises(ExportError, match="Azure export failed"):
+    with pytest.raises(RuntimeError, match="synthetic write failure"):
         destination.export(connection, TableReference("main", "orders"), target)
     assert destination._resolved is None
     assert connection.execute.call_args.args[0].startswith("DROP TEMPORARY SECRET")
@@ -244,7 +244,7 @@ def test_held_failure_does_not_retain_captured_authentication():
             if sql.startswith("COPY"):
                 raise RuntimeError("synthetic failure")
 
-    with pytest.raises(ExportError) as caught:
+    with pytest.raises(RuntimeError, match="synthetic failure") as caught:
         destination.export(
             cast(duckdb.DuckDBPyConnection, Connection()),
             TableReference("main", "orders"),

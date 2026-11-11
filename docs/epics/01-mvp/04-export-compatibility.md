@@ -36,35 +36,31 @@ Excluded:
 
 ## Architecture Notes
 
-### Safe Azure export diagnostics — 11 November 2026
+### Native Azure export exceptions — 11 November 2026
 
-Implemented and independently reviewed: distinguish extension loading,
-credential registration, writing and
-temporary-secret cleanup. Preserve recognised native exception categories, HTTP
-statuses and Azure error codes with fixed actionable explanations. Do not copy
-arbitrary backend payloads, SQL, URLs, credentials or exception chains into the
-public error. Unknown diagnostics explicitly say that their details were withheld.
-Cleanup failure during another failure remains a secondary warning. Cancellation
-and other process-control exceptions retain their semantics.
+Implemented and independently reviewed: the user superseded the earlier
+diagnostic projection with native exception passthrough. Removed the classifier
+and masking tests. Preserve the
+original exception object, type, message, traceback, notes and cause/context chains
+from extension loading, credential registration, writing and cleanup. Keep
+temporary-secret cleanup and captured-input release. A secondary cleanup failure
+is logged with its native traceback while the original write failure propagates.
 
-Offline synthetic tests cover all stages, diagnostic usefulness, formatted
-tracebacks, exception chains and cleanup logs. The public destination clears
-native traceback locals before detaching the original exception context, which
-Python context managers can reattach while unwinding a write failure. Independent
-adversarial tests cover a genuine offline missing-extension error, a malicious
-exception class name and a broken exception formatter.
+Downstream applications own access control and any required log redaction.
+Assquack does not explicitly log credential inputs or authentication SQL, but
+does not alter native diagnostic payloads. Offline tests must verify passthrough
+at every stage, unknown native details, exception groups, cleanup precedence and
+the existing no-success-manifest behaviour. Extension installation and deployment
+configuration remain outside this change.
 
-Validation: 134 focused tests passed; independent review's expanded selection
-passed 137 tests. The lifecycle matrix was then extended for cleanup-only failures
-and all 30 Azure export tests passed. Full-suite validation passed 511 tests,
-skipped 8 optional pandas/PyArrow cases and failed 3 unrelated tests because the
-existing environment lacks NumPy (two DuckDB UDF tests) and pytz (one timestamp
-fetch). No dependencies were installed to change that environment. Ruff, changed
-Python formatting, Pyright, Markdown links and `git diff --check` passed. The
-terminology scan retains only existing downstream/historical infrastructure
-references. No live credentials or calls were used. Extension installation and
-deployment configuration are outside this change. Diagnostic work is complete;
-the broader phase remains In Progress for its existing live acceptance work.
+Validation: all 172 focused offline export tests passed, including identity,
+message, native traceback, notes and chain preservation, real offline extension
+loading failure, exception groups, cancellation, cleanup precedence and manifest
+behaviour. The reviewer independently passed five native passthrough probes with
+no production findings. Ruff, changed-file formatting, Pyright, Markdown links and
+`git diff --check` passed. The full suite was not repeated: its prior unrelated
+NumPy/pytz dependency gaps remain. No live calls or credentials were used. This
+change is complete; the phase remains In Progress for existing live acceptance.
 
 ### Environment-only credential sourcing - 9 November 2026
 

@@ -132,7 +132,7 @@ def test_sas_registration_connection_string_and_scope(scheme, qualified, environ
 
 
 @pytest.mark.parametrize("stage", ["LOAD", "CREATE", "COPY", "DROP", "COPY_AND_DROP"])
-def test_sas_errors_do_not_expose_signed_diagnostics(stage, environment, caplog):
+def test_sas_native_errors_are_not_masked(stage, environment):
     token = "sig=synthetic-sensitive"
     environment.update(
         AZURE_STORAGE_ACCOUNT_NAME="exampleaccount", AZURE_STORAGE_SAS_TOKEN=token
@@ -147,13 +147,12 @@ def test_sas_errors_do_not_expose_signed_diagnostics(stage, environment, caplog)
 
     connection.execute.side_effect = execute
     with (
-        pytest.raises(ExportError) as error,
+        pytest.raises(RuntimeError, match="signed URL") as error,
         azure_export_auth(connection, URI, "sas"),
     ):
         connection.execute("COPY synthetic")
-    assert token not in "".join(traceback.format_exception(error.value))
-    assert token not in caplog.text
-    assert error.value.__suppress_context__
+    assert str(error.value) == "signed URL?" + token
+    assert token in "".join(traceback.format_exception(error.value))
 
 
 @pytest.mark.parametrize(

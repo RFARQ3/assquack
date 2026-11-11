@@ -138,7 +138,7 @@ def test_actual_export_connection_lifecycle_and_manifest(
     if failure is None:
         run()
     else:
-        with pytest.raises(ExportError, match="Azure export failed"):
+        with pytest.raises(RuntimeError, match="synthetic export failure"):
             run()
     export_connection = next(
         c

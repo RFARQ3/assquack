@@ -8,7 +8,6 @@ import duckdb
 from assquack._errors import ConfigurationError, ExportError
 from assquack._exports.authentication.azure import AzureAuthenticator
 from assquack._exports.authentication.base import Authenticator
-from assquack._exports.diagnostics import azure_export_error
 
 
 def validate_azure_target(uri: str, account_name: str | None) -> None:
@@ -62,12 +61,6 @@ class AzurePreparationStrategy:
         azure_auth = cast(AzureAuthenticator, auth)
         validate_azure_target(uri, azure_auth.account_name)
         # Deployments provision extensions; Assquack never installs them here.
-        failure = None
-        try:
-            connection.execute("LOAD azure")
-        except Exception as error:
-            failure = azure_export_error("extension", error)
-        if failure is not None:
-            raise failure from None
+        connection.execute("LOAD azure")
         with auth.authenticate(connection, uri):
             yield

@@ -428,15 +428,14 @@ account. Only public-cloud endpoints are supported. Hadoop `filesystem@account`
 paths and signed URI query strings are rejected. Keep credentials out of URIs.
 
 Each secret has a unique name and directory scope ending in `/`. It is dropped
-after COPY, including failure. Cleanup failure propagates a safe error; cleanup
-failure during an existing error is logged safely without replacing that error.
-Azure export diagnostics distinguish extension loading, authentication
-registration, writing and cleanup. Recognised exception categories, HTTP statuses
-and Azure error codes remain visible with fixed explanations, while arbitrary
-backend text and original exception chains are withheld. See
-[Azure failure diagnostics](exports.md#azure-failure-diagnostics) for the limits
-and cleanup guidance. Credential-read errors also suppress potentially sensitive
-printed exception context. The shared connection stays open.
+after COPY, including failure. Original DuckDB/Azure exceptions propagate without
+masking or replacement from extension loading, authentication registration,
+writing and cleanup. Cleanup failure during an existing error is logged with its
+native traceback without replacing the primary error. See
+[Azure failure diagnostics](exports.md#azure-failure-diagnostics) for the native
+exception contract and downstream logging responsibilities. Credential-read
+validation remains separate and suppresses potentially sensitive printed
+exception context. The shared connection stays open.
 No success manifest is recorded for a failed export or failed cleanup.
 
 Verification is offline with synthetic credentials and intercepted Azure SQL;

@@ -338,28 +338,26 @@ configuration validation.
 
 ### Azure Failure Diagnostics
 
-Azure failures raise `ExportError` with the operation that failed: extension
-loading, authentication registration, writing, or temporary-secret cleanup. A
-write failure is not automatically described as an authentication failure.
-Recognised DuckDB/Python exception categories, HTTP failure statuses, Azure error
-codes and TLS/DNS signatures produce fixed explanations and suggested checks.
-For example, a native write error reporting HTTP 403 and
-`AuthorizationPermissionMismatch` identifies the write stage and advises checking
-identity or SAS write permissions. A certificate failure instead points to CA
-certificates and proxy trust configuration.
+DuckDB and Azure exceptions propagate unchanged from extension loading,
+authentication registration, writing and temporary-secret cleanup. Assquack keeps
+the original exception object, type, message, traceback, notes and exception
+chains. It does not replace native failures with `ExportError`, classify their
+text, redact their payloads or suppress their causes. Assquack's own configuration
+and target validation still use its existing validation exceptions.
 
-Backend messages can contain signed URLs, SQL values and credentials anywhere.
-Assquack therefore projects recognised facts into diagnostics rather than copying
-and attempting to redact arbitrary text. Unknown details are explicitly omitted;
-an unrecognised exception still identifies its operation but may require a new
-safe diagnostic rule. No original backend payload, exception notes or chained
-causes are retained on the public Azure export error. Local export errors and
-process-control exceptions such as cancellation keep their existing behaviour.
+If cleanup also fails after a write failure, the original write failure stays
+primary. Cleanup emits a separate warning with its original exception traceback.
+If cleanup alone fails, that original exception propagates and no success manifest
+is recorded. Temporary credentials are still scoped to the operation, completed
+traceback locals are cleared to release captured inputs, and the shared connection
+stays open. Cancellation and other process-control exceptions retain their
+existing behaviour.
 
-If cleanup also fails after a write failure, the write failure stays primary and
-cleanup emits a separate safe warning. If cleanup alone fails, the export fails
-and no success manifest is recorded. Discard the connection when its temporary
-secret cannot be removed; Assquack does not close the shared connection for you.
+Native exception messages and tracebacks may contain signed URLs, SQL values or
+credentials. Consuming applications own access control, retention and any
+redaction required by their logging systems. Assquack does not explicitly dump
+credential inputs or authentication SQL to logs, but does not mask values that a
+native exception contains.
 
 ## Format Policy
 
