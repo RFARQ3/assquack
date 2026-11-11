@@ -336,31 +336,6 @@ has been verified. This implementation does not add partitioning, snapshots, or
 custom format options. These unsupported destination fields are rejected during
 configuration validation.
 
-### Azure Failure Diagnostics
-
-Azure failures raise `ExportError` with the operation that failed: extension
-loading, authentication registration, writing, or temporary-secret cleanup. A
-write failure is not automatically described as an authentication failure.
-Recognised DuckDB/Python exception categories, HTTP failure statuses, Azure error
-codes and TLS/DNS signatures produce fixed explanations and suggested checks.
-For example, a native write error reporting HTTP 403 and
-`AuthorizationPermissionMismatch` identifies the write stage and advises checking
-identity or SAS write permissions. A certificate failure instead points to CA
-certificates and proxy trust configuration.
-
-Backend messages can contain signed URLs, SQL values and credentials anywhere.
-Assquack therefore projects recognised facts into diagnostics rather than copying
-and attempting to redact arbitrary text. Unknown details are explicitly omitted;
-an unrecognised exception still identifies its operation but may require a new
-safe diagnostic rule. No original backend payload, exception notes or chained
-causes are retained on the public Azure export error. Local export errors and
-process-control exceptions such as cancellation keep their existing behaviour.
-
-If cleanup also fails after a write failure, the write failure stays primary and
-cleanup emits a separate safe warning. If cleanup alone fails, the export fails
-and no success manifest is recorded. Discard the connection when its temporary
-secret cannot be removed; Assquack does not close the shared connection for you.
-
 ## Format Policy
 
 Parquet is the default compatibility target because it preserves typed columns,
