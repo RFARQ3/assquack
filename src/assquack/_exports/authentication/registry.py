@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -15,6 +16,7 @@ from assquack._exports.authentication.credentials import (
 from assquack._exports.authentication.local import LocalAuthenticator
 
 AuthFactory = Callable[[dict[str, SecretStr]], Authenticator]
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -52,13 +54,13 @@ class AuthenticationRegistry:
 
     def select(self, kind: str, method: str) -> Authenticator:
         """Capture configured inputs and select the first complete registration."""
-        candidates: list[AuthenticationRegistration] = []
+        candidates: list[tuple[str, AuthenticationRegistration]] = []
         for key, registration in self._registrations.items():
             registered_kind, registered_method = key
             if registered_kind == kind and (
                 method == "auto" or registered_method == method
             ):
-                candidates.append(registration)
+                candidates.append((registered_method, registration))
         if not candidates:
             raise ConfigurationError(
                 f"Unsupported authentication {method!r} for destination kind {kind!r}."
@@ -66,11 +68,19 @@ class AuthenticationRegistry:
 
         names = tuple(
             dict.fromkeys(
-                name for candidate in candidates for name in candidate.input_names
+                name for _, candidate in candidates for name in candidate.input_names
             )
         )
         available_inputs = load_inputs(names)
-        for candidate in candidates:
+        if kind == "azure":
+            # Log names only, including before missing configuration raises. Passing
+            # input objects to a logger would retain credentials in queued records.
+            _LOGGER.info(
+                "Azure authentication inputs: present=[%s]; absent=[%s].",
+                ", ".join(name for name in names if name in available_inputs),
+                ", ".join(name for name in names if name not in available_inputs),
+            )
+        for registered_method, candidate in candidates:
             if has_required_inputs(
                 available_inputs, candidate.acceptable_input_combinations
             ):
@@ -80,11 +90,21 @@ class AuthenticationRegistry:
                     for name in candidate.input_names
                     if name in available_inputs
                 }
-                return candidate.factory(inputs)
+                authentication = candidate.factory(inputs)
+                if kind == "azure":
+                    _LOGGER.info(
+                        "Azure authentication selected: method=%s; "
+                        "configured chain=%s.",
+                        registered_method,
+                        authentication.chain
+                        if isinstance(authentication, CredentialChainAuth)
+                        else "not applicable",
+                    )
+                return authentication
 
         alternatives = " or ".join(
             " + ".join(combination)
-            for candidate in candidates
+            for _, candidate in candidates
             for combination in candidate.acceptable_input_combinations
         )
         raise ConfigurationError(

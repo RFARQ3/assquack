@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -35,6 +35,26 @@ Excluded:
 - Arbitrary connection strings, account keys and credential-store/block integrations.
 
 ## Architecture Notes
+
+### Azure authentication INFO logging — 12 November 2026
+
+Implemented and independently reviewed: log candidate environment input names as
+present or absent before
+authentication selection, then the actual selected method and configured chain.
+Presence means nonblank configuration, not usable files or valid credentials.
+Keep values, paths, tokens and input objects out of these INFO log records. Local
+authentication remains silent, and native exception passthrough is unchanged.
+Use the standard Python logger without configuring application handlers or levels.
+Validate with synthetic environment/SAS/workload inputs, missing configuration,
+local authentication and direct inspection of captured log-record arguments.
+
+Validation: 139 focused offline tests passed. Independent review passed 119
+overlapping regression tests and six additional probes with no findings. Ruff,
+changed-file formatting, Pyright, documentation links and `git diff --check`
+passed. The full suite was not repeated because the established unrelated
+NumPy/pytz environment gaps remain. No credential files, real credentials or live
+services were accessed. Logging work is complete; the broader phase remains In
+Progress for its existing live acceptance work.
 
 ### Native Azure export exceptions — 11 November 2026
 

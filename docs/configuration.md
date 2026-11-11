@@ -411,6 +411,42 @@ Captured inputs determine the fingerprint; DuckDB still reads its
 runtime environment and obtains tokens when executing the export. No process
 variables are rewritten, and certificate/token files are not read for fingerprinting.
 
+### Authentication Selection Logs
+
+Azure authentication selection emits two INFO messages through the standard Python
+logger `assquack._exports.authentication.registry`:
+
+- Candidate environment input names that are present or absent. Present means the
+  value is nonblank, including after stripping whitespace for the presence check.
+- The actual selected authentication method and configured credential chain, such
+  as `method=credential_chain; configured chain=workload_identity`. SAS reports
+  `method=sas; configured chain=not applicable`.
+
+The input summary is emitted before missing-input validation fails. Only inputs
+considered by the requested method are listed: explicit SAS does not inspect
+credential-chain inputs. Local authentication emits neither message. These INFO
+records contain names and selection metadata only, never environment values,
+certificate/token paths, tokens or captured input objects.
+
+Selection does not prove authentication succeeded. A nonblank token-file variable
+does not prove that the file exists, is readable, contains a usable token or has
+the required Azure permissions. Assquack does not read credential files or make
+network probes for these messages. Native authentication/export errors continue
+to propagate unchanged.
+
+The consuming application configures Python logging and its handlers. For a
+standalone application, enable INFO output during application startup:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+```
+
+Applications with existing logging configuration should enable INFO for
+`assquack` (or the specific logger above) and ensure their handlers accept INFO.
+Assquack does not install handlers or change logging levels.
+
 ### Native Secrets And Supported Paths
 
 Credential-chain authentication registers `TYPE azure, PROVIDER credential_chain`.
