@@ -1,7 +1,7 @@
 # Export Compatibility
 
 Status: **In Progress**
-Last updated: 2026-11-09
+Last updated: 2026-11-11
 Epic: 01 MVP
 Phase: 04
 Related docs: [Roadmap](../../roadmap.md), [Developer API](../../developer-api.md), [Exports](../../exports.md), [Storage Model](../../storage-model.md)
@@ -35,6 +35,36 @@ Excluded:
 - Arbitrary connection strings, account keys and credential-store/block integrations.
 
 ## Architecture Notes
+
+### Safe Azure export diagnostics — 11 November 2026
+
+Implemented and independently reviewed: distinguish extension loading,
+credential registration, writing and
+temporary-secret cleanup. Preserve recognised native exception categories, HTTP
+statuses and Azure error codes with fixed actionable explanations. Do not copy
+arbitrary backend payloads, SQL, URLs, credentials or exception chains into the
+public error. Unknown diagnostics explicitly say that their details were withheld.
+Cleanup failure during another failure remains a secondary warning. Cancellation
+and other process-control exceptions retain their semantics.
+
+Offline synthetic tests cover all stages, diagnostic usefulness, formatted
+tracebacks, exception chains and cleanup logs. The public destination clears
+native traceback locals before detaching the original exception context, which
+Python context managers can reattach while unwinding a write failure. Independent
+adversarial tests cover a genuine offline missing-extension error, a malicious
+exception class name and a broken exception formatter.
+
+Validation: 134 focused tests passed; independent review's expanded selection
+passed 137 tests. The lifecycle matrix was then extended for cleanup-only failures
+and all 30 Azure export tests passed. Full-suite validation passed 511 tests,
+skipped 8 optional pandas/PyArrow cases and failed 3 unrelated tests because the
+existing environment lacks NumPy (two DuckDB UDF tests) and pytz (one timestamp
+fetch). No dependencies were installed to change that environment. Ruff, changed
+Python formatting, Pyright, Markdown links and `git diff --check` passed. The
+terminology scan retains only existing downstream/historical infrastructure
+references. No live credentials or calls were used. Extension installation and
+deployment configuration are outside this change. Diagnostic work is complete;
+the broader phase remains In Progress for its existing live acceptance work.
 
 ### Environment-only credential sourcing - 9 November 2026
 

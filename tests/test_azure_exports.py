@@ -73,7 +73,9 @@ def test_short_azure_uri_requires_sas_account(scheme) -> None:
 
 @pytest.mark.parametrize("explicit", [False, True])
 @pytest.mark.parametrize("auth", ["credential_chain", "sas", "auto"])
-@pytest.mark.parametrize("failure", [None, "CREATE TEMPORARY", "COPY"])
+@pytest.mark.parametrize(
+    "failure", [None, "CREATE TEMPORARY", "COPY", "DROP TEMPORARY"]
+)
 def test_actual_export_connection_lifecycle_and_manifest(
     tmp_path: Path,
     monkeypatch,

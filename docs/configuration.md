@@ -429,10 +429,14 @@ paths and signed URI query strings are rejected. Keep credentials out of URIs.
 
 Each secret has a unique name and directory scope ending in `/`. It is dropped
 after COPY, including failure. Cleanup failure propagates a safe error; cleanup
-failure during an existing error is logged safely and does not expose backend
-diagnostics. Credential-read, extension-load and authentication errors suppress their
-potentially sensitive printed exception context. Temporary secrets are removed;
-the shared connection stays open.
+failure during an existing error is logged safely without replacing that error.
+Azure export diagnostics distinguish extension loading, authentication
+registration, writing and cleanup. Recognised exception categories, HTTP statuses
+and Azure error codes remain visible with fixed explanations, while arbitrary
+backend text and original exception chains are withheld. See
+[Azure failure diagnostics](exports.md#azure-failure-diagnostics) for the limits
+and cleanup guidance. Credential-read errors also suppress potentially sensitive
+printed exception context. The shared connection stays open.
 No success manifest is recorded for a failed export or failed cleanup.
 
 Verification is offline with synthetic credentials and intercepted Azure SQL;
