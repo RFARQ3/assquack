@@ -5,7 +5,7 @@ Status: **In Progress**
 ### Linux Azure CA discovery — 12 November 2026
 
 Implementation: **Complete (offline)**; live deployment verification remains
-outstanding and the broader phase remains **In Progress**. Apply the verified Space Calculator transport
+outstanding and the broader phase remains **In Progress**. Apply platform-specific transport
 selection on the actual export connection after extension load and before
 authentication: `curl` on Linux, `default` elsewhere. Track removal against
 DuckDB Azure issue #185 and PR #186 in the source TODO, including shipped
