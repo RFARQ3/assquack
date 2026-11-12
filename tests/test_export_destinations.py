@@ -41,7 +41,13 @@ def intercepted_connections(monkeypatch):
 
         def execute(sql, parameters=None):
             if sql.strip().startswith(
-                ("LOAD azure", "CREATE TEMPORARY", "DROP TEMPORARY", "COPY")
+                (
+                    "LOAD azure",
+                    "SET azure_transport",
+                    "CREATE TEMPORARY",
+                    "DROP TEMPORARY",
+                    "COPY",
+                )
             ):
                 return proxy
             return real.execute(sql, parameters)

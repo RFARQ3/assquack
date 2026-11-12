@@ -231,9 +231,9 @@ def test_all_formats_use_azure_auth_and_native_copy(
         destination.export(connection, TableReference("main", "orders"), target)
         calls = connection.execute.call_args_list
         assert calls[0].args == ("LOAD azure",)
-        assert calls[1].args[0].startswith("CREATE TEMPORARY SECRET")
-        assert f"FORMAT {target.format}" in calls[2].args[0]
-        assert calls[2].args[1] == {"uri": target.resolved_uri}
+        assert calls[2].args[0].startswith("CREATE TEMPORARY SECRET")
+        assert f"FORMAT {target.format}" in calls[3].args[0]
+        assert calls[3].args[1] == {"uri": target.resolved_uri}
         assert calls[-1].args[0].startswith("DROP TEMPORARY SECRET")
 
 

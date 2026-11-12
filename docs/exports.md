@@ -19,6 +19,14 @@ once, and retains the resolved configuration privately for the operation.
 `export()` uses those selections and calls `DuckDBFileWriter` directly. Preparation
 sets up the connection and authentication; it cannot replace the resolved path.
 
+Azure preparation loads the provisioned extension, then selects `curl` transport
+on Linux and `default` elsewhere before registering credentials on the same
+connection. This temporarily works around Linux CA-bundle discovery failures
+([DuckDB issue #185](https://github.com/duckdb/duckdb-azure/issues/185),
+[upstream fix #186](https://github.com/duckdb/duckdb-azure/pull/186)). The image
+must still provide a readable trusted CA bundle; TLS verification stays enabled.
+No startup-process SQL or certificate-path symlink is required for this workaround.
+
 Exports explicitly set DuckDB `USE_TMP_FILE true`: write a temporary file before
 replacing the destination after a successful write. DuckDB owns this operation;
 Assquack does not add a separate staging/promotion layer. Replacement atomicity

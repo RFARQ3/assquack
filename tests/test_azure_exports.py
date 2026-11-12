@@ -31,7 +31,14 @@ def isolated_sas_environment(monkeypatch):
     return environment
 
 
-def test_secret_is_temporary_scoped_and_removed() -> None:
+@pytest.mark.parametrize(
+    "platform,transport",
+    [("linux", "curl"), ("win32", "default"), ("darwin", "default")],
+)
+def test_secret_is_temporary_scoped_and_removed(
+    monkeypatch, platform, transport
+) -> None:
+    monkeypatch.setattr("assquack._exports.preparation.azure.sys.platform", platform)
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
     uri = URI.replace("orders", "O'Brien")
     with AzurePreparationStrategy().prepare(
@@ -51,7 +58,8 @@ def test_secret_is_temporary_scoped_and_removed() -> None:
         connection.execute("COPY marker")
     calls = connection.execute.call_args_list
     assert calls[0].args == ("LOAD azure",)
-    sql, parameters = calls[1].args
+    assert calls[1].args == ("SET azure_transport_option_type = ?", [transport])
+    sql, parameters = calls[2].args
     assert sql.startswith("CREATE TEMPORARY SECRET")
     assert "PROVIDER credential_chain" in sql
     assert parameters == {"chain": "env", "scope": uri.rsplit("/", 1)[0] + "/"}
@@ -93,7 +101,13 @@ def test_actual_export_connection_lifecycle_and_manifest(
         def execute(sql, parameters=None):
             statement = sql.strip()
             if statement.startswith(
-                ("LOAD azure", "CREATE TEMPORARY", "DROP TEMPORARY", "COPY")
+                (
+                    "LOAD azure",
+                    "SET azure_transport",
+                    "CREATE TEMPORARY",
+                    "DROP TEMPORARY",
+                    "COPY",
+                )
             ):
                 if failure is not None and statement.startswith(failure):
                     raise RuntimeError("synthetic export failure")

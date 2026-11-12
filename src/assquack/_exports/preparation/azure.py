@@ -1,3 +1,4 @@
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import cast
@@ -62,5 +63,25 @@ class AzurePreparationStrategy:
         validate_azure_target(uri, azure_auth.account_name)
         # Deployments provision extensions; Assquack never installs them here.
         connection.execute("LOAD azure")
+        # TODO: Remove this transport override once the supported Azure extension
+        # artifacts include the CA discovery fix and default transport is verified
+        # in our Linux deployment images, without certificate-path symlinks.
+        # https://github.com/duckdb/duckdb-azure/issues/185
+        # https://github.com/duckdb/duckdb-azure/pull/186
+        # The default SDK transport can use a compile-time Red Hat CA path on
+        # Debian/Ubuntu. Explicit curl enables DuckDB's distro CA-bundle search;
+        # otherwise HTTPS can fail before token acquisition, misleadingly reported
+        # as a ChainedTokenCredential failure. Related Azure SDK reports:
+        # https://github.com/Azure/azure-sdk-for-cpp/issues/4983
+        # https://github.com/Azure/azure-sdk-for-cpp/issues/4738
+        # Keep default elsewhere: forcing curl broke Windows certificate validation
+        # in Space Calculator's verification. Apply on this export connection before
+        # authentication creates a client; setting it in a startup process is not
+        # sufficient. Before removal, verify token acquisition and Azure reads/writes
+        # on Linux plus Windows/macOS regressions, update the platform tests/docs,
+        # and ensure cached extension binaries are upgraded too. A merged upstream
+        # PR or a Python DuckDB upgrade alone does not establish those conditions.
+        transport = "curl" if sys.platform == "linux" else "default"
+        connection.execute("SET azure_transport_option_type = ?", [transport])
         with auth.authenticate(connection, uri):
             yield

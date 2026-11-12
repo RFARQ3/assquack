@@ -114,7 +114,7 @@ def test_sas_registration_connection_string_and_scope(scheme, qualified, environ
     connection = MagicMock(spec=duckdb.DuckDBPyConnection)
     with azure_export_auth(connection, uri, "sas"):
         pass
-    sql, parameters = connection.execute.call_args_list[1].args
+    sql, parameters = connection.execute.call_args_list[2].args
     assert "PROVIDER config" in sql
     assert token not in sql
     assert parameters == {

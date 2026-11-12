@@ -1,6 +1,21 @@
 # Export Compatibility
 
 Status: **In Progress**
+
+### Linux Azure CA discovery — 12 November 2026
+
+Implementation: **Complete (offline)**; live deployment verification remains
+outstanding and the broader phase remains **In Progress**. Apply the verified Space Calculator transport
+selection on the actual export connection after extension load and before
+authentication: `curl` on Linux, `default` elsewhere. Track removal against
+DuckDB Azure issue #185 and PR #186 in the source TODO, including shipped
+extension/cache verification and Linux/Windows/macOS acceptance checks.
+Offline validation covers platform selection and registration ordering, plus
+existing authentication, export lifecycle and native-error regression tests.
+Live Azure validation is separate; this change does not install certificates.
+Validation: 141 focused export/authentication tests passed, repository Ruff and
+Pyright passed, and `git diff --check` passed. Tests use synthetic credentials
+and intercepted Azure calls; no customer systems were contacted.
 Last updated: 2026-11-12
 Epic: 01 MVP
 Phase: 04
